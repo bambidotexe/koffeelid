@@ -1,0 +1,12 @@
+KoffeeLid lid-close sound effects
+
+The six sound effects below were supplied by the app's author on 2026-09-11,
+replacing the three Freesound clips used up to v0.0.1. All six are free to use;
+no attribution is required.
+
+close-sound-blip-pop.mp3
+close-sound-bloop.mp3
+close-sound-chime-blip.mp3
+close-sound-enter.mp3
+close-sound-notification.mp3
+close-sound-tick.mp3

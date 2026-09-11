@@ -1,0 +1,1706 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "${applicationName} screen on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} écran allumé"
+          }
+        }
+      }
+    },
+    "${applicationName} status": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "État de ${applicationName}"
+          }
+        }
+      }
+    },
+    "%@ arms one close. Menu bar and keyboard shortcut arming stay on until you turn KoffeeLid off. Armed + screen on also keeps the display from sleeping.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ active pour une seule fermeture. L’activation depuis la barre des menus ou le raccourci clavier reste jusqu’à ce que vous désactiviez KoffeeLid. Activé + écran allumé empêche aussi l’écran de s’éteindre."
+          }
+        }
+      }
+    },
+    "%d min": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d min"
+          }
+        }
+      }
+    },
+    "%d s": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d s"
+          }
+        }
+      }
+    },
+    "Activation after": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activation après"
+          }
+        }
+      }
+    },
+    "Activity": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activité"
+          }
+        }
+      }
+    },
+    "Adds one line to ~/.zshrc so commands running longer than a few seconds arm KoffeeLid too. Open a new terminal afterwards.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoute une ligne à ~/.zshrc pour que les commandes de plus de quelques secondes activent aussi KoffeeLid. Ouvrez ensuite un nouveau terminal."
+          }
+        }
+      }
+    },
+    "Advanced settings…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages avancés…"
+          }
+        }
+      }
+    },
+    "All set": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout est prêt"
+          }
+        }
+      }
+    },
+    "Allow…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser…"
+          }
+        }
+      }
+    },
+    "Another app or automation put your Mac to sleep while KoffeeLid was armed. Check your charging, scheduling, and automation settings before trying again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une autre app ou automatisation a mis votre Mac en veille alors que KoffeeLid était activé. Vérifiez vos réglages de charge, de programmation et d’automatisation avant de réessayer."
+          }
+        }
+      }
+    },
+    "App": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App"
+          }
+        }
+      }
+    },
+    "Approve KoffeeLid in System Settings › General › Login Items.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisez KoffeeLid dans Réglages Système › Général › Ouverture."
+          }
+        }
+      }
+    },
+    "Arm ${applicationName}": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer ${applicationName}"
+          }
+        }
+      }
+    },
+    "Arm KoffeeLid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer KoffeeLid"
+          }
+        }
+      }
+    },
+    "Arm KoffeeLid + screen on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer KoffeeLid + écran allumé"
+          }
+        }
+      }
+    },
+    "Arm KoffeeLid and keep the display awake indefinitely.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active KoffeeLid et garde l’écran allumé indéfiniment."
+          }
+        }
+      }
+    },
+    "Arm while you work": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "S’activer pendant que vous travaillez"
+          }
+        }
+      }
+    },
+    "Arm with": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer avec"
+          }
+        }
+      }
+    },
+    "Armed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé"
+          }
+        }
+      }
+    },
+    "Armed + screen on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé + écran allumé"
+          }
+        }
+      }
+    },
+    "Armed + screen on shortcut": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raccourci Activé + écran allumé"
+          }
+        }
+      }
+    },
+    "Armed shortcut": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raccourci Activé"
+          }
+        }
+      }
+    },
+    "Auto-arm arms only from Off, never shows in the menu bar and ends on its own once the work is over: half an hour after Claude Code, a minute after a command (Advanced). \"Disarm once finished\" in the menu ends your own arm a minute after the work is over.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’activation automatique ne part que depuis Désactivé, n’apparaît jamais dans la barre des menus et s’arrête d’elle-même une fois le travail fini : une demi-heure après Claude Code, une minute après une commande (Avancé). « Désactiver une fois terminé » dans le menu met fin à votre propre activation une minute après la fin du travail."
+          }
+        }
+      }
+    },
+    "Auto-arm on activity": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activation automatique sur activité"
+          }
+        }
+      }
+    },
+    "Auto-armed while a command runs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant qu'une commande tourne"
+          }
+        }
+      }
+    },
+    "Auto-armed while Claude Code and a command run": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant que Claude Code et une commande tournent"
+          }
+        }
+      }
+    },
+    "Auto-armed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement"
+          }
+        }
+      }
+    },
+    "Auto-armed while Claude Code works": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant que Claude Code travaille"
+          }
+        }
+      }
+    },
+    "Auto-armed, off in %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement, fin dans %@"
+          }
+        }
+      }
+    },
+    "Auto-disarm after a command finishes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivation automatique après la fin d'une commande"
+          }
+        }
+      }
+    },
+    "Auto-disarm after Claude Code finishes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivation automatique après la fin de Claude Code"
+          }
+        }
+      }
+    },
+    "Battery dropped to %d%%. The low-battery safety disarmed KoffeeLid so your Mac can sleep instead of running flat.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le niveau de batterie est tombé à %d %%. La protection contre la batterie faible a désactivé KoffeeLid afin que votre Mac puisse se mettre en veille au lieu de se décharger complètement."
+          }
+        }
+      }
+    },
+    "Battery is at %d%%. Charge the Mac or lower the low-battery threshold.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La batterie est à %d %%. Chargez le Mac ou abaissez le seuil de batterie faible."
+          }
+        }
+      }
+    },
+    "Blip pop": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blip pop"
+          }
+        }
+      }
+    },
+    "Bloop": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bloop"
+          }
+        }
+      }
+    },
+    "Blur strength": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intensité du flou"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler"
+          }
+        }
+      }
+    },
+    "Cancel if reopened by": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler si réouvert de"
+          }
+        }
+      }
+    },
+    "Chime blip": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carillon blip"
+          }
+        }
+      }
+    },
+    "Claude Code": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code"
+          }
+        }
+      }
+    },
+    "Claude Code & agents": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code et agents"
+          }
+        }
+      }
+    },
+    "Claude Code sessions blocked on a question or a permission do not count as running. A turn whose helpers are still out stays running until they fall silent.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une session Claude Code bloquée sur une question ou une permission ne compte pas comme active. Un tour dont les agents auxiliaires tournent encore reste actif jusqu’à ce qu’ils se taisent."
+          }
+        }
+      }
+    },
+    "Close the MacBook and walk away: Claude Code, builds, servers and downloads keep running on a dark, silent display. Open the lid and your Mac locks.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rabattez l’écran et partez : Claude Code, vos builds, serveurs et téléchargements continuent sur un écran noir et silencieux. Rouvrez-le et votre Mac se verrouille."
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuer"
+          }
+        }
+      }
+    },
+    "Crash recovery": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récupération après plantage"
+          }
+        }
+      }
+    },
+    "Defaults": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valeurs par défaut"
+          }
+        }
+      }
+    },
+    "Diagnostics log": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Journal de diagnostic"
+          }
+        }
+      }
+    },
+    "Disarm once finished": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver une fois terminé"
+          }
+        }
+      }
+    },
+    "Downloads": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargements"
+          }
+        }
+      }
+    },
+    "Edge softness": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adoucissement des bords"
+          }
+        }
+      }
+    },
+    "Enter": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrée"
+          }
+        }
+      }
+    },
+    "Finish": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminer"
+          }
+        }
+      }
+    },
+    "Fn": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fn"
+          }
+        }
+      }
+    },
+    "Fn (Globe)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fn (Globe)"
+          }
+        }
+      }
+    },
+    "Fn + close lid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fn + rabattre l’écran"
+          }
+        }
+      }
+    },
+    "Force volume for lid-close sound": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forcer le volume du son de fermeture"
+          }
+        }
+      }
+    },
+    "Forced volume unmutes and sets the output level only while the sound plays, then restores your volume. Your Mac locks whenever the lid reopens.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le volume forcé réactive le son et règle le niveau de sortie uniquement pendant la lecture du son, puis rétablit votre volume. Votre Mac se verrouille chaque fois que vous ouvrez l’écran."
+          }
+        }
+      }
+    },
+    "Granted": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accordée"
+          }
+        }
+      }
+    },
+    "Hold %@ while you start closing the lid. KoffeeLid arms after the activation travel; the plane appears once the lid passes the gesture's start angle (Lid effect below) and follows it from there. If the Globe key triggers its system action when released, set System Settings › Keyboard › \"Press 🌐 key to\" to Do Nothing.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintenez %@ en commençant à rabattre l’écran. KoffeeLid s’active après la course d’activation ; le plan apparaît dès que l’écran passe sous l’angle de départ du geste (Effet de l’écran, ci-dessous) et le suit ensuite. Si la touche Globe déclenche son action système au relâchement, réglez Réglages Système › Clavier › « Appuyer sur 🌐 pour » sur Ne rien faire."
+          }
+        }
+      }
+    },
+    "Hold while closing": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touche maintenue en rabattant"
+          }
+        }
+      }
+    },
+    "Hooks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hooks"
+          }
+        }
+      }
+    },
+    "Ignore commands shorter than": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignorer les commandes plus courtes que"
+          }
+        }
+      }
+    },
+    "Inner screen zoom": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom de l’écran intérieur"
+          }
+        }
+      }
+    },
+    "Keep this Mac awake with the lid closed and the built-in display off.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garder ce Mac éveillé lorsque l’écran est rabattu, avec l’écran intégré éteint."
+          }
+        }
+      }
+    },
+    "KoffeeLid Status": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "État de KoffeeLid"
+          }
+        }
+      }
+    },
+    "KoffeeLid cannot start": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ne peut pas démarrer"
+          }
+        }
+      }
+    },
+    "KoffeeLid could not change the Mac's sleep setting. Try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid n’a pas pu modifier le réglage de mise en veille du Mac. Réessayez."
+          }
+        }
+      }
+    },
+    "KoffeeLid could not lock the screen": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid n'a pas pu verrouiller l'écran"
+          }
+        }
+      }
+    },
+    "KoffeeLid could not open the power-management connection it needs. Restart the Mac and try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid n'a pas pu ouvrir la connexion de gestion de l'alimentation dont il a besoin. Redémarrez le Mac et réessayez."
+          }
+        }
+      }
+    },
+    "KoffeeLid could not restore lid sleep before quitting. Restart the Mac to reset it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid n'a pas pu rétablir la mise en veille à la fermeture de l'écran avant de quitter. Redémarrez le Mac pour la réinitialiser."
+          }
+        }
+      }
+    },
+    "KoffeeLid could not run pmset to allow sleep again. Run `sudo pmset disablesleep 0` in Terminal.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid n’a pas pu exécuter pmset pour autoriser à nouveau la veille. Exécutez `sudo pmset disablesleep 0` dans le Terminal."
+          }
+        }
+      }
+    },
+    "KoffeeLid could not verify the display setup. Disconnect any additional displays and try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid n’a pas pu vérifier la configuration des écrans. Déconnectez tous les écrans supplémentaires, puis réessayez."
+          }
+        }
+      }
+    },
+    "KoffeeLid did not arm": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ne s'est pas activé"
+          }
+        }
+      }
+    },
+    "KoffeeLid did not arm because macOS reports high thermal pressure. Let the Mac cool, then try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ne s’est pas activé, car macOS signale une pression thermique élevée. Laissez le Mac refroidir, puis réessayez."
+          }
+        }
+      }
+    },
+    "KoffeeLid did not arm.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ne s'est pas activé."
+          }
+        }
+      }
+    },
+    "KoffeeLid disarmed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid désactivé"
+          }
+        }
+      }
+    },
+    "KoffeeLid held your Mac awake": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid a maintenu votre Mac éveillé"
+          }
+        }
+      }
+    },
+    "KoffeeLid is retrying. Until the warning icon clears, open the lid before leaving your Mac; restarting the Mac always resets this setting.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid retente l’opération. Tant que l’icône d’avertissement reste affichée, ouvrez l’écran avant de laisser votre Mac sans surveillance. Le redémarrage du Mac réinitialise toujours ce réglage."
+          }
+        }
+      }
+    },
+    "KoffeeLid is still starting. Try again in a moment.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid est encore en train de démarrer. Réessayez dans un instant."
+          }
+        }
+      }
+    },
+    "KoffeeLid needs a few things from macOS. Items marked with a warning are required for a closed Mac to stay awake safely.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid a besoin de quelques réglages de macOS. Les éléments marqués d’un avertissement sont indispensables pour qu’un Mac fermé reste éveillé en toute sécurité."
+          }
+        }
+      }
+    },
+    "Launch at login": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir à la connexion"
+          }
+        }
+      }
+    },
+    "Let this Mac sleep normally when the lid closes.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laisser ce Mac se mettre normalement en veille lorsque l’écran est rabattu."
+          }
+        }
+      }
+    },
+    "Lets the lid effect show your desktop folding as the lid closes.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permet à l’effet de fermeture d’afficher votre bureau qui se replie lorsque vous rabattez l’écran."
+          }
+        }
+      }
+    },
+    "Lets the watchdog relaunch KoffeeLid after a crash and restore lid sleep. Approve KoffeeLid in System Settings › General › Login Items.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permet au chien de garde de relancer KoffeeLid après un plantage et de rétablir la veille à la fermeture. Approuvez KoffeeLid dans Réglages Système › Général › Ouverture."
+          }
+        }
+      }
+    },
+    "Lid angle": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angle de l'écran"
+          }
+        }
+      }
+    },
+    "Lid effect": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effet d'écran"
+          }
+        }
+      }
+    },
+    "Lid gesture": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geste de l’écran"
+          }
+        }
+      }
+    },
+    "Lid sleep could not be restored": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de rétablir la mise en veille à la fermeture"
+          }
+        }
+      }
+    },
+    "Lid sleep restoration pending": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rétablissement de la mise en veille en attente"
+          }
+        }
+      }
+    },
+    "Lid-close sound": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son de fermeture"
+          }
+        }
+      }
+    },
+    "Lock it now with Control-Command-Q, then check Settings > General.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verrouillez-le maintenant avec Contrôle-Commande-Q, puis vérifiez Réglages > Général."
+          }
+        }
+      }
+    },
+    "Login Items": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Éléments d’ouverture"
+          }
+        }
+      }
+    },
+    "Look for the mug in your menu bar, at the top right. Hold %@ and close the lid anytime to keep working.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez la tasse en haut à droite de la barre des menus. À tout moment, maintenez %@ enfoncée et rabattez l’écran pour continuer à travailler."
+          }
+        }
+      }
+    },
+    "Low-battery disarm": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivation batterie faible"
+          }
+        }
+      }
+    },
+    "Not granted": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non accordé"
+          }
+        }
+      }
+    },
+    "Not set up": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non configuré"
+          }
+        }
+      }
+    },
+    "Notification": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification"
+          }
+        }
+      }
+    },
+    "Notifications": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé"
+          }
+        }
+      }
+    },
+    "Off ↔ Armed + screen on. From Armed, goes to Armed + screen on.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé ↔ Activé + écran allumé. Depuis Activé, passe à Activé + écran allumé."
+          }
+        }
+      }
+    },
+    "Off ↔ Armed. From Armed + screen on, goes to Armed.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé ↔ Activé. Depuis Activé + écran allumé, passe à Activé."
+          }
+        }
+      }
+    },
+    "Open Login Items": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir Ouverture"
+          }
+        }
+      }
+    },
+    "Open diagnostics log": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir le journal de diagnostic"
+          }
+        }
+      }
+    },
+    "Option": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option"
+          }
+        }
+      }
+    },
+    "Option + close lid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option + rabattre l’écran"
+          }
+        }
+      }
+    },
+    "Optional. Let KoffeeLid arm itself while Claude Code or a terminal command is running, and disarm a minute after nothing is. Setting up either turns auto-arm on; both can be changed later in Settings.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Facultatif. Laissez KoffeeLid s’activer tout seul quand Claude Code ou une commande du terminal tourne, et se désactiver une minute après que plus rien ne tourne. Configurer l’un ou l’autre active cette option ; tout se modifie ensuite dans Réglages."
+          }
+        }
+      }
+    },
+    "Permissions": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisations"
+          }
+        }
+      }
+    },
+    "Perspective": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perspective"
+          }
+        }
+      }
+    },
+    "Preview": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperçu"
+          }
+        }
+      }
+    },
+    "Quit KoffeeLid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitter KoffeeLid"
+          }
+        }
+      }
+    },
+    "Remove": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer"
+          }
+        }
+      }
+    },
+    "Report the current KoffeeLid mode: off, armed or armed + screen on.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indique le mode actuel de KoffeeLid : désactivé, activé ou activé + écran allumé."
+          }
+        }
+      }
+    },
+    "Required": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requis"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser"
+          }
+        }
+      }
+    },
+    "Reset KoffeeLid?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser KoffeeLid ?"
+          }
+        }
+      }
+    },
+    "Reset permissions and undo every change…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser les autorisations et annuler toutes les modifications…"
+          }
+        }
+      }
+    },
+    "Responsiveness": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réactivité"
+          }
+        }
+      }
+    },
+    "Return to flat when still for": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retour à plat après une pause de"
+          }
+        }
+      }
+    },
+    "Right-click menu bar icon": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clic droit sur l'icône de la barre des menus"
+          }
+        }
+      }
+    },
+    "Screen Recording": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrement de l'écran"
+          }
+        }
+      }
+    },
+    "Screen on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écran allumé"
+          }
+        }
+      }
+    },
+    "Sensor": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capteur"
+          }
+        }
+      }
+    },
+    "Servers & builds": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveurs et builds"
+          }
+        }
+      }
+    },
+    "Set up": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuré"
+          }
+        }
+      }
+    },
+    "Set up…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurer…"
+          }
+        }
+      }
+    },
+    "Settings…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages…"
+          }
+        }
+      }
+    },
+    "Shading": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ombrage"
+          }
+        }
+      }
+    },
+    "Show lid angle": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher l'angle de l'écran"
+          }
+        }
+      }
+    },
+    "Show onboarding again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revoir l’introduction"
+          }
+        }
+      }
+    },
+    "Simulate a fold": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simuler un pli"
+          }
+        }
+      }
+    },
+    "Skip": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignorer"
+          }
+        }
+      }
+    },
+    "Sleep could not be re-enabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La veille n’a pas pu être réactivée"
+          }
+        }
+      }
+    },
+    "Sleep lock": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verrou de veille"
+          }
+        }
+      }
+    },
+    "Standing by: external display": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En attente : écran externe"
+          }
+        }
+      }
+    },
+    "Start below (except the lid gesture)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer sous (sauf geste de l’écran)"
+          }
+        }
+      }
+    },
+    "Start below (with the lid gesture)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer sous (avec geste de l’écran)"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "État"
+          }
+        }
+      }
+    },
+    "Stops macOS from sleeping the closed Mac when the charger is plugged in or a display changes. Asks for your administrator password once.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empêche macOS de mettre en veille le Mac fermé lorsque le chargeur est branché ou qu’un écran change. Demande votre mot de passe administrateur une seule fois."
+          }
+        }
+      }
+    },
+    "Tells KoffeeLid when a Claude Code session is working, so it arms while you close the lid and disarms once the turn is over. Adds hooks to ~/.claude/settings.json (backed up first).": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indique à KoffeeLid quand une session Claude Code travaille : il s’active pendant que vous fermez l’écran et se désactive une fois le tour terminé. Ajoute des hooks à ~/.claude/settings.json (sauvegardé d’abord)."
+          }
+        }
+      }
+    },
+    "Tells you when KoffeeLid disarms itself (low battery, thermal pressure) or cannot lock the screen.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous prévient lorsque KoffeeLid se désactive de lui-même (batterie faible, surchauffe) ou ne parvient pas à verrouiller l’écran."
+          }
+        }
+      }
+    },
+    "Terminal (zsh)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal (zsh)"
+          }
+        }
+      }
+    },
+    "The lid gesture needs a Mac with a lid-angle sensor. Right-click arming and the keyboard shortcut still work.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le geste de l’écran nécessite un Mac doté d’un capteur d’angle d’ouverture. L’activation par clic droit et le raccourci clavier restent disponibles."
+          }
+        }
+      }
+    },
+    "The sleep lock and Login Items are required for a closed Mac to stay awake safely. The lid effect needs Screen Recording; after allowing it, quit and reopen KoffeeLid.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le verrou de veille et les éléments d’ouverture sont indispensables pour qu’un Mac fermé reste éveillé en toute sécurité. L’effet d’écran nécessite l’enregistrement de l’écran ; après l’avoir autorisé, quittez puis rouvrez KoffeeLid."
+          }
+        }
+      }
+    },
+    "The sleep lock could not be set up": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le verrou de veille n’a pas pu être configuré"
+          }
+        }
+      }
+    },
+    "This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen Recording and notification permissions, and clears every setting. The onboarding then starts again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactive KoffeeLid, retire le verrou de veille et sa règle sudoers (mot de passe administrateur), désinscrit les éléments d’ouverture, réinitialise les autorisations Enregistrement de l’écran et Notifications, et efface tous les réglages. L’introduction recommence ensuite."
+          }
+        }
+      }
+    },
+    "Tick": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tic"
+          }
+        }
+      }
+    },
+    "Toggle": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basculer"
+          }
+        }
+      }
+    },
+    "Toggle ${applicationName}": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer ou désactiver ${applicationName}"
+          }
+        }
+      }
+    },
+    "Toggle ${applicationName} screen on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basculer ${applicationName} écran allumé"
+          }
+        }
+      }
+    },
+    "Toggle KoffeeLid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer ou désactiver KoffeeLid"
+          }
+        }
+      }
+    },
+    "Toggle KoffeeLid + screen on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basculer KoffeeLid + écran allumé"
+          }
+        }
+      }
+    },
+    "Toggle screen on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basculer écran allumé"
+          }
+        }
+      }
+    },
+    "Turn KoffeeLid Off": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver KoffeeLid"
+          }
+        }
+      }
+    },
+    "Turn off ${applicationName}": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver ${applicationName}"
+          }
+        }
+      }
+    },
+    "Watchdog enabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surveillance activée"
+          }
+        }
+      }
+    },
+    "Watchdog not registered": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surveillance non enregistrée"
+          }
+        }
+      }
+    },
+    "Watchdog unavailable": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surveillance indisponible"
+          }
+        }
+      }
+    },
+    "While Claude Code or a terminal command is running": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quand Claude Code ou une commande du terminal tourne"
+          }
+        }
+      }
+    },
+    "While KoffeeLid is armed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lorsque KoffeeLid est actif"
+          }
+        }
+      }
+    },
+    "While armed, closing the lid shows the desktop as an inner screen that stays upright behind the folding display: anchored at the hinge, it grows as the lid tilts (100 % zoom is the true geometry, 1 ÷ cos of the fold), narrows toward the top as it recedes behind the glass (perspective), blurs there, where the display is furthest from it, melts into the dark at its edges (edge softness: crisp at the hinge, widest at the top corners) and darkens toward the top (shading). The fold follows the lid 1:1 below the gesture's start angle, where the inner screen stands. The sensor reports the angle every 100 ms; Responsiveness sets how far the plane predicts between reports: 0 % waits for each report (smoothest, about 150 ms behind the lid), 100 % runs ahead (about 80 ms behind, a little jitter on slow closes). Nothing is captured until the lid moves. Armed from the menu bar or the shortcut, the effect waits until the lid is below the angle above, then moves faster than the lid until it has caught up.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une fois activé, fermer le capot montre le bureau comme un écran intérieur qui reste droit derrière l’écran qui se replie : ancré à la charnière, il grandit à mesure que le capot s’incline (un zoom à 100 % suit la géométrie exacte, 1 ÷ cos de l’angle de pli), se rétrécit vers le haut en s’éloignant derrière la vitre (perspective), s’y floute, là où l’écran en est le plus éloigné, se fond dans le noir sur ses bords (adoucissement des bords : nets à la charnière, le plus larges aux coins supérieurs) et s’assombrit vers le haut (ombrage). Le pli suit l’écran degré pour degré sous l’angle de départ du geste, là où se tient l’écran intérieur. Le capteur transmet l’angle toutes les 100 ms ; Réactivité règle ce que le plan anticipe entre deux mesures : 0 % attend chaque mesure (le plus fluide, environ 150 ms derrière le capot), 100 % anticipe (environ 80 ms derrière, un léger tremblement sur les fermetures lentes). Rien n’est capturé tant que le capot ne bouge pas. Activé depuis la barre des menus ou le raccourci, l’effet attend que le capot passe sous l’angle ci-dessus, puis avance plus vite que l’écran jusqu’à l’avoir rattrapé."
+          }
+        }
+      }
+    },
+    "With the log off KoffeeLid writes nothing to diagnostics.log. Turn it back on before reporting a problem.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Journal désactivé, KoffeeLid n’écrit plus rien dans diagnostics.log. Réactivez-le avant de signaler un problème."
+          }
+        }
+      }
+    },
+    "Your agents keep working. Lid closed.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos agents continuent de travailler. Écran rabattu."
+          }
+        }
+      }
+    },
+    "agents": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "agents"
+          }
+        }
+      }
+    },
+    "critical": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "critique"
+          }
+        }
+      }
+    },
+    "macOS reported %@ thermal pressure. Normal lid-close sleep has been restored.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS a signalé une pression thermique %@. La mise en veille normale à la fermeture de l’écran a été rétablie."
+          }
+        }
+      }
+    },
+    "macOS stopped reporting battery charge while the low-battery safety was enabled. KoffeeLid disarmed so the Mac can sleep.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS a cessé de communiquer le niveau de charge alors que la protection contre la batterie faible était activée. KoffeeLid s’est désactivé afin que le Mac puisse se mettre en veille."
+          }
+        }
+      }
+    },
+    "macOS tried to sleep the closed Mac after a charger or display change. KoffeeLid kept it running in the background. Set up the sleep lock (see the documentation) to stop this from happening.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS a tenté de mettre en veille le Mac fermé après un changement de chargeur ou d’écran. KoffeeLid l’a maintenu en fonctionnement en arrière-plan. Configurez le verrou de veille (voir la documentation) pour que cela ne se reproduise plus."
+          }
+        }
+      }
+    },
+    "serious": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "élevée"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

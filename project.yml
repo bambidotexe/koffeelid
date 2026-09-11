@@ -1,0 +1,99 @@
+name: KoffeeLid
+options:
+  bundleIdPrefix: dev.rubens
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "26.6"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: 75MADVD27T   # Wooflab (paid team: Developer ID + notarization; script/release.sh)
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+packages:
+  KoffeeLidPackage:
+    path: .
+targets:
+  KoffeeLidWatchdog:
+    type: tool
+    platform: macOS
+    sources: [Watchdog/Sources]
+    dependencies:
+      - package: KoffeeLidPackage
+        product: KoffeeLidCore
+    settings:
+      base:
+        PRODUCT_NAME: KoffeeLidWatchdog
+        PRODUCT_BUNDLE_IDENTIFIER: dev.rubens.koffeelid.watchdog
+        SKIP_INSTALL: YES
+  KoffeeLidHook:
+    type: tool
+    platform: macOS
+    sources: [Hook/Sources]
+    dependencies:
+      - package: KoffeeLidPackage
+        product: KoffeeLidCore
+    settings:
+      base:
+        PRODUCT_NAME: KoffeeLidHook
+        PRODUCT_BUNDLE_IDENTIFIER: dev.rubens.koffeelid.hook
+        SKIP_INSTALL: YES
+  KoffeeLid:
+    type: application
+    platform: macOS
+    sources:
+      - App/Sources
+      - path: App/Resources
+        excludes: [Sounds]
+      - path: App/Resources/Sounds
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: KoffeeLidPackage
+        product: KoffeeLidCore
+      - package: KoffeeLidPackage
+        product: LidPlaneKit
+      - target: KoffeeLidWatchdog
+        embed: true
+        copy:
+          destination: executables
+      - target: KoffeeLidHook
+        embed: true
+        copy:
+          destination: executables
+      - sdk: IOKit.framework
+      - sdk: Carbon.framework
+      - sdk: ServiceManagement.framework
+      - sdk: UserNotifications.framework
+      - sdk: AVFoundation.framework
+      - sdk: CoreAudio.framework
+      - sdk: AudioToolbox.framework
+      - sdk: AppIntents.framework
+      - sdk: ScreenCaptureKit.framework
+    settings:
+      base:
+        PRODUCT_NAME: KoffeeLid
+        PRODUCT_BUNDLE_IDENTIFIER: dev.rubens.koffeelid
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_OBJC_BRIDGING_HEADER: ""
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: App/KoffeeLid.entitlements
+    postBuildScripts:
+      - name: Embed LaunchAgent plist
+        script: |
+          mkdir -p "${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchAgents"
+          cp "${SRCROOT}/App/LaunchAgents/dev.rubens.koffeelid.agent.plist" "${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchAgents/"
+        outputFiles:
+          - $(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Library/LaunchAgents/dev.rubens.koffeelid.agent.plist
+schemes:
+  KoffeeLid:
+    build:
+      targets: { KoffeeLid: all }
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -1,0 +1,12 @@
+.build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+.DS_Store
+xcuserdata/
+dist/
+*.xcarchive
+
+# Claude Code worktrees
+.claude/worktrees/
+build/
