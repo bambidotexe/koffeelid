@@ -186,8 +186,9 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 - **v1.0.2 released (2026-09-13, evening)**: the menu-bar cup sits half a point lower (1 pt of headroom in the
   glyph image, `StatusItemController.mugImage`), tuned on the real bar in two rounds; version bumped in the three
   places (CFBundleVersion 3), `dist/KoffeeLid-1.0.2.dmg` built the same way as 1.0.1, tag `v1.0.2` pushed, GitHub
-  release created with the DMG. The `/Applications` copy is this build, so the `get-task-allow` fix is now
-  installed too.
+  release created with the DMG. The `/Applications` copy is the same code but still numbered 1.0.1 (installed
+  before the bump; it already carries the glyph fix and the `get-task-allow` fix); a `script/install.sh` once the
+  lid is open and the mode is off brings the version string in line.
 - **v1.0.1 released (2026-09-13)**: version bumped in the three places, `dist/KoffeeLid-1.0.1.dmg` built from a
   clean Release build (UDZO, volume "KoffeeLid", app + Applications symlink; Apple-Development-signed, hardened,
   **no `get-task-allow`** — the security fix ships), tag `v1.0.1` pushed, GitHub release created with the DMG.
