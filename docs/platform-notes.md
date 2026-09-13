@@ -100,8 +100,11 @@ apps to be quit before testing. Vorssaint, a keep-awake utility, holds only `Pre
 
 - **Sleep lock** = a sudoers rule (`/etc/sudoers.d/koffeelid`, 0440) written as root through
   `NSAppleScript` `do shell script … with administrator privileges` (`SleepLock.installRule/removeRule`,
-  script from `SleepLockSetup`, validated with `visudo -cf` in a temp file before the move). `sudo -n -l
-  /usr/bin/pmset disablesleep 1` tells whether it exists without a password.
+  script from `SleepLockSetup`). The script runs as root, so it names every tool by absolute path and stages
+  the rule as a dotted temp file inside `/etc/sudoers.d` itself (root-only, and sudo ignores dotted names), runs
+  `visudo -cf` on it, then renames it into place; a failed validation removes the temp file. Whether the
+  privileged shell inherits the app's environment is unverified, and the script no longer depends on it.
+  `sudo -n -l /usr/bin/pmset disablesleep 1` tells whether it exists without a password.
 - **Login Items** (watchdog agent) = Background Task Management, keyed by bundle id **and team id**
   (`sfltool dumpbtm` shows Disposition and Team Identifier). No per-app reset exists; `sfltool resetbtm` wipes
   every app's approvals. Changing the signing team makes the agent a new item that needs approval again.

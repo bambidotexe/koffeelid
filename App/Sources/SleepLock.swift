@@ -51,7 +51,11 @@ final class SleepLock {
 
     /// Writes the sudoers rule through macOS's administrator-password dialog (AppleScript
     /// `do shell script … with administrator privileges`, runs as root). Main thread, modal.
-    static func installRule() -> RuleChange { runPrivileged(SleepLockSetup.privilegedInstallScript(user: NSUserName())) }
+    static func installRule() -> RuleChange {
+        let user = NSUserName()
+        guard SleepLockSetup.isValidUserName(user) else { return .failed(L("The account name cannot be written into a sudoers rule.")) }
+        return runPrivileged(SleepLockSetup.privilegedInstallScript(user: user))
+    }
     static func removeRule() -> RuleChange { runPrivileged(SleepLockSetup.privilegedRemoveScript) }
 
     private static func runPrivileged(_ shell: String) -> RuleChange {

@@ -239,7 +239,8 @@ if it can fail, `deinit` that tears down any C callback holding an unretained `s
   the charger or a display changes — `docs/platform-notes.md`) needs root. Settings › Permissions › Sleep lock ›
   Set up… (and the onboarding step) install the one-time sudoers rule through the administrator-password
   dialog (`SleepLockSetupAction` → `SleepLock.installRule()`: `/etc/sudoers.d/koffeelid`, mode 0440,
-  validated with `visudo -cf` before it lands, exactly the two `pmset disablesleep 1|0` commands);
+  staged as a dotted temp file inside `/etc/sudoers.d` and validated with `visudo -cf` before the rename, every
+  tool by absolute path, exactly the two `pmset disablesleep 1|0` commands);
   `script/install.sh` prints the same rule as a terminal one-liner. Until it exists every arm logs
   `sleep lock unavailable` and only the dark-wake hold protects the session. While the lock is on, idle sleep and the Apple menu's Sleep are off too — that is the point
   of being armed.

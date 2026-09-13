@@ -64,12 +64,26 @@ public enum SleepLockSetup {
 
 extension SleepLockSetup {
     /// Shell run as root (macOS administrator-password dialog, `do shell script … with administrator
-    /// privileges`): validate the rule in a temp file with `visudo -c` before it lands in sudoers.d.
+    /// privileges`). It trusts nothing around it: every tool by absolute path (any same-user process can set
+    /// PATH or TMPDIR for later-launched apps with `launchctl setenv`), the temp file staged inside the
+    /// root-only sudoers.d itself under a dotted name sudo ignores (no swap window between `visudo -cf` and
+    /// the rename, which is atomic within the directory), and a failed validation removes the file and fails.
     public static func privilegedInstallScript(user: String) -> String {
-        "t=$(mktemp) && printf '%s\\n' '\(sudoersRule(user: user))' > \"$t\" && chmod 0440 \"$t\" && visudo -cf \"$t\" && mv \"$t\" \(sudoersFile)"
+        "t=$(/usr/bin/mktemp \(sudoersDirectory)/.koffeelid.XXXXXX) && /usr/bin/printf '%s\\n' '\(sudoersRule(user: user))' > \"$t\" && /bin/chmod 0440 \"$t\" && /usr/sbin/visudo -cf \"$t\" && /bin/mv \"$t\" \(sudoersFile) || { /bin/rm -f \"$t\"; false; }"
     }
 
-    public static var privilegedRemoveScript: String { "rm -f \(sudoersFile)" }
+    public static var privilegedRemoveScript: String { "/bin/rm -f \(sudoersFile)" }
+
+    static var sudoersDirectory: String { (sudoersFile as NSString).deletingLastPathComponent }
+
+    /// The account name is spliced into the single-quoted shell string above, run as root: only the ASCII
+    /// letters, digits, `.`, `_` and `-` a macOS short name can hold are accepted (belt and braces; the name
+    /// is the running user's own).
+    public static func isValidUserName(_ user: String) -> Bool {
+        !user.isEmpty && user.unicodeScalars.allSatisfy { scalar in
+            (scalar.isASCII && CharacterSet.alphanumerics.contains(scalar)) || "._-".unicodeScalars.contains(scalar)
+        }
+    }
 
     /// Escapes a shell line for use inside an AppleScript string literal.
     public static func appleScriptLiteral(_ s: String) -> String {

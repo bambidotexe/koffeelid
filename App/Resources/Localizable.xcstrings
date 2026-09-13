@@ -1431,6 +1431,16 @@
         }
       }
     },
+    "The account name cannot be written into a sudoers rule.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nom du compte ne peut pas être écrit dans une règle sudoers."
+          }
+        }
+      }
+    },
     "The lid gesture needs a Mac with a lid-angle sensor. Right-click arming and the keyboard shortcut still work.": {
       "localizations": {
         "fr": {

@@ -61,10 +61,33 @@ final class SleepInterruptionTests: XCTestCase {
     }
     func testPrivilegedInstallScriptValidatesBeforeInstalling() {
         let s = SleepLockSetup.privilegedInstallScript(user: "rubens")
-        XCTAssertEqual(s, "t=$(mktemp) && printf '%s\\n' 'rubens ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 1, /usr/bin/pmset disablesleep 0' > \"$t\" && chmod 0440 \"$t\" && visudo -cf \"$t\" && mv \"$t\" /etc/sudoers.d/koffeelid")
-        XCTAssertEqual(SleepLockSetup.privilegedRemoveScript, "rm -f /etc/sudoers.d/koffeelid")
+        XCTAssertEqual(s, "t=$(/usr/bin/mktemp /etc/sudoers.d/.koffeelid.XXXXXX) && /usr/bin/printf '%s\\n' 'rubens ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 1, /usr/bin/pmset disablesleep 0' > \"$t\" && /bin/chmod 0440 \"$t\" && /usr/sbin/visudo -cf \"$t\" && /bin/mv \"$t\" /etc/sudoers.d/koffeelid || { /bin/rm -f \"$t\"; false; }")
+        XCTAssertEqual(SleepLockSetup.privilegedRemoveScript, "/bin/rm -f /etc/sudoers.d/koffeelid")
+    }
+    /// The script runs as root through the administrator dialog, so it trusts nothing around it: every tool by
+    /// absolute path (PATH and TMPDIR can be set for later-launched apps by any same-user process), the temp
+    /// file inside the root-only sudoers.d itself under a dotted name sudo ignores (no swap window between
+    /// `visudo -cf` and the rename), and a failed validation removes the file and fails the script.
+    func testPrivilegedInstallScriptTrustsNothingAroundIt() {
+        let s = SleepLockSetup.privilegedInstallScript(user: "rubens")
+        var stripped = s
+        for absolute in ["/usr/bin/mktemp", "/usr/bin/printf", "/bin/chmod", "/usr/sbin/visudo", "/bin/mv", "/bin/rm"] {
+            stripped = stripped.replacingOccurrences(of: absolute, with: "")
+        }
+        for tool in ["mktemp", "printf", "chmod", "visudo", "mv", "rm"] {
+            XCTAssertFalse(stripped.contains(tool), "\(tool) must be called by absolute path")
+        }
+        XCTAssertTrue(s.contains("/usr/bin/mktemp /etc/sudoers.d/.koffeelid."), "the temp file must live in sudoers.d under a dotted name")
+        XCTAssertTrue(s.hasSuffix("|| { /bin/rm -f \"$t\"; false; }"), "a failed validation must remove the temp file and fail")
     }
     func testAppleScriptLiteralEscaping() {
         XCTAssertEqual(SleepLockSetup.appleScriptLiteral("printf '%s\\n' \"a\""), "\"printf '%s\\\\n' \\\"a\\\"\"")
+    }
+
+    /// The account name is spliced into a single-quoted shell string run as root: only what a macOS short name
+    /// can hold is accepted (belt and braces; the name is the running user's own).
+    func testUserNameMustBeSafeToSpliceIntoTheShellScript() {
+        for ok in ["rubens", "rubens.nunzi", "a-b_c", "User2"] { XCTAssertTrue(SleepLockSetup.isValidUserName(ok), ok) }
+        for bad in ["", "rub'ens", "rub ens", "a/b", "a$(b)", "é", "a\nb"] { XCTAssertFalse(SleepLockSetup.isValidUserName(bad), bad) }
     }
 }
