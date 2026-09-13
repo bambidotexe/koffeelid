@@ -280,7 +280,7 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
   caffeinate; the parser handles M L H V C A Z); after editing an SVG, copy the new `d` into the matching
   constant, keep `MugShape.box` equal to the cup bounds (2, 9.41, 320.75 × 224.31 today) and run
   `script/make_icon.sh` (app icon = the armed cup). Glyph size/offset live in `StatusItemController.mugImage`
-  (22 pt wide, centred on the bar, drawn opaque). `docs/assets/menubar.png` is rendered from the four SVGs (2026-09-13); `docs/assets/lid-effect.gif` and `.jpg` come from the user's 2026-09-13 video.
+  (22 pt wide, centred on the bar, drawn opaque). `docs/assets/menubar.png` is rendered from the four SVGs (2026-09-13); `docs/assets/lid-effect.gif` comes from the user's 2026-09-13 video.
 - **Auto-arm on activity is live on this Mac** (2026-09-12 afternoon): both hooks and the zsh snippet are
   installed and the switch is on — `koffeelid status` reports `activity: 1 session working, 1 command` during a
   Claude Code session, and every fresh launch of the app while a session is working auto-arms immediately

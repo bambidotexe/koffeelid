@@ -19,10 +19,6 @@
   <img alt="Unit tests" src="https://img.shields.io/badge/tests-218%20passing-2ea44f">
 </p>
 
-<p align="center">
-  <img src="docs/assets/lid-effect.gif" width="640" alt="Closing a MacBook with KoffeeLid armed: the desktop stays upright behind the glass and folds away like a foldable phone, then the screen locks on reopen">
-</p>
-
 ## The problem
 
 You start a long turn in Claude Code, a build, a deploy, a download. Then you close the lid to go make a coffee,
@@ -58,7 +54,7 @@ Two things make this trustworthy:
 ## The close deserves a show
 
 <p align="center">
-  <img src="docs/assets/lid-effect.jpg" width="640" alt="Mid-fold: the desktop stands behind the tilting glass like an inner screen, magnified from the hinge and blurred where the glass is furthest from it">
+  <img src="docs/assets/lid-effect.gif" width="640" alt="Closing a MacBook with KoffeeLid armed: the desktop stays upright behind the glass and folds away like a foldable phone, then the screen locks on reopen">
 </p>
 
 Apple's foldable pulls the interface into its new shape as you close it. KoffeeLid does the same with your
