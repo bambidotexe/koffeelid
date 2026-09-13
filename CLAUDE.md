@@ -11,8 +11,8 @@ Off / Armed / Armed + screen on (`ArmMode.caffeinate` in code and CLI, Â« ActivÃ
 line drives everything. Personal build: no licensing, no updater, en + fr only.
 
 Repo: `~/Projects/koffeelid`, GitHub `git@github.com:bambidotexe/koffeelid.git` (`origin`, branch `main`, SSH
-auth works as `bambidotexe`, no `gh` CLI installed). History was squashed to one root commit for **v1.0.0**
-(tag pushed, 2026-09-13). Installed copy: `/Applications/KoffeeLid.app`, data in `~/Library/Application Support/KoffeeLid/`.
+auth works as `bambidotexe`, `gh` installed via brew and logged in as `bambidotexe`). History was squashed to one root commit for **v1.0.0**
+(tag pushed, GitHub release with `dist/KoffeeLid-1.0.0.dmg` created with `gh release create`, 2026-09-13). Installed copy: `/Applications/KoffeeLid.app`, data in `~/Library/Application Support/KoffeeLid/`.
 
 Deeper docs, read them when the task touches the area:
 
