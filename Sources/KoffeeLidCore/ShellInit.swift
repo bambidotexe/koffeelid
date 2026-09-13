@@ -19,6 +19,9 @@ public enum ShellInit {
         "# (default 5). Guarded so a missing app is silent, not an error on every shell start.",
         "# Everything between the two \"---------- KoffeeLid ----------\" lines is removed by",
         "# Settings › Hooks › Remove (and Advanced › Reset): keep your own lines outside them.",
+        "# To stop a command from auto-arming, add it to KOFFEELID_SKIP *below* the closing line",
+        "# (there it extends the shipped list — vi, ssh, claude… — instead of replacing it, and",
+        "# survives Remove/Reset), for example:  KOFFEELID_SKIP+=(cswap)",
     ]
 
     /// An uncommented line that sources KoffeeLid's snippet — ours or hand-written. Another tool's

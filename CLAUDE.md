@@ -25,7 +25,7 @@ Deeper docs, read them when the task touches the area:
 ## Commands
 
 ```bash
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (222); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (223); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -198,7 +198,7 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
   mode). Not release-version-bumped by request.
 - **v1.0.0 is on `main` (one squashed commit, tagged 2026-09-13, `dist/KoffeeLid-1.0.0.dmg` built with the Apple Development identity) and installed** (`script/install.sh`, Wooflab team, last install 2026-09-12
   evening with the three review fixes, the four new cup glyphs and the grey cups in the menu; the user was put back
-  in armed + screen on afterwards). Tests: 222.
+  in armed + screen on afterwards). Tests: 223.
   The DMG is not notarized (no Developer ID certificate yet), so it only runs on this Mac.
 - **Three review fixes (2026-09-12, evening)**, from the full-project review, none hardware-checked by Claude
   (checklist items added under Kernel & power, Effect and Settings UI): Advanced › Reset now calls `disarm(reason:

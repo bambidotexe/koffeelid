@@ -77,6 +77,15 @@ final class ShellInitTests: XCTestCase {
         XCTAssertEqual(try zsh("true", preamble: "KOFFEELID_SKIP=(true)"), [])
     }
     // MARK: the ~/.zshrc block (pure string logic, no zsh needed)
+    /// The block KoffeeLid writes into ~/.zshrc documents how to exclude a command from auto-arm, since the
+    /// mechanism (KOFFEELID_SKIP) is otherwise invisible. The line must be shown below the block, where it
+    /// extends the shipped defaults instead of pre-seeding and replacing them.
+    func testTheBlockDocumentsHowToSkipACommand() throws {
+        let added = try XCTUnwrap(ShellInit.zshrcAppending("EVAL_LINE", to: ""))
+        XCTAssertTrue(added.contains("KOFFEELID_SKIP+=("), "the block should show the skip syntax")
+        XCTAssertTrue(ShellInit.zshrcDescription.contains { $0.contains("KOFFEELID_SKIP") }, "the doc lives in the description, so it is removed with the block")
+    }
+
 
     let line = #"eval "$(koffeelid shell-init zsh)""#
     var block: String { ([ShellInit.zshrcHeader] + ShellInit.zshrcDescription + [line, ShellInit.zshrcHeader]).joined(separator: "\n") + "\n" }
