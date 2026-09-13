@@ -42,5 +42,5 @@ if sudo -n -l /usr/bin/pmset disablesleep 1 >/dev/null 2>&1; then
   echo "sleep lock: sudoers rule present"
 else
   echo "sleep lock unavailable (a charger or display change can still sleep the closed armed Mac); enable it once with:"
-  echo "  echo \"$USER ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 1, /usr/bin/pmset disablesleep 0\" | sudo tee /etc/sudoers.d/koffeelid >/dev/null && sudo chmod 0440 /etc/sudoers.d/koffeelid && sudo visudo -cf /etc/sudoers.d/koffeelid"
+  echo "  echo \"$USER ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 1, /usr/bin/pmset disablesleep 0\" | sudo tee /etc/sudoers.d/koffeelid.tmp >/dev/null && sudo chmod 0440 /etc/sudoers.d/koffeelid.tmp && sudo visudo -cf /etc/sudoers.d/koffeelid.tmp && sudo mv /etc/sudoers.d/koffeelid.tmp /etc/sudoers.d/koffeelid"
 fi

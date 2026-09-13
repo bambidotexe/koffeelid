@@ -241,6 +241,7 @@ if it can fail, `deinit` that tears down any C callback holding an unretained `s
   dialog (`SleepLockSetupAction` → `SleepLock.installRule()`: `/etc/sudoers.d/koffeelid`, mode 0440,
   staged as a dotted temp file inside `/etc/sudoers.d` and validated with `visudo -cf` before the rename, every
   tool by absolute path, exactly the two `pmset disablesleep 1|0` commands);
-  `script/install.sh` prints the same rule as a terminal one-liner. Until it exists every arm logs
+  `script/install.sh` prints the same rule as a terminal one-liner (staged as `koffeelid.tmp`, `visudo -cf`,
+  then renamed, so a malformed file never goes live and locks sudo out). Until it exists every arm logs
   `sleep lock unavailable` and only the dark-wake hold protects the session. While the lock is on, idle sleep and the Apple menu's Sleep are off too — that is the point
   of being armed.

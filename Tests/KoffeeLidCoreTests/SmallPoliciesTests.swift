@@ -90,4 +90,12 @@ final class SleepInterruptionTests: XCTestCase {
         for ok in ["rubens", "rubens.nunzi", "a-b_c", "User2"] { XCTAssertTrue(SleepLockSetup.isValidUserName(ok), ok) }
         for bad in ["", "rub'ens", "rub ens", "a/b", "a$(b)", "é", "a\nb"] { XCTAssertFalse(SleepLockSetup.isValidUserName(bad), bad) }
     }
+
+    /// The terminal one-liner (install.sh, docs) must validate before the rule can be parsed: written under a
+    /// dotted name sudo ignores, `visudo -cf`, then renamed. A malformed file in sudoers.d makes sudo refuse
+    /// every command until someone repairs it.
+    func testInstallCommandValidatesBeforeTheRuleIsLive() {
+        XCTAssertEqual(SleepLockSetup.installCommand(user: "rubens"),
+                       "echo \"rubens ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 1, /usr/bin/pmset disablesleep 0\" | sudo tee /etc/sudoers.d/koffeelid.tmp >/dev/null && sudo chmod 0440 /etc/sudoers.d/koffeelid.tmp && sudo visudo -cf /etc/sudoers.d/koffeelid.tmp && sudo mv /etc/sudoers.d/koffeelid.tmp /etc/sudoers.d/koffeelid")
+    }
 }

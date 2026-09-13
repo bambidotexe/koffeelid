@@ -56,9 +56,12 @@ public enum SleepLockSetup {
         "\(user) ALL=(root) NOPASSWD: \(pmsetArguments(engaged: true).joined(separator: " ")), \(pmsetArguments(engaged: false).joined(separator: " "))"
     }
 
-    /// The one-liner `script/install.sh` and the docs print.
+    /// The one-liner `script/install.sh` prints (kept in sync by hand; the test pins this form). The rule is
+    /// written under a `.tmp` name sudo ignores, validated with `visudo -cf`, then renamed: a malformed file
+    /// in sudoers.d would otherwise make sudo refuse every command until someone repaired it.
     public static func installCommand(user: String) -> String {
-        "echo \"\(sudoersRule(user: user))\" | sudo tee \(sudoersFile) >/dev/null && sudo chmod 0440 \(sudoersFile) && sudo visudo -cf \(sudoersFile)"
+        let staged = sudoersFile + ".tmp"
+        return "echo \"\(sudoersRule(user: user))\" | sudo tee \(staged) >/dev/null && sudo chmod 0440 \(staged) && sudo visudo -cf \(staged) && sudo mv \(staged) \(sudoersFile)"
     }
 }
 
