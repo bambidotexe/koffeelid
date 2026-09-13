@@ -7,7 +7,7 @@
 <p align="center">
   <strong>Close the lid. The work goes on.</strong><br>
   A menu-bar app that keeps your MacBook awake with the lid shut — on its own while Claude Code or a
-  terminal command is running — and folds the desktop away like a phone closing, with a sound to match.
+  terminal command is running — and folds the desktop away like the iPhone Duo closing, with a sound to match.
 </p>
 
 <p align="center">
@@ -57,8 +57,8 @@ Two things make this trustworthy:
   <img src="docs/assets/lid-effect.gif" width="640" alt="Closing a MacBook with KoffeeLid armed: the desktop stays upright behind the glass and folds away like a foldable phone, then the screen locks on reopen">
 </p>
 
-Apple's foldable pulls the interface into its new shape as you close it. KoffeeLid does the same with your
-desktop. As the lid comes down, the desktop behaves like an **inner screen standing still behind the glass**:
+The iPhone Duo pulls its interface into the new shape as you fold it shut. KoffeeLid does the same with your
+desktop, iPhone Duo style. As the lid comes down, the desktop behaves like an **inner screen standing still behind the glass**:
 anchored at the hinge, it grows as the display tilts over it, narrows toward the top as it recedes, slips out of
 view above and blurs where the glass is furthest from it. The edges never end on a hard line — they melt into the
 dark, the picture shades off toward the top — so the illusion holds from any angle you look at it.
