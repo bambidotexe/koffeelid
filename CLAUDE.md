@@ -183,6 +183,19 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 
 ## Status and open items (2026-09-12, end of day)
 
+- **Security audit (2026-09-13), four fixes on `main`, not yet reinstalled**: from a full audit at the user's
+  request (focus: the sudoers path). The sudoers rule itself is sound (`sudo -n` refuses anything but the two
+  `pmset disablesleep 0|1`, verified live). Fixes: (1) `project.yml` sets `CODE_SIGN_INJECT_BASE_ENTITLEMENTS:
+  NO` for Release — the Apple Development identity was injecting `com.apple.security.get-task-allow`, so a
+  same-user process with a self-signed `cs.debugger` entitlement could take the app's task port and inject
+  under its Screen Recording grant (reproduced during the audit; a clean Release build now strips it from all
+  three binaries, Debug keeps it); (2) the admin-dialog install script uses absolute tool paths and stages the
+  rule as a dotted temp file inside `/etc/sudoers.d` (no PATH/TMPDIR trust, no swap window); (3) the terminal
+  one-liner writes `koffeelid.tmp` + `visudo -cf` + rename so a malformed rule never locks sudo out; (4)
+  availability requires the rule file to exist, not just a yes from `sudo -n -l` (which says yes to anything an
+  admin may run once any NOPASSWD rule exists). **The installed `/Applications` build still has the old
+  `get-task-allow`** — fix 1 lands only on the next `script/install.sh` (needs `koffeelid off`, then restore the
+  mode). Not release-version-bumped by request.
 - **v1.0.0 is on `main` (one squashed commit, tagged 2026-09-13, `dist/KoffeeLid-1.0.0.dmg` built with the Apple Development identity) and installed** (`script/install.sh`, Wooflab team, last install 2026-09-12
   evening with the three review fixes, the four new cup glyphs and the grey cups in the menu; the user was put back
   in armed + screen on afterwards). Tests: 222.

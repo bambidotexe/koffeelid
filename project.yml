@@ -13,6 +13,12 @@ settings:
     ENABLE_HARDENED_RUNTIME: YES
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     SWIFT_STRICT_CONCURRENCY: minimal
+  configs:
+    # Apple Development signing injects com.apple.security.get-task-allow, which lets any same-user process
+    # take the app's task port (task_for_pid) and inject code under its TCC grants. Off for Release so the
+    # installed and shipped builds are not debuggable; Debug keeps it so the Xcode debugger still attaches.
+    Release:
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
 packages:
   KoffeeLidPackage:
     path: .
