@@ -69,12 +69,14 @@ final class StatusItemController: NSObject {
 
     /// The KoffeeLid mug (`MugShape`, from the SVG artwork): an empty cup when off, coffee and closed eyes
     /// when auto-armed, sleepy eyes when armed, round eyes for Armed + screen on. 22 pt wide (the cup is
-    /// wider than tall) for the 22 pt menu bar, centred on the bar (the old mug had 2 pt of headroom to sit
-    /// 1 pt low; this cup reads right at the centre). Drawn opaque: a template image, the bar tints it.
+    /// wider than tall) for the 22 pt menu bar. The button centres the image, so 1 pt of headroom above
+    /// the cup sits it half a point low (an even image height also keeps the button's offset on a whole
+    /// point): centred exactly it read too high next to the neighbouring glyphs, with 2 pt of headroom too
+    /// low (2026-09-13). Drawn opaque: a template image, the bar tints it.
     static func mugImage(state: MugShape.State) -> NSImage {
         if let cached = cache[state] { return cached }
         let width: CGFloat = 22, height = width * MugShape.aspect
-        let size = NSSize(width: ceil(width) + 1, height: ceil(height) + 1)
+        let size = NSSize(width: ceil(width) + 1, height: ceil(height) + 2)
         let image = NSImage(size: size, flipped: false) { _ in
             MugShape.draw(in: NSRect(x: (size.width - width) / 2, y: 0.5, width: width, height: height), state: state, ink: .black)
             return true
