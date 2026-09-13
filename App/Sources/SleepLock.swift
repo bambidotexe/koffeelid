@@ -15,8 +15,13 @@ final class SleepLock {
 
     init(markerURL: URL = AppSupport.sleepLockMarkerURL) { self.markerURL = markerURL }
 
-    /// True when sudoers lets this user run the two pmset commands without a password (`sudo -n -l`).
-    var isAvailable: Bool { sudo(["-n", "-l"] + SleepLockSetup.pmsetArguments(engaged: true)).status == 0 }
+    /// True when our own sudoers rule file is present AND sudoers lets this user run the pmset command without
+    /// a password. The file check matters because `sudo -n -l <cmd>` reports yes for anything an admin may run
+    /// once any NOPASSWD rule exists, so the listing alone would show "Granted" off an unrelated rule.
+    var isAvailable: Bool {
+        SleepLockSetup.isAvailable(ruleFilePresent: FileManager.default.fileExists(atPath: SleepLockSetup.sudoersFile),
+                                   sudoListAllows: sudo(["-n", "-l"] + SleepLockSetup.pmsetArguments(engaged: true)).status == 0)
+    }
 
     @discardableResult
     func engage() -> Bool {

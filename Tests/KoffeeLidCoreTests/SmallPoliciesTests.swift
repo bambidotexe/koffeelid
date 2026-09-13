@@ -98,4 +98,14 @@ final class SleepInterruptionTests: XCTestCase {
         XCTAssertEqual(SleepLockSetup.installCommand(user: "rubens"),
                        "echo \"rubens ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 1, /usr/bin/pmset disablesleep 0\" | sudo tee /etc/sudoers.d/koffeelid.tmp >/dev/null && sudo chmod 0440 /etc/sudoers.d/koffeelid.tmp && sudo visudo -cf /etc/sudoers.d/koffeelid.tmp && sudo mv /etc/sudoers.d/koffeelid.tmp /etc/sudoers.d/koffeelid")
     }
+
+    /// `sudo -n -l <cmd>` answers yes for anything an admin may run once ANY passwordless rule exists, so the
+    /// availability decision must AND it with the presence of our own rule file — otherwise Settings would show
+    /// "Granted" off another tool's rule while KoffeeLid's own is missing and every engage silently fails.
+    func testAvailabilityNeedsBothTheRuleFileAndSudoPermission() {
+        XCTAssertTrue(SleepLockSetup.isAvailable(ruleFilePresent: true, sudoListAllows: true))
+        XCTAssertFalse(SleepLockSetup.isAvailable(ruleFilePresent: false, sudoListAllows: true))
+        XCTAssertFalse(SleepLockSetup.isAvailable(ruleFilePresent: true, sudoListAllows: false))
+        XCTAssertFalse(SleepLockSetup.isAvailable(ruleFilePresent: false, sudoListAllows: false))
+    }
 }

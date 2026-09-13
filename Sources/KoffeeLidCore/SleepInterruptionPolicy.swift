@@ -52,6 +52,13 @@ public enum SleepLockSetup {
         [pmsetPath, "disablesleep", engaged ? "1" : "0"]
     }
 
+    /// The sleep lock is available only when BOTH hold: our rule file is present, and the passwordless `sudo -n
+    /// -l` listing allows the pmset command. The listing alone is not enough — once any NOPASSWD rule exists,
+    /// `sudo -n -l <cmd>` reports yes for every command the admin could run with a password.
+    public static func isAvailable(ruleFilePresent: Bool, sudoListAllows: Bool) -> Bool {
+        ruleFilePresent && sudoListAllows
+    }
+
     public static func sudoersRule(user: String) -> String {
         "\(user) ALL=(root) NOPASSWD: \(pmsetArguments(engaged: true).joined(separator: " ")), \(pmsetArguments(engaged: false).joined(separator: " "))"
     }
