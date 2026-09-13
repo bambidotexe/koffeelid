@@ -183,6 +183,12 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 
 ## Status and open items (2026-09-12, end of day)
 
+- **v1.0.1 released (2026-09-13)**: version bumped in the three places, `dist/KoffeeLid-1.0.1.dmg` built from a
+  clean Release build (UDZO, volume "KoffeeLid", app + Applications symlink; Apple-Development-signed, hardened,
+  **no `get-task-allow`** — the security fix ships), tag `v1.0.1` pushed, GitHub release created with the DMG.
+  It bundles the security-audit fixes and the `KOFFEELID_SKIP` doc. Still Apple-Development-signed, so the DMG
+  runs only on this Mac; not notarized. The installed `/Applications` copy is still the old 1.0.0 build until a
+  `script/install.sh` (needs `koffeelid off`, then restore the mode).
 - **Security audit (2026-09-13), four fixes on `main`, not yet reinstalled**: from a full audit at the user's
   request (focus: the sudoers path). The sudoers rule itself is sound (`sudo -n` refuses anything but the two
   `pmset disablesleep 0|1`, verified live). Fixes: (1) `project.yml` sets `CODE_SIGN_INJECT_BASE_ENTITLEMENTS:
