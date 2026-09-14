@@ -189,6 +189,14 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 
 ## Status and open items (2026-09-12, end of day)
 
+- **v1.0.3 released and installed (2026-09-14, 20:00 UTC)**: ships the one-close hold (next bullet) and the
+  missed reopen-lock fix on top of 1.0.2. Version bumped in the three places (CFBundleVersion 4), 244 tests green,
+  `dist/KoffeeLid-1.0.3.dmg` built the same way as 1.0.1 from a clean Release build (no `get-task-allow` in the
+  three binaries), tag `v1.0.3` pushed, GitHub release created with the DMG. Installed with `FORCE=1
+  script/install.sh` (manual mode off, lid open, only the activity auto-arm from the live Claude Code sessions
+  was holding it, nothing to restore); clean relaunch in the log (`clean termination` → `launch: clean previous
+  exit` → `launched (pid 51854)` → `auto-armed (activity)`). The `/Applications` copy is this build; still
+  Apple-Development-signed, this Mac only, not notarized.
 - **One-close arm now ends at login, not at lid open (2026-09-14)**: a Fn + close arm used to end the moment
   the lid opened, so anyone who lifted the lid and shut it again stopped the Mac dead — the second close met a
   disarmed app. The arm is now **held** across the lid opening and ends when the user logs back in
@@ -201,8 +209,8 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
   § One-close hold and `docs/gesture.md` § The one-close hold cover it.
 - **Installed 2026-09-14, 16:54 UTC** (`FORCE=1 script/install.sh`; the manual mode was off and the lid open,
   only the activity auto-arm from a live Claude Code session was holding it, so the override was the only way
-  through and nothing had to be restored afterwards). The `/Applications` copy is now the Release build of
-  commit `8faeec2`: **1.0.2**, **no `get-task-allow`** (verified with `codesign -d --entitlements -`), and it
+  through and nothing had to be restored afterwards). The `/Applications` copy was then, until the 1.0.3 install
+  above, the Release build of commit `8faeec2`: **1.0.2**, **no `get-task-allow`** (verified with `codesign -d --entitlements -`), and it
   carries the reopen-lock fix below. Clean relaunch confirmed in the log (`launch: clean previous exit` →
   `launched (pid …)` → `auto-armed (activity)`).
 - **Missed reopen lock fixed (2026-09-14), on `main` and installed**: armed with a charger-fed external
@@ -219,7 +227,7 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
   glyph image, `StatusItemController.mugImage`), tuned on the real bar in two rounds; version bumped in the three
   places (CFBundleVersion 3), `dist/KoffeeLid-1.0.2.dmg` built the same way as 1.0.1, tag `v1.0.2` pushed, GitHub
   release created with the DMG. The `/Applications` copy was brought in line on 2026-09-14 (see the install note at the top of
-  this section): it is 1.0.2 with the glyph fix and the `get-task-allow` fix.
+  this section): it was 1.0.2 with the glyph fix and the `get-task-allow` fix until 1.0.3 replaced it that evening.
 - **v1.0.1 released (2026-09-13)**: version bumped in the three places, `dist/KoffeeLid-1.0.1.dmg` built from a
   clean Release build (UDZO, volume "KoffeeLid", app + Applications symlink; Apple-Development-signed, hardened,
   **no `get-task-allow`** — the security fix ships), tag `v1.0.1` pushed, GitHub release created with the DMG.
