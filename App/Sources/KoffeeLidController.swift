@@ -40,10 +40,13 @@ final class KoffeeLidController {
     private var reopenWatch: ReopenCancelWatch?
     /// Holds a reopen lock that `standingBy` skipped, in case the topology was one event out of date.
     private var reopenLock = ReopenLockDecision()
+    /// Keeps a one-close gesture arm alive across the lid opening, until the user logs back in.
+    private var gestureHold = GestureArmHold()
     /// How the current arm was requested. Option + close arms one close; every other source stays armed until disarmed.
     private(set) var armSource: ArmSource?
     private let brightness = InternalDisplayBrightnessController()
     private let lock = LidReopenLockController()
+    private let screenLock = ScreenLockObserver()
     private let displays = DisplayTopologyMonitor()
     private let battery = BatteryMonitor()
     private let thermal = ThermalMonitor()
@@ -97,11 +100,14 @@ final class KoffeeLidController {
         brightness.onLog = { [log] in log.log($0) }; lock.onLog = { [log] in log.log($0) }
         soundPlayer.onLog = { [log] in log.log($0) }; volume.onLog = { [log] in log.log($0) }; agent.onLog = { [log] in log.log($0) }
         effect.onLog = { [log] in log.log($0) }; power.onLog = { [log] in log.log($0) }
-        // Silent failure to lock is the one failure the user has to act on themselves.
-        lock.onGaveUp = {
+        // Silent failure to lock is the one failure the user has to act on themselves. A one-close arm
+        // held for a login that can never happen falls back to the old "ends on lid open" behaviour.
+        lock.onGaveUp = { [weak self] in
             NotificationsController.shared.post(id: "lock",
                                                 title: L("KoffeeLid could not lock the screen"),
                                                 body: L("Lock it now with Control-Command-Q, then check Settings > General."))
+            guard let self else { return }
+            applyGestureHold(gestureHold.lockGaveUp())
         }
 
         brightness.restoreIfNeeded(reason: "launch recovery")
@@ -138,6 +144,11 @@ final class KoffeeLidController {
 
         externalDisplay = displays.current.standsBy
         displays.onChange = { [weak self] t in self?.handleDisplays(t) }; displays.start()
+        screenLock.onChange = { [weak self] locked in
+            guard let self else { return }
+            applyGestureHold(gestureHold.observed(locked: locked))
+        }
+        screenLock.start()
         battery.onChange = { [weak self] b in self?.handleBattery(b) }; battery.start()
         thermal.onChange = { [weak self] t in self?.handleThermal(t) }; thermal.start()
         sleepMonitor.onExternalSleep = { [weak self] in self?.handleExternalSleep() }; sleepMonitor.start()
@@ -171,6 +182,7 @@ final class KoffeeLidController {
 
     func shutdown() {
         activity.stop(); activityTimer?.invalidate(); inputTimer?.invalidate()
+        screenLock.stop()
         flagRetryTimer?.invalidate(); flagRetryTimer = nil
         let wasArmed = isArmed
 
@@ -234,6 +246,7 @@ final class KoffeeLidController {
             mode = target
             armSource = source
             reopenWatch = nil       // the arm is manual from here on, so the one-close cancels end with it
+            gestureHold.clear()
             lastModeChange = ProcessInfo.processInfo.systemUptime
             applyCaffeinate()
             refreshStatusItem()
@@ -252,6 +265,7 @@ final class KoffeeLidController {
         mode = .off
         armSource = .activity
         reopenWatch = nil
+        gestureHold.clear()
         lastModeChange = ProcessInfo.processInfo.systemUptime
         applyCaffeinate()
         gesture.reset(); refreshGestureSampling()
@@ -347,6 +361,7 @@ final class KoffeeLidController {
         if lock.cancel() { log.log("pending lid-open lock cancelled (\(reason))") }
         reopenWatch = nil
         reopenLock.clear()
+        gestureHold.clear()
         effect.stop()
         do {
             try power.setLidSleepDisabled(false)
@@ -414,20 +429,40 @@ final class KoffeeLidController {
             // the effect, the lock — depends on `standingBy`. An unreadable list keeps the cache.
             let live = displays.current
             if live.verified { handleDisplays(live) }
-            if armSource == .gesture {
-                log.log("one-close session ended on lid open")
-                releaseManual(reason: "lid opened")
-            }
+            // A one-close arm no longer ends here: it is held until the user logs back in, so that
+            // opening and closing the lid in between cannot stop their work (`GestureArmHold`).
+            if armSource == .gesture { applyGestureHold(gestureHold.lidOpened()) }
             if isArmed {
                 state = .armedWaitingClose
                 gesture.reset()
                 refreshGestureSampling()
                 applyCaffeinate()
-                if !standingBy { effect.gateToStartAngle = true; effect.start() }
+                // A held arm belongs to someone who is away: the closes it still covers stay silent
+                // of the effect (the lid sound stays, by choice), and nothing captures a locked desktop.
+                if !standingBy, !gestureHold.isHolding { effect.gateToStartAngle = true; effect.start() }
                 log.log("lid opened; arm stands (\(mode.rawValue)\(autoArmed ? ", auto-armed" : ""))")
             }
             if reopenLock.lidOpened(standingBy: standingBy, now: ProcessInfo.processInfo.systemUptime) { lock.requestLock() }
             else { log.log("lid opened on an external display; no lock") }
+            // A lid that reopens on an already locked screen gets no lock edge: read the state now.
+            applyGestureHold(gestureHold.observed(locked: screenLock.isLocked))
+        }
+    }
+
+    /// Acts on a `GestureArmHold` verdict. The release runs the same path the lid opening used to run,
+    /// so the activity auto-arm still keeps the session if it is holding one.
+    private func applyGestureHold(_ outcome: GestureArmHold.Outcome) {
+        switch outcome {
+        case .nothing:
+            break
+        case .keepArmed:
+            log.log("one-close session held on lid open; waiting for the screen to lock")
+        case .held:
+            log.log("one-close arm held; it ends when you log back in")
+        case .release(let reason):
+            log.log("one-close session ended on \(reason.rawValue)")
+            releaseManual(reason: reason.rawValue)
+            if isArmed, !standingBy { effect.gateToStartAngle = true; effect.start() }
         }
     }
 

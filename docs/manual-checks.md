@@ -62,6 +62,15 @@
 - [ ] Same setup but unplug **only the monitor** while the lid is open and the Mac has been at the desk a while → no lock (the grace window is long past); reopening later at the desk with the monitor still attached → still no lock
 - [ ] Armed + screen on with an external display → the display assertion is still held (`pmset -g assertions`) while the rest stands by
 - [ ] Fn + close with an external display connected does nothing (gesture detector off; `gesture:` lines absent)
+
+## One-close hold (Fn + close ends at login, 2026-09-14)
+- [ ] Fn + close, lid shut, then open the lid → the screen locks and the log says `one-close session held on lid open; waiting for the screen to lock` then `one-close arm held; it ends when you log back in`; `koffeelid status` still says `mode: armed`
+- [ ] **The hole this closes:** with the arm held, close the lid again *without logging in* → the lid sound plays, `ioreg` still reads `AppleClamshellCausesSleep = No`, and the Mac is still running when you open it again (before the fix it slept)
+- [ ] With the arm held, close and reopen the lid twice → each reopen logs `one-close session held on lid open` and the screen is locked again; **no** lid effect plays on those closes
+- [ ] Log back in → `one-close session ended on unlock` then `disarmed (unlock)` (or `manual off (unlock); the auto-arm holds the session` if Claude Code is working); the flag goes back to `Yes`
+- [ ] Unlock while an activity auto-arm is running → the session continues and the effect comes back on the next close
+- [ ] A rail during the hold (drop below the low-battery threshold on battery) → `disarmed (low battery)`, the hold is dropped, and the Mac sleeps on the next close
+- [ ] In-place switch during the hold (⌃⌥⌘K) → it becomes a manual caffeinate arm, the hold is cleared, and logging in no longer ends it
 - [ ] Low-battery threshold 50 %, on battery below 50 % → disarms with notification; every arming path (menu, right-click, ⌃⌥⌘L/K, Fn + close, CLI) is refused with `arm blocked (…): batteryLow`
 - [ ] Same level on AC power → arming allowed in every mode; unplug → instant disarm with the battery notification
 - [ ] `pmset sleepnow` while armed → `armed session interrupted by external software sleep (Software Sleep)` + notification

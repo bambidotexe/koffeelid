@@ -25,7 +25,7 @@ Deeper docs, read them when the task touches the area:
 ## Commands
 
 ```bash
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (232); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (244); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -61,7 +61,7 @@ Five targets, dependency direction strictly downward:
 
 | Target | Kind | Depends on | Contents |
 |---|---|---|---|
-| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `EffectParameters`, `VolumeOverridePolicy`, `CrashLoopGuard`, `PidFileRecord`, `DiagnosticFileWriter`, `DeepLink`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`… **All unit tests live here.** |
+| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `GestureArmHold`, `EffectParameters`, `VolumeOverridePolicy`, `CrashLoopGuard`, `PidFileRecord`, `DiagnosticFileWriter`, `DeepLink`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`… **All unit tests live here.** |
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library | Core | The lid-close effect: `EffectController` turns lid angles into a fold (`FoldTracker`, closing only, threshold-gated) and runs a capture session only while folded: `DesktopCapture` (ScreenCaptureKit) → `PlaneRenderer` (Metal, shader in `PlaneShader.swift`, CPU twin `PlaneRemap.swift`: the "inner screen" geometry, desktop anchored at the hinge, magnified `cos(fold)^-zoom`, cropped at the top, narrowed toward the top by `perspectiveStrength`, blur ∝ `h·sin(fold)`) inside `EffectOverlayPanel`. |
 | `KoffeeLid` (`App/Sources`) | Xcode app target | Core, LidPlaneKit | `KoffeeLidController` is the **only** object that mutates arming state (`setMode(_:source:)` is the entry point; `perform(_:source:)` runs CLI/URL verbs); every other file is a collaborator that reports events to it via closures (`CommandServer` for the arming verbs, `ActivityMonitor` for auto-arm on activity); `HookInstaller` is a stateless helper used directly by the CLI client (`CommandLineClient`) and the Settings page, with no link to the coordinator. UI under `App/Sources/UI` is programmatic AppKit built with `SettingsForm` (section headers, translucent grouped rows, notes, links): one Settings page (`SettingsViewController`: App, Arm with, While armed, Permissions, Hooks) plus an Advanced window (`AdvancedViewController`: every tunable, diagnostics switch, show onboarding, reset) both hosted by `SettingsWindow`; `PermissionCatalog` (`UI/Permissions.swift`) is the one list of macOS grants, and `HookCatalog` (`UI/Hooks.swift`) the one list of activity hooks, both shared by Settings and the four-page `OnboardingWindowController`. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | Xcode tool, embedded in the app | Core | LaunchAgent that relaunches the app after an unclean exit (pid file present) and stands down otherwise. |
@@ -103,8 +103,11 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
    (`mode` is the manual choice; `isArmed` ⇔ `state != .idle` ⇔ manual armed **or** auto-armed, invariant 11; caffeinate adds `PreventUserIdleDisplaySleep` + a 30 s user-activity tickle
    while the lid is open, via `PowerManager.keepDisplayOn/tickleUserActivity`). The lid gesture — Fn (Globe) +
    close by default, Option via `gestureModifier` — (`ArmSource.gesture`) arms **one close** and never changes
-   a manual mode: the lid reopening disarms, and reopening by `gestureReverseCancelDegrees` or standing still
-   for the effect's `settleDelay` before the lid shuts cancels the arm (`ReopenCancelWatch`) — stillness is
+   a manual mode: the arm is **held across the lid opening and ends when the user logs back in**
+   (`GestureArmHold`, 2026-09-14 — so nobody can stop the work by opening and closing the lid; the hold is
+   armed by the reopen lock landing and falls back to the old "ends on lid open" if no lock ever takes; while
+   held the closes play the lid sound but run no effect), and reopening by `gestureReverseCancelDegrees` or
+   standing still for the effect's `settleDelay` before the lid shuts cancels the arm (`ReopenCancelWatch`) — stillness is
    ignored while the modifier is held, for both that cancel and the plane's return to flat. **The detector
    must never stay latched**: `LidProgressDriver` resets itself when the modifier is released after an arm, and
    the coordinator resets it on `arm`, `disarm` and every change of `gestureWanted`; Fn + close while armed from
@@ -186,6 +189,16 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 
 ## Status and open items (2026-09-12, end of day)
 
+- **One-close arm now ends at login, not at lid open (2026-09-14)**: a Fn + close arm used to end the moment
+  the lid opened, so anyone who lifted the lid and shut it again stopped the Mac dead — the second close met a
+  disarmed app. The arm is now **held** across the lid opening and ends when the user logs back in
+  (`GestureArmHold` in Core, 12 tests; `ScreenLockObserver` wraps `com.apple.screenIs(Un)locked` plus a live
+  `CGSessionCopyCurrentDictionary` read for a lid that reopens already locked). The hold is armed by the reopen
+  lock landing — no new timer — and falls back to the old behaviour via `lock.onGaveUp` if no lock ever takes
+  (no login password), since holding an arm over a visible desktop would be worse than sleeping. While held the
+  closes play the lid sound but run **no** effect (the user's choice), and the gesture detector stays off. Fixed
+  behaviour, no preference, by the user's choice. Not hardware-checked by Claude; `docs/manual-checks.md`
+  § One-close hold and `docs/gesture.md` § The one-close hold cover it.
 - **Installed 2026-09-14, 16:54 UTC** (`FORCE=1 script/install.sh`; the manual mode was off and the lid open,
   only the activity auto-arm from a live Claude Code session was holding it, so the override was the only way
   through and nothing had to be restored afterwards). The `/Applications` copy is now the Release build of
@@ -227,7 +240,7 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
   Not release-version-bumped by request.
 - **v1.0.0 is on `main` (one squashed commit, tagged 2026-09-13, `dist/KoffeeLid-1.0.0.dmg` built with the Apple Development identity) and installed** (`script/install.sh`, Wooflab team, last install 2026-09-12
   evening with the three review fixes, the four new cup glyphs and the grey cups in the menu; the user was put back
-  in armed + screen on afterwards). Tests: 232.
+  in armed + screen on afterwards). Tests: 244.
   The DMG is not notarized (no Developer ID certificate yet), so it only runs on this Mac.
 - **Three review fixes (2026-09-12, evening)**, from the full-project review, none hardware-checked by Claude
   (checklist items added under Kernel & power, Effect and Settings UI): Advanced › Reset now calls `disarm(reason:

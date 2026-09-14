@@ -38,7 +38,7 @@ detector on every change of that boolean**, so no half gesture or held arm carri
 | Armed or Armed + screen on / waiting close | menu, rightClick, shortcut, intent, url, cli | open | no | `gesture: modifier + close while armed (source) @…; effect follows the lid (plane from 90°)` (the gesture's start angle): gate dropped, fold zero at the current angle (catch-up if below it). **Mode unchanged; not a second arm.** If the start-below gate already started the fold: `…; effect already folding; fold kept`. Effect off/no Screen Recording: `…; effect not running …; nothing to show`. The driver stays silent until Fn is released, then listens again. |
 | same | same | open | yes | Detector off; effect stands by. |
 | Armed / waiting close | gesture | open | no | Detector off: the effect already follows the lid from the gesture arm. Reopening by `gestureReverseCancelDegrees`, or standing still for `effect.settleDelay` before the lid shuts **while Fn is not held**, disarms (`ReopenCancelWatch`). Fn held = no stall cancel, no return to flat. Caveat: an in-place mode switch rewrites `armSource` to the new source, so from then on the detector listens again and the one-close cancels end with the gesture arm (`reopenWatch = nil`). |
-| Armed / closed | any | closed | — | Detector off (no samples wanted). On reopen: non-gesture arms `gesture.reset()` and listen again (`lid opened; arm stands`); gesture arms disarm (`one-close session ended on lid open`) — unless the gesture arm was upgraded in place to another mode, which makes it that source's arm: it stands. |
+| Armed / closed | any | closed | — | Detector off (no samples wanted). On reopen: non-gesture arms `gesture.reset()` and listen again (`lid opened; arm stands`); gesture arms are **held** until the user logs back in (`GestureArmHold`, below) — unless the gesture arm was upgraded in place to another mode, which makes it that source's arm: it stands. |
 | Armed, any | any | open | — | Low battery, thermal, external sleep → `disarm` → detector reset → listening again if wanted. |
 
 Every arm that the detector produces calls `arm()`, which resets it. Every disarm resets it. Every
@@ -110,6 +110,10 @@ gesture: lid still for Ns after arming … cancelling        ReopenCancelWatch �
 effect: following the lid from NN°                         followLidFromHere rebased the fold zero
 effect: gesture while already folding; keeping the fold    followLidFromHere on a running fold
 effect: gesture fold ended; waiting below NN° again        the gesture fold is over; the start-below gate is back
+one-close session held on lid open; waiting …             the lid opened on a one-close arm; it is not over
+one-close arm held; it ends when you log back in           the reopen lock landed; the hold is real
+one-close session ended on unlock                          the user logged back in; the arm is over
+one-close session ended on lid open; the screen never …    no lock ever landed; fell back to the old behaviour
 ```
 
 A dead detector shows as *no* `gesture: started` line while Fn is held and the lid moves above 5°. First
@@ -130,3 +134,30 @@ monitor, `readModifier()`, `modifierSource`), `App/Sources/KoffeeLidController.s
 Merged 2026-09-11, every keep item honoured; the branch's only gesture-path change is `setMode`'s in-place
 branch (`armSource`, `reopenWatch = nil`, `refreshGestureSampling()`). Re-listening mid-hold can log a second
 `gesture: started` in the same physical close — harmless, the `.keptCurrentFold` branch protects the plane.
+
+## The one-close hold (`GestureArmHold`, 2026-09-14)
+
+A one-close arm used to end the moment the lid opened. That left a hole: anyone who lifted the lid and
+shut it again stopped the Mac dead, because the second close met a disarmed app and the Mac slept. The
+arm now survives the lid opening and ends when the user **logs back in**; the lid can be opened and
+closed any number of times in between and the Mac stays awake.
+
+The hold is keyed off the reopen lock the app already requests, so there is no new timer:
+
+| Event | Phase | What the coordinator does |
+|---|---|---|
+| Lid opens on a gesture arm | off → awaitingLock | `.keepArmed` — no release; the lock is requested as always |
+| Screen locks (edge, or a live read when the lid reopens already locked) | awaitingLock → holding | `.held` — the hold is real |
+| Screen unlocks | holding → off | `.release(.unlocked)` → `releaseManual(reason: "unlock")` |
+| `lock.onGaveUp` (no login password, or the lock failed) | awaitingLock → off | `.release(.neverLocked)` — the old "ends on lid open" behaviour, because holding an arm over a visible desktop is worse than sleeping |
+| `disarm`, a fresh arm, an in-place mode switch, `releaseManual` | any → off | `clear()` |
+
+While held, the closes the arm still covers **play the lid sound but run no effect**
+(`!gestureHold.isHolding` gates `effect.start()` at lid open): the arm belongs to someone who is away,
+and nothing should open a capture session against a locked desktop. The release restarts the effect if
+the session continues underneath (the activity auto-arm).
+
+The detector itself stays off for the whole hold — `gestureWanted` already excludes
+`state == .armedWaitingClose && armSource == .gesture` — so the angle sampler is idle until the user is
+back. Rails are unchanged: thermal, low battery and external sleep still end a held arm, and on battery
+`lowBatteryDisarm` (on at 10 % by default) bounds a Mac left open and locked forever.
