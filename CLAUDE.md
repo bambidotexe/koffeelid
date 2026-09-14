@@ -186,7 +186,13 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 
 ## Status and open items (2026-09-12, end of day)
 
-- **Missed reopen lock fixed (2026-09-14), on `main`, not yet installed**: armed with a charger-fed external
+- **Installed 2026-09-14, 16:54 UTC** (`FORCE=1 script/install.sh`; the manual mode was off and the lid open,
+  only the activity auto-arm from a live Claude Code session was holding it, so the override was the only way
+  through and nothing had to be restored afterwards). The `/Applications` copy is now the Release build of
+  commit `8faeec2`: **1.0.2**, **no `get-task-allow`** (verified with `codesign -d --entitlements -`), and it
+  carries the reopen-lock fix below. Clean relaunch confirmed in the log (`launch: clean previous exit` →
+  `launched (pid …)` → `auto-armed (activity)`).
+- **Missed reopen lock fixed (2026-09-14), on `main` and installed**: armed with a charger-fed external
   display, lid closed, the user unplugged the charger; reopening the lid did not lock. The log caught it twice
   (14:30:18 and 15:27:17) with the same signature — `lid opened on an external display; no lock` followed
   126/128 ms later by `external display disconnected; lid behaviours active again`. macOS posts no
@@ -199,16 +205,14 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 - **v1.0.2 released (2026-09-13, evening)**: the menu-bar cup sits half a point lower (1 pt of headroom in the
   glyph image, `StatusItemController.mugImage`), tuned on the real bar in two rounds; version bumped in the three
   places (CFBundleVersion 3), `dist/KoffeeLid-1.0.2.dmg` built the same way as 1.0.1, tag `v1.0.2` pushed, GitHub
-  release created with the DMG. The `/Applications` copy is the same code but still numbered 1.0.1 (installed
-  before the bump; it already carries the glyph fix and the `get-task-allow` fix); a `script/install.sh` once the
-  lid is open and the mode is off brings the version string in line.
+  release created with the DMG. The `/Applications` copy was brought in line on 2026-09-14 (see the install note at the top of
+  this section): it is 1.0.2 with the glyph fix and the `get-task-allow` fix.
 - **v1.0.1 released (2026-09-13)**: version bumped in the three places, `dist/KoffeeLid-1.0.1.dmg` built from a
   clean Release build (UDZO, volume "KoffeeLid", app + Applications symlink; Apple-Development-signed, hardened,
   **no `get-task-allow`** — the security fix ships), tag `v1.0.1` pushed, GitHub release created with the DMG.
   It bundles the security-audit fixes and the `KOFFEELID_SKIP` doc. Still Apple-Development-signed, so the DMG
-  runs only on this Mac; not notarized. The installed `/Applications` copy is still the old 1.0.0 build until a
-  `script/install.sh` (needs `koffeelid off`, then restore the mode).
-- **Security audit (2026-09-13), four fixes on `main`, not yet reinstalled**: from a full audit at the user's
+  runs only on this Mac; not notarized. The installed `/Applications` copy caught up on 2026-09-14.
+- **Security audit (2026-09-13), four fixes on `main`, installed 2026-09-14**: from a full audit at the user's
   request (focus: the sudoers path). The sudoers rule itself is sound (`sudo -n` refuses anything but the two
   `pmset disablesleep 0|1`, verified live). Fixes: (1) `project.yml` sets `CODE_SIGN_INJECT_BASE_ENTITLEMENTS:
   NO` for Release — the Apple Development identity was injecting `com.apple.security.get-task-allow`, so a
@@ -218,9 +222,9 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
   rule as a dotted temp file inside `/etc/sudoers.d` (no PATH/TMPDIR trust, no swap window); (3) the terminal
   one-liner writes `koffeelid.tmp` + `visudo -cf` + rename so a malformed rule never locks sudo out; (4)
   availability requires the rule file to exist, not just a yes from `sudo -n -l` (which says yes to anything an
-  admin may run once any NOPASSWD rule exists). **The installed `/Applications` build still has the old
-  `get-task-allow`** — fix 1 lands only on the next `script/install.sh` (needs `koffeelid off`, then restore the
-  mode). Not release-version-bumped by request.
+  admin may run once any NOPASSWD rule exists). Fix 1 reached the installed build with the 2026-09-14 install (see the top of this
+  section); `codesign -d --entitlements -` on `/Applications/KoffeeLid.app` now prints no `get-task-allow`.
+  Not release-version-bumped by request.
 - **v1.0.0 is on `main` (one squashed commit, tagged 2026-09-13, `dist/KoffeeLid-1.0.0.dmg` built with the Apple Development identity) and installed** (`script/install.sh`, Wooflab team, last install 2026-09-12
   evening with the three review fixes, the four new cup glyphs and the grey cups in the menu; the user was put back
   in armed + screen on afterwards). Tests: 232.
