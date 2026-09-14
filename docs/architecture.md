@@ -105,6 +105,18 @@ its display assertion), but darken / sound / effect / lock-on-reopen and the ges
 disarmed, and if the lid is closed `lock.requestLock()` (the unlocked session just became visible); on
 disconnect → `effect.start()` if the lid is open. Icon unchanged; tooltip and menu header say "Standing by".
 
+**A display that vanishes behind a closed lid** (charger-fed monitor unplugged in clamshell) is reported
+*late*: macOS posts no `didChangeScreenParameters` while the lid is shut and nothing is left to reconfigure,
+so the disconnect lands ~130 ms **after** the lid-open notification (measured twice on 2026-09-14, 126 and
+128 ms). The reopen decision would then be taken on a topology one event out of date and skip the lock on a
+session that had been sitting behind a closed lid with no display at all. Two layers close that:
+`handleLid(.opened)` refreshes the topology live (`CGGetOnlineDisplayList` through `displays.current`, kept
+only when `verified`) before anything reads `standingBy`, and `ReopenLockDecision` keeps a skipped lock
+pending for 2 s — a disconnect inside that window, lid open, locks after all
+(`the external display was already gone when the lid opened; locking after all`). Unplugging a monitor on a
+lid that has been open longer than the grace window is an ordinary act and never locks. `clear()` on lid
+close and on `disarm`.
+
 Rails that call `disarm`: thermal ≥ serious, low battery (`LowBatteryPolicy`: option on, on battery,
 ≤ threshold; on AC nothing fires, unplugging below the threshold fires immediately), external software sleep
 (`NSWorkspace.willSleepNotification` while armed **and** the root domain's "Last Sleep Reason" is not a

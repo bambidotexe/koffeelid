@@ -38,6 +38,8 @@ final class KoffeeLidController {
     private let gesture = GestureController(prefs: .shared)
     /// Set after an Option + close arm until the lid actually closes: reopening cancels the arm.
     private var reopenWatch: ReopenCancelWatch?
+    /// Holds a reopen lock that `standingBy` skipped, in case the topology was one event out of date.
+    private var reopenLock = ReopenLockDecision()
     /// How the current arm was requested. Option + close arms one close; every other source stays armed until disarmed.
     private(set) var armSource: ArmSource?
     private let brightness = InternalDisplayBrightnessController()
@@ -344,6 +346,7 @@ final class KoffeeLidController {
         guard isArmed else { return }
         if lock.cancel() { log.log("pending lid-open lock cancelled (\(reason))") }
         reopenWatch = nil
+        reopenLock.clear()
         effect.stop()
         do {
             try power.setLidSleepDisabled(false)
@@ -396,6 +399,7 @@ final class KoffeeLidController {
             guard isArmed else { return }
             state = .armedClosed
             reopenWatch = nil
+            reopenLock.clear()
             refreshGestureSampling()
             effect.stop()
             applyCaffeinate()
@@ -405,6 +409,11 @@ final class KoffeeLidController {
         case .opened:
             guard isArmed else { brightness.restoreIfNeeded(reason: "lid opened"); return }
             brightness.restoreIfNeeded(reason: "lid opened")
+            // macOS reports a display that vanished behind a closed lid only after the lid-open
+            // notification (see `ReopenLockDecision`), so read the topology live before anything —
+            // the effect, the lock — depends on `standingBy`. An unreadable list keeps the cache.
+            let live = displays.current
+            if live.verified { handleDisplays(live) }
             if armSource == .gesture {
                 log.log("one-close session ended on lid open")
                 releaseManual(reason: "lid opened")
@@ -417,7 +426,8 @@ final class KoffeeLidController {
                 if !standingBy { effect.gateToStartAngle = true; effect.start() }
                 log.log("lid opened; arm stands (\(mode.rawValue)\(autoArmed ? ", auto-armed" : ""))")
             }
-            if standingBy { log.log("lid opened on an external display; no lock") } else { lock.requestLock() }
+            if reopenLock.lidOpened(standingBy: standingBy, now: ProcessInfo.processInfo.systemUptime) { lock.requestLock() }
+            else { log.log("lid opened on an external display; no lock") }
         }
     }
 
@@ -502,6 +512,12 @@ final class KoffeeLidController {
         } else {
             log.log("external display disconnected; lid behaviours active again")
             if state == .armedWaitingClose { effect.gateToStartAngle = true; effect.start() }
+            // It was already gone while the lid was closed and macOS only says so now: the session the
+            // reopen left unlocked had been sitting behind a closed lid with no display at all.
+            if reopenLock.externalDisplayGone(lidOpen: lidObserver.isClosed != true, now: ProcessInfo.processInfo.systemUptime) {
+                log.log("the external display was already gone when the lid opened; locking after all")
+                lock.requestLock()
+            }
         }
     }
 

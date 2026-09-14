@@ -25,7 +25,7 @@ Deeper docs, read them when the task touches the area:
 ## Commands
 
 ```bash
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (223); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (232); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -61,7 +61,7 @@ Five targets, dependency direction strictly downward:
 
 | Target | Kind | Depends on | Contents |
 |---|---|---|---|
-| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `EffectParameters`, `VolumeOverridePolicy`, `CrashLoopGuard`, `PidFileRecord`, `DiagnosticFileWriter`, `DeepLink`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`… **All unit tests live here.** |
+| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `EffectParameters`, `VolumeOverridePolicy`, `CrashLoopGuard`, `PidFileRecord`, `DiagnosticFileWriter`, `DeepLink`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`… **All unit tests live here.** |
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library | Core | The lid-close effect: `EffectController` turns lid angles into a fold (`FoldTracker`, closing only, threshold-gated) and runs a capture session only while folded: `DesktopCapture` (ScreenCaptureKit) → `PlaneRenderer` (Metal, shader in `PlaneShader.swift`, CPU twin `PlaneRemap.swift`: the "inner screen" geometry, desktop anchored at the hinge, magnified `cos(fold)^-zoom`, cropped at the top, narrowed toward the top by `perspectiveStrength`, blur ∝ `h·sin(fold)`) inside `EffectOverlayPanel`. |
 | `KoffeeLid` (`App/Sources`) | Xcode app target | Core, LidPlaneKit | `KoffeeLidController` is the **only** object that mutates arming state (`setMode(_:source:)` is the entry point; `perform(_:source:)` runs CLI/URL verbs); every other file is a collaborator that reports events to it via closures (`CommandServer` for the arming verbs, `ActivityMonitor` for auto-arm on activity); `HookInstaller` is a stateless helper used directly by the CLI client (`CommandLineClient`) and the Settings page, with no link to the coordinator. UI under `App/Sources/UI` is programmatic AppKit built with `SettingsForm` (section headers, translucent grouped rows, notes, links): one Settings page (`SettingsViewController`: App, Arm with, While armed, Permissions, Hooks) plus an Advanced window (`AdvancedViewController`: every tunable, diagnostics switch, show onboarding, reset) both hosted by `SettingsWindow`; `PermissionCatalog` (`UI/Permissions.swift`) is the one list of macOS grants, and `HookCatalog` (`UI/Hooks.swift`) the one list of activity hooks, both shared by Settings and the four-page `OnboardingWindowController`. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | Xcode tool, embedded in the app | Core | LaunchAgent that relaunches the app after an unclean exit (pid file present) and stands down otherwise. |
@@ -120,7 +120,10 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
    must begin lower (the "except the lid gesture" gate, which `clamped()` keeps ≤ the gesture one; rebase; gesture under
    it) catches up with that curve over ≤ 30° of travel (`FoldGeometry`). **External display**: does not block; the mode stays and the kernel flag stays set, but darken / sound /
    effect / lock-on-reopen and the gesture stand by (`standingBy`) until it disconnects; a display
-   appearing while the lid is closed locks immediately. **Low battery** (option on, on battery, ≤ threshold):
+   appearing while the lid is closed locks immediately. A display that *vanishes* behind a closed lid
+   (charger-fed monitor unplugged in clamshell) is reported ~130 ms **after** the lid-open notification,
+   so `handleLid(.opened)` re-reads the topology live before anything uses `standingBy` and
+   `ReopenLockDecision` holds the skipped lock pending for 2 s. **Low battery** (option on, on battery, ≤ threshold):
    hard no for every mode and source; on AC everything is allowed; unplugging below the threshold disarms.
    The in-place Armed ↔ Caffeinate switch now records `armSource = source` too, so a lid-gesture one-close
    arm switched in place (e.g. via ⌃⌥⌘K) becomes a manual arm and no longer disarms on lid open.
@@ -183,6 +186,16 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 
 ## Status and open items (2026-09-12, end of day)
 
+- **Missed reopen lock fixed (2026-09-14), on `main`, not yet installed**: armed with a charger-fed external
+  display, lid closed, the user unplugged the charger; reopening the lid did not lock. The log caught it twice
+  (14:30:18 and 15:27:17) with the same signature — `lid opened on an external display; no lock` followed
+  126/128 ms later by `external display disconnected; lid behaviours active again`. macOS posts no
+  `didChangeScreenParameters` while the lid is shut and no display is left to reconfigure, so the reopen
+  decision read a stale `externalDisplay` and skipped the lock on a session that had been hidden behind a
+  closed lid with **no** display at all. Fix: `handleLid(.opened)` refreshes the topology live before anything
+  reads `standingBy`, and the new `ReopenLockDecision` (Core, 9 tests) holds a skipped lock pending for 2 s so a
+  late disconnect still locks (`the external display was already gone when the lid opened; locking after all`).
+  Not hardware-checked by Claude; two checklist items added under Safety rails.
 - **v1.0.2 released (2026-09-13, evening)**: the menu-bar cup sits half a point lower (1 pt of headroom in the
   glyph image, `StatusItemController.mugImage`), tuned on the real bar in two rounds; version bumped in the three
   places (CFBundleVersion 3), `dist/KoffeeLid-1.0.2.dmg` built the same way as 1.0.1, tag `v1.0.2` pushed, GitHub
@@ -210,7 +223,7 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
   mode). Not release-version-bumped by request.
 - **v1.0.0 is on `main` (one squashed commit, tagged 2026-09-13, `dist/KoffeeLid-1.0.0.dmg` built with the Apple Development identity) and installed** (`script/install.sh`, Wooflab team, last install 2026-09-12
   evening with the three review fixes, the four new cup glyphs and the grey cups in the menu; the user was put back
-  in armed + screen on afterwards). Tests: 223.
+  in armed + screen on afterwards). Tests: 232.
   The DMG is not notarized (no Developer ID certificate yet), so it only runs on this Mac.
 - **Three review fixes (2026-09-12, evening)**, from the full-project review, none hardware-checked by Claude
   (checklist items added under Kernel & power, Effect and Settings UI): Advanced › Reset now calls `disarm(reason:
