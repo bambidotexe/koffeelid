@@ -16,7 +16,7 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-244%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-248%20passing-2ea44f">
 </p>
 
 ## The problem
@@ -70,8 +70,10 @@ And it has a **sound**. Six short clips to choose from — a blip, a bloop, a ch
 the lid shuts. Optionally at a fixed volume, so the close sounds the same whether the Mac was muted or blaring.
 
 **Fn (Globe) + close** arms for a single close without changing anything else: hold Fn, tilt the lid, and the
-fold appears as it passes the inner screen's angle. Reopening disarms. Ideal when you did not set up auto-arm,
-or when you want the show on a Mac that is otherwise Off.
+fold appears as it passes the inner screen's angle. Change your mind before the lid shuts — reopen it a little,
+or just stop — and the arm is cancelled. Once shut, the arm lasts until you log back in, so nobody can stop your
+work by lifting the lid and closing it again. Ideal when you did not set up auto-arm, or when you want the show
+on a Mac that is otherwise Off.
 
 ## Three modes
 
@@ -153,15 +155,16 @@ DisplayServices when the lid closes, and locks through loginwindow on reopen. Ar
 `PreventUserIdleDisplaySleep` assertion and a periodic user-activity declaration while the lid is open. The
 auto-arm is a tiny helper binary invoked by the hooks and the shell snippet; it appends one line to an activity
 journal and never launches anything. The fold is a Metal plane fed by ScreenCaptureKit, driven by the lid-angle
-sensor at 30 Hz and interpolated per frame. See `docs/architecture.md`.
+sensor at 30 Hz and interpolated per frame. See `docs/architecture.md` and `docs/macOS.md`.
 
 ## Documentation
 
 - `CLAUDE.md` — orientation, commands, invariants (start here)
-- `docs/architecture.md` — modules, arming state machine, kernel-flag ownership, effect wiring, threading
+- `docs/functional.md` — what the app does, every mode, setting and default
+- `docs/architecture.md` — targets, arming state machine, kernel-flag ownership, the effect, the activity pipeline, threading
+- `docs/macOS.md` — the macOS mechanisms it relies on and how they behave
+- `docs/pitfalls.md` — the traps already hit, and what the code does instead
 - `docs/development.md` — build/install/debug loop, adding preferences, strings and controls
-- `docs/platform-notes.md` — the macOS mechanisms it relies on and how they were verified
-- `docs/gesture.md` — the Fn + close detector, its states and the softlock post-mortem
 - `docs/manual-checks.md` — hardware verification checklist
 
 ## Notes
