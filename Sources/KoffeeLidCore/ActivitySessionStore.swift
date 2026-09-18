@@ -30,7 +30,7 @@ public struct ActivitySession: Equatable {
     }
 }
 
-/// The per-session state machine (spec §4). Pure: driven by event timestamps and explicit `tick(now:)`,
+/// The per-session state machine. Pure: driven by event timestamps and explicit `tick(now:)`,
 /// so journal replay and live events share one path.
 public struct ActivitySessionStore {
     public private(set) var sessions: [String: ActivitySession] = [:]

@@ -5,7 +5,6 @@ import Foundation
 public enum ArmMode: String, CaseIterable, Equatable {
     case off, armed, caffeinate
 
-    public var isArmed: Bool { self != .off }
     public var keepsDisplayOn: Bool { self == .caffeinate }
 }
 

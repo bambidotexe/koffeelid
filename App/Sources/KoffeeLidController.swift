@@ -12,16 +12,15 @@ final class KoffeeLidController {
 
     private(set) var state: ArmState = .idle {
         didSet {
-            onStateChange?(state)
             sleepMonitor.armed = state != .idle
             refreshStatusItem()
         }
     }
-    var onStateChange: ((ArmState) -> Void)?
     var onOpenSettings: (() -> Void)?
     var isArmed: Bool { state != .idle }
     var lastAngle: Double?
-    /// What the user selected: off, armed, or armed + screen on (display never sleeps). `isArmed` ⇔ `mode != .off`.
+    /// The manual choice: off, armed, or armed + screen on (display never sleeps). The Mac is armed
+    /// while this or the auto level holds it.
     private(set) var mode: ArmMode = .off
     /// Uptime of the last mode change; the right-click cycle window is measured from it.
     private var lastModeChange: TimeInterval = 0
@@ -61,7 +60,7 @@ final class KoffeeLidController {
     let statusItem = StatusItemController()
     private let agent = RelaunchAgentController()
     private let commands = CommandServer()
-    /// Auto-arm on activity (spec docs/superpowers/specs/2026-09-11-activity-auto-arm-design.md).
+    /// Auto-arm on activity.
     let activity = ActivityMonitor()
     private var activityPolicy = ActivityArmPolicy()
     /// The auto-arm level (`ActivityArmPolicy`), independent of `mode`: the Mac is armed while either holds it.
@@ -101,7 +100,7 @@ final class KoffeeLidController {
         soundPlayer.onLog = { [log] in log.log($0) }; volume.onLog = { [log] in log.log($0) }; agent.onLog = { [log] in log.log($0) }
         effect.onLog = { [log] in log.log($0) }; power.onLog = { [log] in log.log($0) }
         // Silent failure to lock is the one failure the user has to act on themselves. A one-close arm
-        // held for a login that can never happen falls back to the old "ends on lid open" behaviour.
+        // held for a login that can never happen falls back to ending on lid open instead.
         lock.onGaveUp = { [weak self] in
             NotificationsController.shared.post(id: "lock",
                                                 title: L("KoffeeLid could not lock the screen"),
@@ -429,8 +428,8 @@ final class KoffeeLidController {
             // the effect, the lock — depends on `standingBy`. An unreadable list keeps the cache.
             let live = displays.current
             if live.verified { handleDisplays(live) }
-            // A one-close arm no longer ends here: it is held until the user logs back in, so that
-            // opening and closing the lid in between cannot stop their work (`GestureArmHold`).
+            // A one-close arm is held until the user logs back in, so that opening and closing the
+            // lid in between cannot stop their work (`GestureArmHold`).
             if armSource == .gesture { applyGestureHold(gestureHold.lidOpened()) }
             if isArmed {
                 state = .armedWaitingClose
@@ -449,8 +448,8 @@ final class KoffeeLidController {
         }
     }
 
-    /// Acts on a `GestureArmHold` verdict. The release runs the same path the lid opening used to run,
-    /// so the activity auto-arm still keeps the session if it is holding one.
+    /// Acts on a `GestureArmHold` verdict. The release runs through `releaseManual`, so the activity
+    /// auto-arm still keeps the session if it is holding one.
     private func applyGestureHold(_ outcome: GestureArmHold.Outcome) {
         switch outcome {
         case .nothing:
@@ -479,7 +478,7 @@ final class KoffeeLidController {
         lastAngle = a
         if prefs.effect.showAngleInMenuBar { statusItem.angleText = "\(Int(a))°" } else if statusItem.angleText != nil { statusItem.angleText = nil }
         // Fn (or Option) held = "still in the gesture": the detector sees it, and neither the one-close stall
-        // cancel nor the plane's return-to-flat counts stillness while it is down (docs/gesture.md).
+        // cancel nor the plane's return-to-flat counts stillness while it is down.
         let held = prefs.armWithOption && gesture.readModifier()
         if gestureWanted { gesture.feed(angle: a, modifierDown: held) }
         guard state == .armedWaitingClose else { return }
@@ -652,7 +651,7 @@ final class KoffeeLidController {
     // MARK: sleep lock
 
     /// Engaged on every arm when the sudoers rule exists: the only thing that makes a closed armed Mac
-    /// immune to powerd rewriting the shared lid-sleep bit (docs/platform-notes.md § Kernel lid-sleep flag).
+    /// immune to powerd rewriting the shared lid-sleep bit (docs/macOS.md § Kernel lid-sleep flag).
     private func engageSleepLock() {
         if sleepLock.isAvailable {
             if sleepLock.engage() { log.log("sleep lock engaged (pmset disablesleep 1)") }
@@ -664,7 +663,6 @@ final class KoffeeLidController {
     /// The sudoers rule is installed or removed from Settings / onboarding: true when the lock is
     /// available now. An armed session picks it up immediately.
     var sleepLockAvailable: Bool { sleepLock.isAvailable }
-    var sleepLockEngaged: Bool { sleepLock.engaged }
     func sleepLockRuleChanged() {
         guard isStarted, isArmed, !sleepLock.engaged else { return }
         engageSleepLock()
@@ -774,14 +772,14 @@ final class KoffeeLidController {
 
     /// The Fn + close detector runs while idle (to arm) and while armed from another source with the lid
     /// open (so the gesture still gives its visual confirmation). Never with an external display, never
-    /// during a one-close (gesture) arm, never with the lid closed. See `docs/gesture.md`.
+    /// during a one-close (gesture) arm, never with the lid closed. See `docs/pitfalls.md`.
     private var gestureWanted: Bool {
         prefs.armWithOption && !externalDisplay && (!isArmed || (state == .armedWaitingClose && armSource != .gesture))
     }
     private var gestureListening = false
 
     /// Every entry into (or exit from) a listening state starts the detector from a clean slate, so no
-    /// half gesture or held arm can carry over from a previous state (that was the 2026-09-11 softlock).
+    /// half gesture or held arm can carry over from a previous state.
     private func refreshGestureSampling() {
         let wants = gestureWanted && lidAngleObserver != nil
         if wants != gestureListening { gesture.reset() }

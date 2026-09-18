@@ -4,9 +4,9 @@ import Foundation
 ///
 /// While an external display is connected macOS runs its own clamshell mode and the session stayed
 /// visible on that display the whole time, so the reopen does not lock (`DisplayTopology.standsBy`).
-/// The catch, measured on this Mac on 2026-09-14 (charger-fed display, unplugged in clamshell): macOS
-/// posts no screen-parameters change while the lid is closed and no display is left to reconfigure —
-/// the disconnect lands ~130 ms *after* the lid-open notification. The decision taken at the lid-open
+/// The catch (charger-fed display, unplugged in clamshell): macOS posts no screen-parameters change
+/// while the lid is closed and no display is left to reconfigure — the disconnect lands ~130 ms
+/// *after* the lid-open notification. The decision taken at the lid-open
 /// instant is therefore one event out of date, and the session that had been sitting behind a closed
 /// lid with no display at all reopened unlocked.
 ///

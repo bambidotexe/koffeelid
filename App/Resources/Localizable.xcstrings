@@ -1231,16 +1231,6 @@
         }
       }
     },
-    "Sensor": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Capteur"
-          }
-        }
-      }
-    },
     "Servers & builds": {
       "localizations": {
         "fr": {

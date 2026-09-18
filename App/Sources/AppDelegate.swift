@@ -2,8 +2,8 @@ import AppKit
 import KoffeeLidCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var settings: SettingsWindowController?      // Part 3b
-    private var onboarding: OnboardingWindowController?  // Part 3b
+    private var settings: SettingsWindowController?
+    private var onboarding: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let running = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier!).first(where: { $0.processIdentifier != getpid() }) {

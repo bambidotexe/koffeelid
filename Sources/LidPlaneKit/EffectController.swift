@@ -48,7 +48,6 @@ public final class EffectController {
     private var lastAngle: Double?
     /// Set by `followLidFromHere()`; the gate it suspended comes back when that fold ends.
     private var followingLid = false
-    public var isFollowingLid: Bool { followingLid }
     /// True while the plane is folded (the tracker has a fold in progress).
     public var isFolding: Bool { tracker?.isFolding == true }
 

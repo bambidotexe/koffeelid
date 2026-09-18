@@ -9,7 +9,6 @@ final class InternalDisplayBrightnessController {
     private let setBrightness: SetFn?
     private let recoveryURL: URL
     var onLog: ((String) -> Void)?
-    var isAvailable: Bool { getBrightness != nil && setBrightness != nil }
 
     private struct Recovery: Codable { var displayID: UInt32; var brightness: Float }
 

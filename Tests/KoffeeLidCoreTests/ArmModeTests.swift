@@ -37,9 +37,6 @@ final class ArmModeTests: XCTestCase {
     }
 
     func testModeProperties() {
-        XCTAssertFalse(ArmMode.off.isArmed)
-        XCTAssertTrue(ArmMode.armed.isArmed)
-        XCTAssertTrue(ArmMode.caffeinate.isArmed)
         XCTAssertFalse(ArmMode.armed.keepsDisplayOn)
         XCTAssertTrue(ArmMode.caffeinate.keepsDisplayOn)
         XCTAssertEqual(ArmMode(rawValue: "caffeinate"), .caffeinate)

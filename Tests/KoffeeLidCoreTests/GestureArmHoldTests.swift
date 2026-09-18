@@ -42,7 +42,7 @@ final class GestureArmHoldTests: XCTestCase {
     }
 
     /// No lock (no login password, or the lock failed) means "until I log back in" has no meaning:
-    /// fall back to the old behaviour rather than hold an arm over a visible desktop.
+    /// the arm ends at that reopen rather than hold over a visible desktop.
     func testGivingUpOnTheLockEndsTheArm() {
         var h = GestureArmHold()
         _ = h.lidOpened()

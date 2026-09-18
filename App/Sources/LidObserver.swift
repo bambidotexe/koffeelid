@@ -11,7 +11,6 @@ final class LidObserver {
     init(power: PowerManager) {
         self.power = power
         filter = LidStateTransitionFilter(baselineClosed: power.readLidClosed())
-        onLog?("lid observer baseline: \(filter.isClosed.map { $0 ? "closed" : "open" } ?? "unknown")")
     }
 
     func handleNotification() {

@@ -4,7 +4,7 @@ import KoffeeLidCore
 /// Root-backed sleep kill switch: `pmset disablesleep 1` sets `SleepDisabled` on `IOPMrootDomain`, which
 /// the kernel checks before *every* sleep request (`checkSystemSleepAllowed`), clamshell evaluations
 /// included. It is the only thing that keeps a closed armed Mac awake when powerd rewrites the shared
-/// lid-sleep bit (charger attach, display hot-plug — see docs/platform-notes.md). `pmset` needs root, so
+/// lid-sleep bit (charger attach, display hot-plug — see docs/macOS.md). `pmset` needs root, so
 /// the commands run through `sudo -n` and depend on the sudoers rule from `SleepLockSetup`; without it
 /// the lock is simply unavailable. The setting persists in /Library/Preferences/com.apple.PowerManagement.plist
 /// (across reboots), hence the marker file: the next launch that finds it releases the lock.

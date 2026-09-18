@@ -1,4 +1,3 @@
-// App/Sources/ActivityMonitor.swift
 import AppKit
 import KoffeeLidCore
 
@@ -137,7 +136,7 @@ final class ActivityMonitor {
         timer = t
     }
 
-    /// Esc/Ctrl-C fire no hook: ask Claude Code's own registry about quiet turns and open dialogs (spec §4).
+    /// Esc/Ctrl-C fire no hook: ask Claude Code's own registry about quiet turns and open dialogs.
     private func checkRegistry(now: Date) {
         for (sid, pid) in sessions.abandonCandidates(at: now) {
             guard let record = ClaudeProcessRegistry.read(pid: pid), record.sessionId == sid else {

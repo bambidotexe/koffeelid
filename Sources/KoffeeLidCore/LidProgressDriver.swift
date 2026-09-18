@@ -18,8 +18,7 @@ public enum GestureEvent: Equatable {
 ///
 /// After `.armed` the driver is silent (`activated`) for as long as the modifier stays down, so one
 /// hold produces one arm; it resets itself as soon as the modifier is released and is then ready for
-/// the next gesture. (Before 2026-09-11 it stayed `activated` until someone called `reset()`, and the
-/// "gesture while already armed" path never did — the detector was dead until the next arm.)
+/// the next gesture.
 public struct LidProgressDriver {
     public var angleOpen: Double
     public var angleClosed: Double

@@ -106,7 +106,7 @@ final class PlaneRemapTests: XCTestCase {
         XCTAssertGreaterThan(just, 0); XCTAssertLessThan(just, 0.1)
         XCTAssertGreaterThan(deeper, just); XCTAssertLessThan(deeper, 0.9)
         XCTAssertEqual(inside, 1, accuracy: 1e-5)
-        // Softness 0: the old crisp cut.
+        // Softness 0: a crisp cut.
         XCTAssertEqual(PlaneRemap.coverage(uv: SIMD2(edge - 0.001, 0.5), angleRadians: a, perspective: 0.5, softness: 0), 1)
         XCTAssertEqual(PlaneRemap.coverage(uv: SIMD2(edge + 0.001, 0.5), angleRadians: a, perspective: 0.5, softness: 0), 0)
     }

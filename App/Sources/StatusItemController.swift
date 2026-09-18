@@ -71,8 +71,7 @@ final class StatusItemController: NSObject {
     /// when auto-armed, sleepy eyes when armed, round eyes for Armed + screen on. 22 pt wide (the cup is
     /// wider than tall) for the 22 pt menu bar. The button centres the image, so 1 pt of headroom above
     /// the cup sits it half a point low (an even image height also keeps the button's offset on a whole
-    /// point): centred exactly it read too high next to the neighbouring glyphs, with 2 pt of headroom too
-    /// low (2026-09-13). Drawn opaque: a template image, the bar tints it.
+    /// point), matching the neighbouring glyphs. Drawn opaque: a template image, the bar tints it.
     static func mugImage(state: MugShape.State) -> NSImage {
         if let cached = cache[state] { return cached }
         let width: CGFloat = 22, height = width * MugShape.aspect

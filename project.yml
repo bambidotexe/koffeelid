@@ -84,7 +84,6 @@ targets:
         PRODUCT_NAME: KoffeeLid
         PRODUCT_BUNDLE_IDENTIFIER: dev.rubens.koffeelid
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        SWIFT_OBJC_BRIDGING_HEADER: ""
         INFOPLIST_FILE: App/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: App/KoffeeLid.entitlements

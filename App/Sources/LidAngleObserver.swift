@@ -9,7 +9,7 @@ import KoffeeLidCore
 /// stays at 30 Hz whatever the poll rate, so the gesture filters keep their sample counts, and every
 /// delivery carries the time its value was first seen, which is what the effect's smoother interpolates.
 ///
-/// Threading: `addConsumer`/`removeConsumer`/`isSampling` and the `timer` property are main-thread only;
+/// Threading: `addConsumer`/`removeConsumer` and the `timer` property are main-thread only;
 /// everything the tick touches (`filter`, `current`, `lastDelivery`, `fast`) lives on `queue`.
 final class LidAngleObserver {
     private let sensor: LidAngleSensor
@@ -28,7 +28,6 @@ final class LidAngleObserver {
     /// Angle in degrees and the system uptime at which that value was first read.
     var onSample: ((Double, TimeInterval) -> Void)?
     var onLog: ((String) -> Void)?
-    var isSampling: Bool { timer != nil }
 
     init(sensor: LidAngleSensor, hz: Double = 30) { self.sensor = sensor; deliveryInterval = 1 / hz }
 

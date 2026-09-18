@@ -83,7 +83,7 @@ final class LidProgressDriverTests: XCTestCase {
         XCTAssertEqual(d.feed(angle: 95, optionTrusted: true, now: 5.03), .armed(angle: 95, start: 100))
     }
     func testSoftlockReplay_gestureWhileArmedThenDisarmWithoutReset() {
-        // 2026-09-11: armed from the shortcut, Fn + close as feedback (.armed), Fn released, disarmed, then
+        // Armed from the shortcut, Fn + close as feedback (.armed), Fn released, disarmed, then
         // Fn + close again — nobody called reset(); the driver must recover on its own.
         var d = LidProgressDriver(activationDegrees: 4)
         _ = d.feed(angle: 130, optionTrusted: true, now: 0)

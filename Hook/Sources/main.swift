@@ -1,4 +1,3 @@
-// Hook/Sources/main.swift
 import Foundation
 import Darwin
 import KoffeeLidCore

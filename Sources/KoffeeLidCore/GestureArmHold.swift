@@ -2,15 +2,14 @@ import Foundation
 
 /// When a one-close (Fn + close) arm ends.
 ///
-/// It used to end the moment the lid opened, which left a hole: anyone who lifted the lid and shut it
-/// again stopped the Mac dead, because the second close met a disarmed app. The arm now survives the
-/// lid opening and ends when the user actually logs back in — the lid can be opened and closed any
-/// number of times in between and the Mac stays awake.
+/// The arm survives the lid opening and ends when the user logs back in — the lid can be opened and
+/// closed any number of times in between and the Mac stays awake, so nobody can stop the work by
+/// opening and closing the lid.
 ///
 /// The hold only means something if the session is locked, so it is armed by the lock landing (the
-/// reopen lock the app requests anyway) and abandoned if that lock never takes — on a Mac with no
-/// login password the old behaviour is the right one, since holding an arm over a visible desktop
-/// would be worse than sleeping.
+/// reopen lock the app requests anyway) and the arm ends at that reopen if that lock never takes —
+/// on a Mac with no login password, since holding an arm over a visible desktop would be worse than
+/// sleeping.
 public struct GestureArmHold {
     public enum Reason: String, Equatable {
         case unlocked = "unlock"

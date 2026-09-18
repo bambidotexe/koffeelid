@@ -12,9 +12,9 @@ final class ReopenLockDecisionTests: XCTestCase {
         XCTAssertFalse(d.lidOpened(standingBy: true, now: 100))
     }
 
-    /// The bug (2026-09-14): the charger feeding the external display is unplugged while the lid is
-    /// closed, macOS only reports the topology change ~130 ms after the lid-open notification, and the
-    /// session — hidden behind a closed lid with no display at all — reopened unlocked.
+    /// The charger feeding the external display is unplugged while the lid is closed; macOS only
+    /// reports the topology change ~130 ms after the lid-open notification, so the session — hidden
+    /// behind a closed lid with no display at all — must still lock.
     func testLocksWhenTheDisplayTurnsOutToHaveBeenGoneAtTheReopen() {
         var d = ReopenLockDecision()
         XCTAssertFalse(d.lidOpened(standingBy: true, now: 100))
