@@ -161,3 +161,80 @@ Behaviour-preserving mission; none of these is a defect the user reported. Recor
    without the numeric-pad flag). `CGEventSource.keyState(…, 63)` read 1 for a real Fn press and 0 for an arrow
    key on this Mac; requiring it as well would close that gap, at the cost of depending on one more reading
    that has not been checked with an external keyboard. Wanted?
+
+## 2026-09-19 pass
+
+Same mission, run again one day later on `f3b447c` as an independent verification of the pass above: every
+in-scope file re-read by a fresh reader (`docs/_coverage.md` § 2026-09-19 verification pass), the docs treated as
+untrusted and checked claim by claim against the code by two Sonnet workers, the quality-bar questions answered
+from code only by a third worker that was forbidden to open any doc, and a fourth worker reading the UI, the
+renderer, the tests, the scripts and the resources for residue. The map, the behaviour and the verdicts above
+stand; the code-only answers to the quality-bar questions agree with `docs/functional.md`, `docs/architecture.md`
+and `docs/macOS.md` on every mechanism, timing and default.
+
+### Deletions (proven with a repo-wide grep, applied)
+
+| Item | Where | Why |
+|---|---|---|
+| `SleepLockSetup.installCommand(user:)` and `testInstallCommandValidatesBeforeTheRuleIsLive` | `SleepInterruptionPolicy.swift:66-72`, `SmallPoliciesTests.swift:93-98` | a production function whose only caller was its test; `script/install.sh` prints its own literal one-liner, so the test protected nothing |
+| `otherStart` slider handle and `_ = otherStart` | `AdvancedViewController.swift:33,44` | never used; `labelledSlider` is `@discardableResult`. The push between the two "Start below" sliders runs through the gesture slider's handle only |
+
+Kept on purpose, in addition to the list above: `PlaneRemap.blurRadius` (test-only by design, mirrors
+`PlaneShader` line `radius = u.blurStrength * gap * 65.0`); `MTKViewDelegate.mtkView(_:drawableSizeWillChange:)`
+(protocol requirement).
+
+### Doc corrections
+
+| Doc | Was | Now |
+|---|---|---|
+| `functional.md` § The lid effect, End | an external display "stops it at once" | connecting one retracts the plane over 0.3 s like a cancelled one-close arm (`handleDisplays` → `effect.stop(retracting: true)`) |
+| `functional.md` § What KoffeeLid does not do | "never signals processes by name" | never signals its own by name; Advanced › Reset runs `killall usernoted` and `killall NotificationCenter` |
+| `functional.md` § What KoffeeLid does not do | the hook binary "always exits 0" | always 0 from the `hook` verb; a malformed `job` line exits 2 |
+| `functional.md` § Auto-arm, Without an end event | registry rescue only | adds the `idle_prompt` / `agent_needs_input` lost-`Stop` rule (50 s of main-agent quiet) |
+| `macOS.md` § Permissions and how each is reset | `killall usernoted` | both daemons |
+| `macOS.md`, `development.md` | macOS 26, Xcode 26, Swift 6.3 | macOS 27, Xcode 27, Swift 6.4 (`sw_vers`, `xcodebuild -version`, `swift --version`) |
+| `architecture.md` § Entry points | `perform` "maps a verb onto `setMode`" | arming verbs only; `status` no-op, `settings` opens the window; returns `did not arm: …` when refused |
+| `architecture.md` § Entry points, `shutdown()` | | also stops the screen-lock observer |
+| `architecture.md` § Auto-arm, helper row | | a helper event ends a wait that a helper's permission request opened |
+| `architecture.md` § Privilege boundary | "`pgrep`/`pkill` patterns" | the one `pkill` (`install.sh`) and the two `killall`s by name |
+| `pitfalls.md` § The lock can silently fail | "retries until locked" | five retries, 0.5 to 8 s apart |
+| `pitfalls.md` § A hook payload is untrusted input | "every field … at 4 KB" | identifiers 200 chars, labels 60, raw prefix 300, line 4 KB |
+| `pitfalls.md` § Working on this Mac | | the `appintentsmetadataprocessor` warning: the Debug build that printed it wrote no `Metadata.appintents`; the next build, which relinked the app, wrote it; the installed Release build has it |
+| `development.md` § A user-visible string | `rg` one-liner | `grep -rhoE` (rg is not installed here) |
+| `development.md` § A settings control | "as the two Start below sliders do" | only the gesture slider keeps its handle |
+| `development.md` § Daily loop, `CLAUDE.md`, `manual-checks.md` Shortcuts check | | the same Debug-build note |
+| `README.md` badge, `CLAUDE.md` | 248 tests | 247 |
+
+### Left as they are (recorded, not defects)
+
+- The inconsistencies listed in the 2026-09-18 pass, unchanged.
+- A Debug build that prints the `appintentsmetadataprocessor` warning registers no App Intents metadata until
+  it is rebuilt (above). The installed Release build is unaffected.
+
+### Owner decisions, same day
+
+1. `NSAppleEventsUsageDescription` ("Not used.") removed from `App/Info.plist`: nothing sends Apple events to
+   another app, and the administrator dialog (`do shell script … with administrator privileges`) runs in
+   process.
+2. The Fn read now also requires virtual key 63 to be physically down
+   (`FnKeyReading.isFnDown(secondaryFn:numericPad:keyDown:)`, fed by
+   `CGEventSource.keyState(.combinedSessionState, key: kVK_Function)`; test first, `FnKeyReadingTests`). Function
+   keys used as F1–F12 and an external keyboard's navigation keys no longer read as Fn.
+3. Nothing installed or released.
+4. Only the built-in keyboard's Fn key arms: `BuiltInFnKeyReader` (new App file) opens the `Built-In` keyboard
+   through `IOHIDManager` under the Input Monitoring grant and reads its Fn element (page `0xFF`, usage 3;
+   `ioreg` shows the external Magic Keyboard carries the same element); `FnKeyReading` gained an optional
+   `builtInKeyDown` (test first, four cases); a fifth `PermissionCatalog` row, `tccutil reset ListenEvent` in the
+   reset, two strings with `fr`. Without the grant the previous rule stands. Two probes on this Mac (scratchpad,
+   not in the tree): a matching dictionary carrying `Built-In: true` matched both keyboards, so the filter moved
+   to user space; the reader's open → element subscription → schedule → close sequence on the built-in device
+   succeeds under the grant. Key presses themselves are not yet exercised (`docs/manual-checks.md` § Gesture).
+
+### Questions for the owner
+
+- Resolved above. Remaining unconfirmed: whether the Input Monitoring grant applies without a relaunch.
+
+- (Superseded) The owner wants only the built-in keyboard's Fn key to arm. `CGEventSource.keyState` is session-wide: an
+  external Apple keyboard's Fn/Globe key, if it presses key 63, still counts. Telling keyboards apart needs
+  per-device HID input (an `IOHIDManager` on the internal keyboard), which macOS gates behind the Input
+  Monitoring grant: a new permission row, a new denied-state fallback. Decision pending.

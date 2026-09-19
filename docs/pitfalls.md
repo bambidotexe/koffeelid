@@ -79,12 +79,26 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
   until the next keyboard event: press ↑ once, touch nothing, and "Fn" reads held for as long as you like. `FoldTracker` and `ReopenCancelWatch` ignore stillness while the modifier
   reads held, so a false "held" starves the effect's reset, which is evaluated per lid-angle sample and has no
   timer behind it.
-- **What the code does.** `FnKeyReading.isFnDown` rejects a reading that carries the numeric-pad flag;
-  `GestureController.readModifier` uses it for both sources.
-- **Do not** test the Fn flag alone. Do not gate the effect's reset on anything that can stay true without the
-  user's hand on a key. Function keys used as F1–F12 and an external keyboard's navigation keys still carry the
-  Fn flag without the numeric-pad flag; `CGEventSource.keyState(…, 63)` reads the physical key (1 for Fn, 0
-  for an arrow key on this Mac) and would cover them.
+- **What the code does.** `FnKeyReading.isFnDown` rejects a reading that carries the numeric-pad flag or whose
+  physical key 63 is up (`CGEventSource.keyState`, 1 for Fn and 0 for an arrow key on this Mac);
+  `GestureController.readModifier` uses it for both flag sources.
+- **Do not** test the Fn flag alone: function keys used as F1–F12 and an external keyboard's navigation keys
+  carry it without the numeric-pad flag, and only the key state of 63 tells them from Fn. Do not gate the
+  effect's reset on anything that can stay true without the user's hand on a key.
+
+### An external Apple keyboard's Fn is the same flag, the same key code and the same HID element
+- **Symptom.** The Globe key of a Magic Keyboard next to the MacBook arms the lid gesture, or holds the fold.
+- **Why.** It sets the same secondary-Fn flag, presses the same virtual key 63, and (seen in `ioreg` on this
+  Mac) carries the same input element, usage page `0xFF` usage 3, as the built-in keyboard. Nothing in the
+  session-wide readings says which keyboard.
+- **What the code does.** `BuiltInFnKeyReader` enumerates the keyboards, keeps the one whose `Built-In`
+  property is set, opens that device and reads its Fn element; `FnKeyReading` requires that reading too when it
+  exists. It needs the Input Monitoring grant; without it the session-wide rule stands and any keyboard's Fn
+  counts (logged at start).
+- **Do not** put `Built-In` in the HID matching dictionary: the kernel ignores keys it does not match on, and a
+  dictionary carrying it matched both keyboards on this Mac. Do not try to tell keyboards apart from `CGEvent`
+  flags or key codes, and do not trust the HID value alone: a missed key-up would leave it down, which is why
+  the session key state is still ANDed in.
 
 ### A cached modifier state sticks
 - **Symptom.** Every close arms, then the detector goes dead after 20 s.
@@ -150,7 +164,8 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 
 ### The lock can silently fail
 - **Why.** `SACLockScreenImmediate` is private, and an account without a login password never locks.
-- **What the code does.** Retries until macOS reports the session locked, then notifies; a one-close arm that
+- **What the code does.** Retries five times (0.5 to 8 s apart) until macOS reports the session locked, then
+  notifies; a one-close arm that
   never sees a lock ends at that reopen rather than being held over a visible desktop.
 
 ### A menu-bar app's windows fall behind
@@ -227,7 +242,8 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 
 ### A hook payload is untrusted input
 - **What the code does.** `ActivityTrim` accepts only Claude Code's event names (a payload cannot forge
-  `JobBegin`/`JobEnd`), keeps identifiers only, caps stdin at 8 MB, every field and the line at 4 KB.
+  `JobBegin`/`JobEnd`), keeps identifiers only, caps stdin at 8 MB, identifiers at 200 characters, labels at
+  60, the raw prefix of an unparseable payload at 300, and the line at 4 KB.
 
 ### `~/.claude/settings.json` and `~/.zshrc` belong to the user
 - **What the code does.** Strict load (any ambiguity is an error, never a guess), backup to
@@ -257,5 +273,20 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 - **The string catalog's key order is not a plain sort.** Edit `Localizable.xcstrings` in place; loading and
   re-serialising it turns a two-key change into a full-file diff.
 - **XCTest's summary undercounts here**; count the per-case `passed` lines.
+- **A Debug build can print one `warning:` from `appintentsmetadataprocessor`** (`Metadata extraction skipped,
+  no AppIntents.framework dependency found`); the bundle it produces then has no `Metadata.appintents`, so its
+  App Intents do not reach Shortcuts. Seen on the first Debug build of a session; the next build, which relinked
+  `KoffeeLid.debug.dylib`, wrote the metadata. It is not a compiler warning, and the installed Release build has
+  the metadata. Check with `ls DerivedData/Build/Products/Debug/KoffeeLid.app/Contents/Resources/Metadata.appintents`.
 - **TCC and Login Items are per bundle path and per team id.** The DerivedData build and the installed build
   are different apps; changing the signing team asks for every grant again.
+- **A Claude turn that dies when the Thunderbolt dock is unplugged is a network event, not a sleep.** The dock
+  carries a USB Ethernet adapter (`en7`); while docked it is the primary interface, and an API stream in flight
+  is bound to its address. Unplugging detaches it, Wi-Fi takes over within a second, but the stream cannot
+  migrate: Claude Code reports `API Error: Connection lost mid-response` about a minute later and fires
+  `StopFailure`. Signature: `configd` logs `interface detach: en7`, `pmset -g log` has no `Sleep` or `Wake`
+  line in that window, and the app's assertions and sleep lock are still listed. Do not read it as a failed
+  arm. Seen 2026-09-19 12:49 with the lid closed and the auto-arm on: powerd cleared the kernel flag on the
+  power-source change, the sleep lock held, the Mac never slept.
+- **`log` is a shell function in this account's zsh profile.** `log show …` fails with `too many arguments`;
+  call `/usr/bin/log show …`.

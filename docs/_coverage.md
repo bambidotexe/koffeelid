@@ -264,3 +264,81 @@ Removed from the tree: `docs/gesture.md`, `docs/platform-notes.md`, `docs/superp
 `Tests/KoffeeLidCoreTests/FnKeyReadingTests.swift` (written by the Opus worker, reviewed by the parent),
 `docs/README.md`, `docs/functional.md`, `docs/macOS.md`, `docs/pitfalls.md`, `docs/_audit.md`, `docs/_coverage.md`.
 Every file that remains under `App/`, `Sources/`, `Hook/`, `Watchdog/`, `Tests/`, `script/` was covered above.
+
+## 2026-09-19 verification pass
+
+Second run of the same mission, one day after the first, on the tree at `f3b447c` (three commits after the
+`d4acc73` manifest above). The earlier manifest was taken as the record of who read what at `d4acc73`; the docs
+it produced were treated as untrusted and every in-scope file was read again by a named reader of this pass.
+
+Inventory: `git ls-files` = 169 files; 150 text files in scope (12,729 lines); 19 binary (10 icon PNGs, 6 MP3s,
+`docs/assets/icon.png`, `menubar.png`, `lid-effect.gif`), listed and not read. Since `d4acc73`: added
+`Sources/KoffeeLidCore/FnKeyReading.swift`, `Tests/KoffeeLidCoreTests/FnKeyReadingTests.swift`, `docs/README.md`,
+`docs/functional.md`, `docs/macOS.md`, `docs/pitfalls.md`, `docs/_audit.md`, `docs/_coverage.md`; removed
+`docs/gesture.md`, `docs/platform-notes.md`, `docs/superpowers/**` (2). No orphan either way between disk and the
+project definitions (membership is by directory). No `TODO`/`FIXME`/`HACK`. `rg` is not installed on this Mac;
+every search ran through `grep` or Python.
+
+### Read table (this pass)
+
+| Group | Files | Reader | Model | Effort |
+|---|---|---|---|---|
+| Entry points (`main`, `AppDelegate`, `CommandServer`, `KoffeeLidIntents`), `Info.plist`, entitlements, LaunchAgent plist, `project.yml`, `Package.swift`, `.gitignore` | 10 | parent | Fable | xhigh |
+| `KoffeeLidController.swift` | 1 | parent | Fable | xhigh |
+| Power, sleep, lid, lock, brightness, relaunch agent, watchdog (App 12) + their Core policies (12) | 24 | parent | Fable | xhigh |
+| Activity / Claude hook (App 7 incl. `Hook/Sources/main.swift`) + Core `Activity*`, `ClaudeRegistryRecord`, `HookConfig`, `HookSettingsFile`, `ShellInit`, `ProcWalk` (12) | 19 | parent | Fable | xhigh |
+| Gesture (`GestureController`, `LidAngleObserver`, `LidAngleSensor`, Core `FnKeyReading`, `LidProgressDriver`, `OptionGateFilter`, `GestureArmHold`, `ReopenCancelWatch`), `Preferences`, `StatusItemController`, `HotKeyController`, `DiagnosticLog`, `NotificationsController`, `DeepLink`, `KoffeeLidCore` | 15 | parent | Fable | xhigh |
+| `EffectController`, `CaptureStartGate`, Core `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `EffectParameters`, `AngleSampleFilter`, `VolumeOverridePolicy`, `LidCloseSoundPlayer`, `OutputVolumeOverride` | 10 | parent | Fable | xhigh |
+| `script/install.sh` | 1 | parent | Fable | xhigh |
+| `docs/*.md` (9), `README.md`, `CLAUDE.md` | 11 | parent | Fable | xhigh |
+| `App/Sources/UI/*` (8), `MugShape`, `DesktopCapture`, `PlaneRenderer`, `PlaneShader`, `PlaneRemap`, `EffectOverlayPanel`, `Tests/**` (30), `script/*` (8), `Localizable.xcstrings`, glyph SVGs (4), asset-catalog JSON (2), sounds licence, `.gitignore` | 61 (3,409 lines) | RESIDUE worker | Sonnet | medium |
+| Every production Swift file, plist, project definition, script and the string catalog (docs forbidden) | 100 | QB worker | Sonnet | high |
+| `docs/functional.md`, `docs/macOS.md`, then every production code file | 102 | DOCS-A worker | Sonnet | high |
+| `docs/architecture.md`, `docs/pitfalls.md`, then every production code file | 101 | DOCS-B worker | Sonnet | high |
+
+Union of the parent's 91 files and the RESIDUE worker's 61 (two in both): **150 of 150 in-scope text files read
+in full this pass; unread in scope = 0.** The three other workers are additional readers of the production code.
+
+### Checks that were scripts, not agents
+
+- Symbols declared in production Swift with at most one occurrence across production and tests (Python, word
+  boundaries): only framework callbacks and overrides. Declared in production and referenced only from tests:
+  `PlaneRemap.blurRadius` (kept, tested shader reference) and `SleepLockSetup.installCommand` (removed).
+- String catalog: 170 keys, all with an `fr` entry, all reachable (147 `L("…")` literals; the six
+  `${applicationName}` phrases are the App Shortcut phrases in `KoffeeLidIntents.swift`); no literal outside the catalog.
+- Every backticked log line in `docs/manual-checks.md` and `docs/development.md` matched a format string in the code.
+- Toolchain and OS lines checked with `swift --version` (6.4), `xcodebuild -version` (27.0), `sw_vers` (27.0), `sysctl hw.model` (Mac16,8).
+- Narrative markers (`used to`, `previously`, `Part N`, `legacy`, dates in comments…): none in source.
+
+### Fan-out log
+
+Every spawn went through the Workflow `agent()` call with `model: 'sonnet'` and an explicit `effort`; the plain
+Agent tool takes no per-spawn effort, which is why the Workflow tool carried the fan-out. No worker ran on the
+parent model; none at xhigh or max.
+
+| Wave | Workers (model / effort) | Agents | Subagent tokens | Wall clock | Tool uses |
+|---|---|---|---|---|---|
+| 1 | QB (Sonnet / high), DOCS-A (Sonnet / high), DOCS-B (Sonnet / high), RESIDUE (Sonnet / medium) | 4 | 947 k | 10.7 min | 219 |
+
+No second wave: the cleanup came to three edits totalling 14 removed lines.
+
+Deviations from the default routing, with reason:
+
+- Cleanup edits by the parent instead of a Sonnet-medium worker: three edits under 15 lines, each proven by a
+  repo-wide grep; a spawn would have cost more than the edits.
+- No separate worker for `development.md`, `manual-checks.md`, `CLAUDE.md`, `README.md`: the parent read them,
+  the log-line script above checked their greps, and the toolchain lines were checked against the tools.
+- No Haiku membership pass, for the 2026-09-18 reason.
+
+### Result
+
+- Docs against code: 4 disagreements and 4 omissions from the workers, 6 more from the parent's read; all
+  corrected (`docs/_audit.md` § 2026-09-19 pass lists them).
+- Code: `SleepLockSetup.installCommand(user:)` and its test removed (production function with no production
+  caller; `script/install.sh` carries its own literal); the unused `otherStart` slider handle removed from
+  `AdvancedViewController` (`labelledSlider` is `@discardableResult`).
+- Verification after the edits: `swift test` 247 per-case passes, 0 failures (225 Core + 22 LidPlaneKit); 253 after the owner's Fn
+  decisions (six `FnKeyReadingTests` added, `App/Sources/BuiltInFnKeyReader.swift` added by the parent);
+  `xcodebuild … Debug build` BUILD SUCCEEDED twice: the first build printed the `appintentsmetadataprocessor`
+  warning and wrote no `Metadata.appintents`, the second wrote it (documented in `docs/pitfalls.md` § Working on
+  this Mac).
