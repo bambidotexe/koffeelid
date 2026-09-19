@@ -30,7 +30,7 @@ enum SettingsMetrics {
     /// The widest a status mark grows before its sentence wraps.
     static let markMaxWidth: CGFloat = 400
     /// The app icon that heads the General page, and the air above it.
-    static let appIconSide: CGFloat = 72
+    static let appIconSide: CGFloat = 144
     static let appIconTop: CGFloat = 2
     /// The height of anything tall that lives inside a card: a text editor, a list.
     static let embeddedHeight: CGFloat = 240

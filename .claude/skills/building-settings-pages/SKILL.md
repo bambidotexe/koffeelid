@@ -40,7 +40,7 @@ reproduce them.
 - **A page is a subject the user thinks in** (in SnappySnap: Snapping, Snap Bar, Handles), never a kind of control and
   never a layer of the code. Title Case, one or two words, one outline SF Symbol that pictures the subject.
 - Order: **General** first, then the features in the order a user meets them, then **System** last.
-- **General** is, in this order: the app icon alone (`SettingsAppIcon`, 72 pt, centred); **Startup**
+- **General** is, in this order: the app icon alone (`SettingsAppIcon`, 144 pt, centred); **Startup**
   (Launch at login, Show in menu bar, no hint, and one **note** naming the way back to this window when
   the icon is hidden); **Updates** (its contract is below); **Quit** (one destructive `ButtonRow`, no
   hint, no note).
@@ -185,7 +185,7 @@ All in `SettingsMetrics`. Change one only on the owner's word, and then in the k
 | hint to first callout (no hint: 5) | 4 | status: symbol to word | 4 |
 | between callouts | 3 | status: widest mark before it wraps | 400 |
 | callout: symbol to text | 5 | tall content inside a card | 240 |
-| title, hint, callout inset | 10 | app icon (2 above it) | 72 |
+| title, hint, callout inset | 10 | app icon (2 above it) | 144 |
 | card radius | 10 | screen height left alone | 140 |
 
 Card: fill `Color.primary.opacity(0.05)`, stroke `Color.primary.opacity(0.08)` at 0.5. Switch:
