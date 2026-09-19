@@ -30,18 +30,16 @@ final class AdvancedViewController: PaneViewController {
             // slider pushes or stops at its neighbour.
             let degrees: (Double) -> String = { "\(Int($0.rounded()))°" }
             var gestureStart: SettingsForm.SliderHandle?
-            var otherStart: SettingsForm.SliderHandle?
             gestureStart = g.labelledSlider(L("Start below (with the lid gesture)"), min: 30, max: EffectParameters.gestureStartCeiling, value: p.gestureStartBelowDegrees, fmt: degrees) { [weak self] in
                 guard let self else { return }
                 self.p.gestureStartBelowDegrees = $0.rounded()
                 gestureStart?.set(self.p.gestureStartBelowDegrees)          // stops at the "except" value
             }
-            otherStart = g.labelledSlider(L("Start below (except the lid gesture)"), min: 30, max: 90, value: p.startBelowDegrees, fmt: degrees) { [weak self] in
+            g.labelledSlider(L("Start below (except the lid gesture)"), min: 30, max: 90, value: p.startBelowDegrees, fmt: degrees) { [weak self] in
                 guard let self else { return }
                 self.p.startBelowDegrees = $0.rounded()
                 gestureStart?.set(self.p.gestureStartBelowDegrees)          // pushed up when the "except" value passes it
             }
-            _ = otherStart
             g.labelledSlider(L("Return to flat when still for"), min: 0.25, max: 10, value: p.settleDelay, fmt: { String(format: "%.2g s", $0) }) { [weak self] in self?.p.settleDelay = ($0 * 4).rounded() / 4 }
             g.labelledSlider(L("Inner screen zoom"), min: 0, max: 2, value: p.zoomStrength, fmt: { "\(Int(($0 * 100).rounded())) %" }) { [weak self] in self?.p.zoomStrength = ($0 * 20).rounded() / 20 }
             g.labelledSlider(L("Perspective"), min: 0, max: 2, value: p.perspectiveStrength, fmt: { "\(Int(($0 * 100).rounded())) %" }) { [weak self] in self?.p.perspectiveStrength = ($0 * 20).rounded() / 20 }

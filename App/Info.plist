@@ -19,5 +19,4 @@
     <key>CFBundleURLName</key><string>dev.rubens.koffeelid.activation</string>
     <key>CFBundleURLSchemes</key><array><string>koffeelid</string></array>
   </dict></array>
-  <key>NSAppleEventsUsageDescription</key><string>Not used.</string>
 </dict></plist>
