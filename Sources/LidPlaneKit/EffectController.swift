@@ -206,9 +206,14 @@ public final class EffectController {
         return .following
     }
 
+    /// The fold the Settings preview plays. The Lid Effect page's hint reads both numbers from here.
+    public nonisolated static let previewFoldDegrees: Double = 35
+    public nonisolated static let previewFoldSeconds: TimeInterval = 2
+
     /// A 0 → `degrees` → 0 fold over `seconds`, for the Settings button. Works whether or not the Mac is
     /// armed: when the effect is not running it is started for the preview and torn down afterwards.
-    public func simulateFold(degrees: Double = 35, seconds: TimeInterval = 2) {
+    public func simulateFold(degrees: Double = EffectController.previewFoldDegrees,
+                             seconds: TimeInterval = EffectController.previewFoldSeconds) {
         guard simulation == nil else { return }
         let temporary = !isRunning
         if temporary {

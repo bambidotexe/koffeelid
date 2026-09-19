@@ -12,11 +12,11 @@
 
 <p align="center">
   <a href="https://github.com/bambidotexe/koffeelid/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/bambidotexe/koffeelid?color=2ea44f"></a>
-  <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white">
+  <img alt="macOS 15+" src="https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white">
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-268%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-288%20passing-2ea44f">
 </p>
 
 ## The problem
@@ -29,7 +29,7 @@ KoffeeLid keeps the Mac awake with the lid closed, and — this is the point —
 
 ## It arms itself while you work
 
-This is the headline feature. Set it up once, from onboarding or Settings › Hooks, and KoffeeLid watches two
+This is the headline feature. Set it up once, from onboarding or Settings › Auto-Arm, and KoffeeLid watches two
 things:
 
 - **Claude Code.** Hooks in `~/.claude/settings.json` report every session event — a prompt sent, a tool
@@ -109,7 +109,7 @@ Switch however you like:
 - **Charger and display changes** — macOS rewrites the lid-sleep flag when the charger is plugged in or a
   display comes and goes, and the kernel then sleeps a closed Mac on the spot. KoffeeLid holds the session in
   dark wake when that happens and, once the sleep lock is set up (one administrator password, from onboarding or
-  Settings › Permissions), engages `pmset disablesleep` on every arm so that sleep never even starts.
+  Settings › System), engages `pmset disablesleep` on every arm so that sleep never even starts.
 - **Thermal pressure, external sleep, a crash** — all end the session and restore lid sleep. A watchdog
   relaunches the app after an unclean exit, and the kernel flag is cleared again at the next launch.
 
@@ -128,10 +128,10 @@ warn; control-click the app and choose Open, or build from source.
 
 ## Requirements
 
-- Apple silicon MacBook, macOS 14 or later. The lid gesture and the fold need the built-in lid-angle sensor
+- Apple silicon MacBook, macOS 15 or later. The lid gesture and the fold need the built-in lid-angle sensor
   (Mac16,x and later); arming from the menu, the shortcuts, the CLI and the hooks works on any MacBook.
 - Screen Recording permission for the fold, Login Items approval for crash recovery, and the sleep lock (one
-  administrator password): all from the onboarding or Settings › Permissions.
+  administrator password): all from the onboarding or Settings › System.
 - For auto-arm: Claude Code (the hooks go into `~/.claude/settings.json`, backed up first) and zsh (the snippet
   goes into `~/.zshrc`, between two `# ---------- KoffeeLid ----------` lines it owns). Both are removable from
   Settings with one button.

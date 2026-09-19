@@ -50,15 +50,15 @@ the CLI prints `did not arm: …` and exits 1. An external display does not refu
 
 ### The lid gesture (one-close arm)
 
-With "Fn + close lid" on (Settings › Arm with) and a lid-angle sensor present:
+With the lid gesture on (Settings › Arming › Lid gesture) and a lid-angle sensor present:
 
-- Hold the modifier and start closing. After `Activation after` degrees of closing travel (default 4°) the Mac
+- Hold the modifier and start closing. After "Arm after closing by" degrees of closing travel (default 4°) the Mac
   arms in Armed mode with source `gesture`. The modifier may be released up to 1 s before that travel is
   reached. The gesture is cancelled if the modifier is released for more than 1 s before the travel is
-  reached, if the lid reopens by `Cancel if reopened by` degrees (default 4°), or if a started close stalls
+  reached, if the lid reopens by "Cancel when reopened by" degrees (default 4°), or if a started close stalls
   for 1.5 s.
-- Before the lid shuts, the arm is cancelled by reopening the lid by `Cancel if reopened by` degrees from the
-  lowest angle reached, or by holding the lid still for the effect's "Return to flat when still for" delay.
+- Before the lid shuts, the arm is cancelled by reopening the lid by "Cancel when reopened by" degrees from the
+  lowest angle reached, or by holding the lid still for the effect's "Flatten again when still for" delay.
   Stillness does not count while the modifier is held.
 - Once the lid has shut, the arm **survives the lid opening** and ends when the user logs back in. The reopen
   locks the screen; the lock landing starts the hold; the unlock releases it. Closing and reopening the lid in
@@ -77,8 +77,8 @@ key counts: an external keyboard's Fn/Globe key never arms. Without the grant an
 
 ### Auto-arm on activity
 
-Off by default ("While Claude Code or a terminal command is running", Settings › Arm with). Setting up either
-hook from Settings › Hooks or onboarding turns it on.
+Off by default ("Arm while Claude Code or a terminal command is running", Settings › Auto-Arm). Setting up
+either hook from that page or from the onboarding turns it on.
 
 - **Claude Code**: 15 hook events in `~/.claude/settings.json` run the embedded `KoffeeLidHook hook`, which
   appends one trimmed line per event to `~/Library/Application Support/KoffeeLid/activity.jsonl`. A session
@@ -95,7 +95,7 @@ hook from Settings › Hooks or onboarding turns it on.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after
-  Claude Code, 1 min after a command (Advanced). Work that resumes inside the wait cancels it. Keyboard,
+  Claude Code, 1 min after a command (Settings › Auto-Arm). Work that resumes inside the wait cancels it. Keyboard,
   trackpad or mouse input at the Mac after the work ended drops the level at once: the wait exists for a
   remote user. When the level falls the Mac disarms only if the manual mode is Off.
 - **"Disarm once finished"** (menu item, present when a hook is set up): the wait becomes one minute and the
@@ -140,23 +140,25 @@ There is no maximum arm duration. The rails end the manual mode and the auto lev
 
 ## The lid effect
 
-Available with a lid-angle sensor, the Screen Recording grant and "Lid effect" on. It plays only while the
+Available with a lid-angle sensor, the Screen Recording grant and the effect switched on (Settings › Lid
+Effect). It plays only while the
 lid closes, only on the built-in display, and captures nothing while the lid rests.
 
 - **Start.** While armed with the lid open, the effect is prepared (invisible overlay, paused renderer). A fold
-  begins when the lid has closed `Activation after` degrees past its rest angle; for arms that did not come from
-  the gesture it also waits until the lid is below "Start below (except the lid gesture)" (default 75°), so
+  begins when the lid has closed "Arm after closing by" degrees past its rest angle; for arms that did not come
+  from the gesture it also waits until the lid is below "Otherwise, start below" (default 75°), so
   adjusting the screen while working starts nothing. A still image appears at once, then a 60 fps capture.
-- **Shape.** The desktop behaves like an inner screen standing upright at "Start below (with the lid gesture)"
+- **Shape.** The desktop behaves like an inner screen standing upright at "With the lid gesture, start below"
   (default 95°): the fold shown is that angle minus the lid angle, capped at 80°. A fold that begins lower
   catches up with that curve over at most 30° of travel. Reopening plays it backward.
-- **Reset.** A lid left part-way closed and still (less than 1.5° of movement) for "Return to flat when still
+- **Reset.** A lid left part-way closed and still (less than 1.5° of movement) for "Flatten again when still
   for" (default 0.5 s) eases back to flat over 0.6 s; its position becomes the new rest angle, and the capture
   stops 0.75 s later. The reset is evaluated on every lid-angle sample (30 Hz), in every mode. While the
   gesture modifier is physically held, stillness does not count: the fold stays until the key is released.
 - **End.** The lid shutting, a disarm or switching the effect off stops it at once. An external display
   connecting and a cancelled one-close arm retract the plane over 0.3 s (at once if no fold is showing).
-- Advanced › Lid effect › "Simulate a fold" previews a 35° fold over 2 s, armed or not.
+- Settings › Lid Effect › Preview › "Simulate a Fold" previews a 35° fold over 2 s, armed or not
+  (`EffectController.previewFoldDegrees`, `previewFoldSeconds`).
 
 ## User interface
 
@@ -173,15 +175,41 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   folder or `open -b dev.rubens.koffeelid` while it runs opens Settings — the way back in when the menu-bar
   cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,
   from the CLI) opens nothing.
-- **Settings.** App (launch at login, show in menu bar); Arm with (gesture, right-click, the two shortcuts,
-  activity); While KoffeeLid is armed (lid effect, sound and its switch, forced volume, low-battery disarm);
-  Permissions; Hooks; Updates; links to Advanced and "Quit KoffeeLid" (the menu's Quit: disarms, clears the
-  kernel flag, releases the sleep lock, then exits).
-- **Advanced.** Lid gesture (modifier, activation, cancel, live angle); Lid effect (every tunable, preview,
-  reset to defaults); Auto-arm on activity (two hold-offs, minimum command length, live activity); App
-  (watchdog status, diagnostics switch); links: open the log, show onboarding, reset everything.
+- **Settings.** One window with six pages, picked from a toolbar that draws each page's symbol above its
+  title; the window's title is the shown page's. It is 640 pt wide and as tall as the shown page: it resizes
+  around its top-left corner, animated, on a page switch and whenever a page gains or loses a line, never past
+  the display's visible height less 140 pt (beyond that the page scrolls). It opens on General, sized then
+  centred, and is built once and re-shown. Every change is written as it is made; there is no Apply.
+
+  | Page | Groups |
+  |---|---|
+  | General | the app icon; Startup (launch at login, show in menu bar, and a note naming the way back to this window once the icon is hidden); Updates; Quit ("Quit KoffeeLid" is the menu's Quit: disarms, clears the kernel flag, releases the sleep lock, then exits) |
+  | Arming | Lid gesture (the switch, the key to hold, the two travels); Menu bar and shortcuts (right-click, the two shortcuts); Low battery (the switch and its level) |
+  | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
+  | Lid Effect | Effect (the switch, and the Screen Recording grant while it is on); Lid angle (the live angle, the angle in the menu bar); When it starts; Look; Preview (reset to defaults, simulate a fold) |
+  | Sound | Lid-close sound (the switch, and the clip as a pop-up menu: picking one plays it); Volume (the forced volume and its level) |
+  | System | Staying awake safely (sleep lock, Login Items approval); Permissions (Screen Recording, Input Monitoring, Notifications); Compatibility (lid-angle sensor); Diagnostics (the log's switch, open the log); Start over (show the onboarding again, reset everything) |
+
+  A group is a title, a card of rows, and under the card a grey hint, then orange warnings, present only while
+  something is to be fixed, then blue notes. A row is a control and its label and nothing else. A control that
+  depends on a switch that is off is disabled and its label dims with it: the gesture's key and travels under the
+  gesture switch, the battery level under its switch, the three auto-arm waits under the auto-arm switch, the
+  effect's start and look under the effect switch, the clip and the volume under the sound switch. The gesture
+  and effect switches are disabled on a Mac without a lid-angle sensor; right-click arming and the angle in the
+  menu bar are disabled while the menu-bar cup is hidden. A number is a slider with its value beside it.
+- **States in Settings.** A state is one row: what is reported on the left, and on the right a symbol and a word
+  in the state's colour. Green: as it should be. Blue: worth knowing. Orange: to be fixed, or did not work. Red:
+  refused. A spinner: still happening. The colour follows whether the state is what it should be
+  (`SettingsStatus`): the sleep lock (Available / Missing) and the Login Items approval (Enabled / Disabled) are
+  orange whenever missing; a permission that is not granted reads Denied, red only while something switched on
+  needs it (Screen Recording while the effect is on, Input Monitoring while the gesture is on with Fn,
+  Notifications always) and blue otherwise; a hook that is not set up reads Disabled, orange only while auto-arm
+  is on with neither hook set up, which also puts a warning under the auto-arm switch, and blue otherwise. A
+  state the user can fix has a button under it only while it is wrong; once it is right the button goes and the
+  row stays. While the window is open it re-reads the grants, the hooks and the login item every 2 s and the lid
+  angle and the activity counts four times a second, and it is a consumer of the lid-angle sensor.
 - **Onboarding.** Four pages in a floating window: pitch, Permissions, "Arm while you work" (hooks), All set.
-  Shown at first launch and from Advanced.
+  Shown at first launch and from Settings › System › "Show Onboarding Again".
 - **Notifications.** Arm refused; disarmed by battery, thermal or external sleep; held awake after a charger
   or display change; lock failed; lid sleep restoration pending or failed; sleep could not be re-enabled.
 - **CLI.** `koffeelid arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings |
@@ -193,24 +221,24 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 
 ## Settings and defaults
 
-| Setting | Key | Default | Range |
-|---|---|---|---|
-| Launch at login | `launchAtLogin` (mirror of `SMAppService.mainApp`) | on | |
-| Show in menu bar | `showInMenuBar` | on | |
-| Fn + close lid | `armWithOption` | on | |
-| Hold while closing | `gestureModifier` | `fn` | `fn`, `option` |
-| Right-click menu bar icon | `armWithRightClick` | on | |
-| Armed shortcut / Armed + screen on shortcut | `armWithShortcut` / `armWithCaffeinateShortcut` | on / on | combos fixed: `hotKeyCode`, `hotKeyModifiers`, `caffeinateHotKeyCode`, `caffeinateHotKeyModifiers` have no UI |
-| While Claude Code or a terminal command is running | `armOnActivity` | off | |
-| Lid-close sound | `lidCloseSoundEnabled`, `lidCloseSoundName` | on, `blip-pop` | six clips; an unknown name falls back to the first |
-| Force volume for lid-close sound | `forceVolumeEnabled`, `forceVolumeLevel` | on, 60 % | 0–100 % |
-| Low-battery disarm | `lowBatteryDisarm`, `lowBatteryDisarmPercent` | on, 10 % | 5–50 % |
-| Activation after / Cancel if reopened by | `gestureActivationDegrees` / `gestureReverseCancelDegrees` | 4° / 4° | 2–20° / 2–15° |
-| Auto-disarm after Claude Code / a command finishes | `activityHoldOff.claude` / `activityHoldOff.terminal` | 30 min / 60 s | 1–120 min / 10–600 s |
-| Ignore commands shorter than | `activityJobArmAfterSeconds` | 5 s | 0–30 s |
-| Diagnostics log | `diagnosticsEnabled` | on | |
-| Lid effect and its tunables | `effectParameters` (JSON) | enabled; start 95° / 75°; return to flat 0.5 s; zoom 80 %; perspective 40 %; blur 0.15×; edge softness 100 %; shading 100 %; responsiveness 70 %; angle in menu bar off | 30–120° / 30–90° (the second never above the first); 0.25–10 s; 0–200 %; 0–2×; 0–100 % |
-| (internal) | `gestureAngleOpen`, `onboardingCompleted` | 120°, false | |
+| Page › group | Control | Key | Default | Range |
+|---|---|---|---|---|
+| General › Startup | Launch at login | `launchAtLogin` (mirror of `SMAppService.mainApp`) | on | |
+| General › Startup | Show in menu bar | `showInMenuBar` | on | |
+| Arming › Lid gesture | Hold 🌐 Fn and close the lid to arm for one close | `armWithOption` | on | |
+| Arming › Lid gesture | Key to hold | `gestureModifier` | `fn` | `fn`, `option` |
+| Arming › Lid gesture | Arm after closing by / Cancel when reopened by | `gestureActivationDegrees` / `gestureReverseCancelDegrees` | 4° / 4° | 2–20° / 2–15° |
+| Arming › Menu bar and shortcuts | Right-click the menu bar icon to arm | `armWithRightClick` | on | |
+| Arming › Menu bar and shortcuts | Press ⌃⌥⌘L to arm, or to turn off / Press ⌃⌥⌘K to arm with the screen on, or to turn off | `armWithShortcut` / `armWithCaffeinateShortcut` | on / on | combos fixed: `hotKeyCode`, `hotKeyModifiers`, `caffeinateHotKeyCode`, `caffeinateHotKeyModifiers` have no UI |
+| Arming › Low battery | Turn off when the battery runs low, Battery level | `lowBatteryDisarm`, `lowBatteryDisarmPercent` | on, 10 % | 5–50 % |
+| Auto-Arm › While you work | Arm while Claude Code or a terminal command is running | `armOnActivity` | off | |
+| Auto-Arm › Claude Code / Terminal | Stay armed after Claude Code finishes / Stay armed after a command finishes | `activityHoldOff.claude` / `activityHoldOff.terminal` | 30 min / 60 s | 1–120 min / 10–600 s |
+| Auto-Arm › Terminal | Ignore commands shorter than | `activityJobArmAfterSeconds` | 5 s | 0–30 s |
+| Lid Effect | Show the desktop folding away as the lid closes, every slider of When it starts and Look, Show the lid angle in the menu bar | `effectParameters` (JSON) | enabled; start below 95° with the gesture / 75° otherwise; flatten again 0.5 s; zoom 80 %; perspective 40 %; blur 0.15×; soft edges 100 %; shading 100 %; responsiveness 70 %; angle in menu bar off | 30–120° / 30–90° (the second never above the first); 0.25–10 s; 0–200 %; 0–2×; 0–100 % |
+| Sound › Lid-close sound | Play a sound when the lid closes, Sound | `lidCloseSoundEnabled`, `lidCloseSoundName` | on, `blip-pop` | six clips; an unknown name falls back to the first |
+| Sound › Volume | Play it at a set volume, Volume | `forceVolumeEnabled`, `forceVolumeLevel` | on, 60 % | 0–100 % |
+| System › Diagnostics | Keep a diagnostics log | `diagnosticsEnabled` | on | |
+| (internal) | | `gestureAngleOpen`, `onboardingCompleted` | 120°, false | |
 
 ## Permissions and what breaks without them
 
@@ -223,27 +251,39 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Notifications | every message above | silent failures; the log still has them |
 | Lid-angle sensor (hardware) | the gesture and the effect | both unavailable; other arming paths work |
 
-Advanced › "Reset permissions and undo every change…" disarms, removes the sudoers rule, unregisters the
+Settings › System › "Reset KoffeeLid…" asks for confirmation, then disarms, removes the sudoers rule, unregisters the
 login items, resets Screen Recording, Input Monitoring and notifications, removes the hooks and the zsh block, clears the
 preferences and reopens onboarding.
 
 ## Updates
 
-Settings › Updates shows "KoffeeLid `<version>`" and a "Check for updates…" button. Pressing it asks GitHub's
-anonymous API for the latest release; the result is "Up to date.", "Version `<version>` is available." with a
-"Download and open…" button, or "Could not check: `<reason>`" on a network failure. Downloading fetches the
-release's DMG asset into `<Application Support>/KoffeeLid/updates/` (any older DMG there is removed first)
-and opens it with `NSWorkspace`, which mounts it and shows the volume with its Applications link; the status
-line then reads "Opened KoffeeLid-`<version>`.dmg. Drag KoffeeLid to Applications, then quit and reopen it."
-KoffeeLid never installs over itself: the check is manual, there is no background polling, and replacing the
-running app is left to the user dragging the new copy into Applications.
+Settings › General › Updates is two rows: the running version ("KoffeeLid `<version>`"), which carries the
+last answer as its mark, and one button. Nothing happens until the button is pressed: there is no check at
+launch, none on a timer and no retry after a failure. A press while a request is in flight starts nothing
+(`UpdatePanel`).
+
+| The moment | The version row's mark | The button |
+|---|---|---|
+| before the first check | none | Check for Updates |
+| asking GitHub's anonymous API for the latest release | a spinner, "Checking" | disabled |
+| nothing newer | green, "Up to date" | Check for Updates |
+| a strictly newer release | blue, "Version `<version>` is available" | **Update**, prominent and blue |
+| could not ask | orange, "Could not check: `<reason>`" | Check for Updates |
+| fetching | a spinner, "Downloading" | disabled |
+| fetched and opened | green, "Downloaded", and a note under the group: "Drag KoffeeLid to Applications, then quit and reopen it." | Update |
+| could not fetch | orange, "Update failed: `<reason>`" | Update, which is the retry |
+
+Update fetches the release's DMG asset into `<Application Support>/KoffeeLid/updates/` (any older DMG there is
+removed first) and opens it with `NSWorkspace`, which mounts it and shows the volume with its Applications
+link. KoffeeLid never installs over itself: there is no background polling, and replacing the running app is
+left to the user dragging the new copy into Applications.
 
 ## What KoffeeLid does not do
 
 - It does not arm twice: a second instance exits at launch without touching shared state.
 - It does not clear a kernel flag it has no evidence of having set (another lid-sleep utility may own it).
 - It never signals its own processes by name; it only uses pids from its own pid file. The only processes it
-  signals by name are `usernoted` and `NotificationCenter`, restarted by Advanced › Reset to drop the
+  signals by name are `usernoted` and `NotificationCenter`, restarted by the Settings reset to drop the
   notification grant.
 - The hook binary never launches the app, never blocks a Claude Code turn and always exits 0 from the `hook`
   verb (only a malformed `job` command line, which the snippet never produces, exits 2).

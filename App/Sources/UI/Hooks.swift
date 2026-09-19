@@ -1,12 +1,13 @@
 import AppKit
 import KoffeeLidCore
 
-/// The two hooks that feed auto-arm on activity: shown by the onboarding "Hooks" page and the Settings
-/// "Hooks" group, exactly like `PermissionCatalog` feeds the Permissions page and group.
+/// The two hooks that feed auto-arm on activity: listed by the onboarding's "Arm while you work" page and
+/// reported by the Settings window's Auto-Arm page, as `PermissionCatalog` is by the System page.
 @MainActor
 enum HookCatalog {
     static var items: [PermissionItem] {[
-        PermissionItem(title: L("Claude Code"),
+        PermissionItem(id: .claudeHooks,
+                       title: L("Claude Code"),
                        why: L("Tells KoffeeLid when a Claude Code session is working, so it arms while you close the lid and disarms once the turn is over. Adds hooks to ~/.claude/settings.json (backed up first)."),
                        required: false,
                        granted: { (HookInstaller.installedCount() ?? 0) == HookConfig.events.count },
@@ -18,7 +19,6 @@ enum HookCatalog {
                            done()
                        },
                        doneTitle: L("Set up"),
-                       pendingTitle: L("Not set up"),
                        removeTitle: L("Remove"),
                        remove: { window, done in
                            let r = HookInstaller.uninstall()
@@ -26,7 +26,8 @@ enum HookCatalog {
                            if !r.ok { report(L("Claude Code"), r.message, in: window) }
                            done()
                        }),
-        PermissionItem(title: L("Terminal (zsh)"),
+        PermissionItem(id: .zshHook,
+                       title: L("Terminal (zsh)"),
                        why: L("Adds one line to ~/.zshrc so commands running longer than a few seconds arm KoffeeLid too. Open a new terminal afterwards."),
                        required: false,
                        granted: { HookInstaller.zshrcHasSnippet() },
@@ -38,7 +39,6 @@ enum HookCatalog {
                            done()
                        },
                        doneTitle: L("Set up"),
-                       pendingTitle: L("Not set up"),
                        removeTitle: L("Remove"),
                        remove: { window, done in
                            let r = HookInstaller.removeFromZshrc()
@@ -49,7 +49,7 @@ enum HookCatalog {
     ]}
 
     /// A failed install is only worth a log line to us and nothing at all to the user unless we say so:
-    /// the row would simply stay "Not set up" with no reason given.
+    /// the row would simply stay as it was, with no reason given.
     private static func report(_ title: String, _ message: String, in window: NSWindow?) {
         let alert = NSAlert()
         alert.alertStyle = .informational

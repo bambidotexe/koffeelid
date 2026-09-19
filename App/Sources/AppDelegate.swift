@@ -2,7 +2,7 @@ import AppKit
 import KoffeeLidCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var settings: SettingsWindowController?
+    private var settings: SettingsWindow?
     private var onboarding: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -39,9 +39,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         KoffeeLidController.shared.shutdown(); return .terminateNow
     }
 
-    func showSettings() {
-        if settings == nil { settings = SettingsWindowController() }
-        settings?.showWindow(nil); NSApp.activate(ignoringOtherApps: true)
+    /// Built once and re-shown: the window keeps its page and its place. `show()` brings the app forward.
+    @MainActor func showSettings() {
+        if settings == nil {
+            settings = SettingsWindow(othersNeedUsActive: { [weak self] in self?.onboarding?.window?.isVisible == true })
+        }
+        settings?.show()
     }
     /// A fresh controller every time: the pages re-read every grant and start from page one.
     func showOnboarding() {

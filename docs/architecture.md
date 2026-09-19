@@ -10,7 +10,7 @@ links the SwiftPM package; `Package.swift` defines the two libraries and their t
 
 | Target | Kind | Depends on | Contents |
 |---|---|---|---|
-| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy, filter and state machine as a value type with injected time, plus the update check's `ReleaseVersion`, `LatestRelease` and `UpdateCheck`. All logic tests live against it. |
+| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy, filter and state machine as a value type with injected time, plus the update check's `ReleaseVersion`, `LatestRelease` and `UpdateCheck`, and the Settings window's rules: `SettingsStatus` (which colour a state takes) and `UpdatePanel` (the Updates group). All logic tests live against it. |
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library (AppKit, Metal, ScreenCaptureKit) | Core | The lid effect: `EffectController`, `DesktopCapture`, `PlaneRenderer`, `PlaneShader`, `EffectOverlayPanel`, `CaptureStartGate`, `PlaneRemap`. |
 | `KoffeeLid` (`App/Sources`) | app, `LSUIElement` | Core, LidPlaneKit | The coordinator, one adapter per system API, the UI, `UpdateChecker`, App Intents, the CLI client. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | LaunchAgent that relaunches the app after an unclean exit. |
@@ -24,6 +24,18 @@ before AppKit starts. Otherwise it starts `NSApplication` with the `.accessory` 
 duplicate instance before `start()` (so a second build can never touch the flag under a live session), starts
 the coordinator, routes `koffeelid://` URLs, owns the Settings and onboarding windows, and calls `shutdown()`
 from `applicationShouldTerminate`.
+
+The Settings window (`App/Sources/UI/Settings*.swift`) is one `SettingsWindow`: an `NSWindow` with a
+`.preference` `NSToolbar` over a single `NSHostingController`, built once by `AppDelegate.showSettings()` and
+re-shown. Its six pages are SwiftUI views built only from the kit in `SettingsKit.swift`; the window's height
+follows the shown page. `SettingsModel` is what the pages share: bindings onto `Preferences.shared` that
+announce their own changes to SwiftUI (the coordinator stays the one subscriber of `Preferences.onChange`), and
+the states a page reports, polled on the main thread and started and stopped by the window (open, close,
+miniaturise), never by a view: the grants, the hooks and the login item every 2 s, the lid angle and the
+activity counts every 0.25 s, the window being a consumer of `LidAngleObserver` for as long as it is up. The
+rules the pages apply are Core's: `SettingsStatus` colours a state and `UpdatePanel` is the Updates group. The
+onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. The window's
+structure, numbers and wording rules are in `.claude/skills/building-settings-pages/SKILL.md`.
 
 ## The coordinator
 
@@ -296,7 +308,7 @@ checked with `visudo -cf`. After that, `sudo -n` runs exactly `/usr/bin/pmset di
 
 Process commands are scoped to the bundle: the one `pkill` in the tree (`script/install.sh`) matches the full
 `KoffeeLid.app/Contents/MacOS/` path, and the watchdog uses the pid from the pid file and checks `proc_pidpath`
-against the recorded executable. Advanced › Reset restarts `usernoted` and `NotificationCenter` by name; those
+against the recorded executable. The Settings reset restarts `usernoted` and `NotificationCenter` by name; those
 are Apple's daemons, not KoffeeLid processes.
 
 ## Threading
@@ -329,7 +341,7 @@ start so a live watchdog observes the current pid.
 
 - `script/bootstrap.sh` runs XcodeGen; `KoffeeLid.xcodeproj` is generated and git-ignored. Sources are
   included by directory, so adding or removing a file means regenerating.
-- Swift 5 language mode, `SWIFT_STRICT_CONCURRENCY: minimal`, macOS 14 deployment target, Hardened Runtime,
+- Swift 5 language mode, `SWIFT_STRICT_CONCURRENCY: minimal`, macOS 15 deployment target, Hardened Runtime,
   automatic signing with the Wooflab team (`75MADVD27T`), Apple Development identity for development builds.
   `CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO` for Release keeps `get-task-allow` out of the installed build.
 - Entitlements: `com.apple.security.app-sandbox = false`, nothing else.

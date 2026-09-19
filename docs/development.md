@@ -2,7 +2,7 @@
 
 ## Environment
 
-- macOS 14+ target; developed on macOS 27 with Xcode 27 / Swift 6.4 in Swift 5 language mode.
+- macOS 15+ target (the Settings kit needs SwiftUI's `Group(subviews:)`); developed on macOS 27 with Xcode 27 / Swift 6.4 in Swift 5 language mode.
 - XcodeGen (`brew install xcodegen`) generates `KoffeeLid.xcodeproj` from `project.yml`; `script/bootstrap.sh`
   installs it if missing and generates. Run it again after adding, removing or moving a file under
   `App/Sources`, `App/Resources`, `Watchdog/Sources` or `Hook/Sources` (directories are included whole).
@@ -67,8 +67,8 @@ instance launched while the installed app runs exits at once (`duplicate-instanc
 
 - The diagnostics log is the primary tool: `~/Library/Application Support/KoffeeLid/diagnostics.log`, rotated to
   `diagnostics.1.log` at 256 KB, guarded by `diagnostics.lock`, shared with the watchdog (lines prefixed
-  `watchdog:`). Log through `DiagnosticLog.shared.log` (app) or `DiagnosticFileWriter` (watchdog). Advanced ›
-  App › Diagnostics log silences the app's writer: an empty log usually means it is off. Keep the existing
+  `watchdog:`). Log through `DiagnosticLog.shared.log` (app) or `DiagnosticFileWriter` (watchdog). Settings ›
+  System › Diagnostics silences the app's writer: an empty log usually means it is off. Keep the existing
   phrasing of log lines; `docs/manual-checks.md` greps for them.
 - Kernel flag: `ioreg -r -d1 -c IOPMrootDomain | grep -E 'AppleClamshellCausesSleep|AppleClamshellState'`.
   Trust `koffeelid status`, the log and `pmset -g assertions | grep KoffeeLid` over `AppleClamshellCausesSleep`
@@ -78,8 +78,8 @@ instance launched while the installed app runs exits at once (`duplicate-instanc
 - CLI: the wrapper in `/usr/local/bin`, or `"/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLid" <verb>`.
   `status` is always safe. Prefer the CLI over `open "koffeelid://…"`.
 - Settings without the menu bar: `koffeelid settings`, or run the bundle binary with `--open-settings`.
-  Onboarding: Advanced › Show onboarding again, or `defaults delete dev.rubens.koffeelid onboardingCompleted`
-  and relaunch. Advanced › Reset permissions and undo every change… puts every grant back (the Login Items
+  Onboarding: Settings › System › "Show Onboarding Again", or `defaults delete dev.rubens.koffeelid onboardingCompleted`
+  and relaunch. Settings › System › "Reset KoffeeLid…" puts every grant back (the Login Items
   approval is remembered by macOS per team id and may come back as granted).
 - French UI: `defaults write dev.rubens.koffeelid AppleLanguages -array fr` (delete it afterwards).
 - Watchdog by hand, no Login Items approval needed: run `"…/KoffeeLid.app/Contents/MacOS/KoffeeLidWatchdog" &`
@@ -126,8 +126,8 @@ A safe pgrep is `pgrep -fl "KoffeeLid.app/Contents/MacOS/"`.
 
 **A preference.** Register the default in `Preferences.init` and add the accessor (`get { d.… } set {
 set("key", …) }`). If the coordinator must react, add a case in `KoffeeLidController.preferenceChanged(_:)`;
-`Preferences.onChange` has exactly one subscriber, the coordinator. Bind it in a page inside
-`f.group { g in g.row(L("…"), SettingsForm.switch(…)) }`; capture `[prefs]` or `[weak self]`, never the control.
+`Preferences.onChange` has exactly one subscriber, the coordinator. A Settings page binds it with
+`model.binding(\.key)`, which announces the change to SwiftUI itself (`SettingsModel`).
 
 **A user-visible string.** Write `L("Exact English text")`, then add the key to
 `App/Resources/Localizable.xcstrings` with an `fr` stringUnit (`state: translated`), in the tone of the
@@ -138,17 +138,22 @@ renaming a key means renaming it where `L("…")` is called and in the catalog's
 coverage: `grep -rhoE 'L\("[^"]+"\)' App/Sources | sort -u` against the catalog's keys. An
 untranslated key is a build warning.
 
-**A settings control.** `SettingsViewController` only if a first-time user needs it; everything else goes in
-`AdvancedViewController`. Both subclass `PaneViewController` and build once in `build(_ f: SettingsForm)`:
-`f.header`, `f.group { g in g.row(label, control…) / g.sliderRow / g.labelledSlider }`, `f.note`, `f.link`.
-`labelledSlider` returns a `SliderHandle`; keep it only when another control must move that slider, as the
-gesture "Start below" slider does (the other one pushes it up). Never rebuild the page from inside a slider's action. Keep the density: 13 pt text,
-small controls, one control per row.
+**A settings control.** Start with the `building-settings-pages` skill
+(`.claude/skills/building-settings-pages/SKILL.md`): it holds the window's structure, its numbers and how its
+words are written, in both languages. The window is `SettingsWindow` (an `NSToolbar` over one
+`NSHostingController`); a page is a SwiftUI `Settings…Page` built only from the kit in `SettingsKit.swift`
+(`SettingsPage`, `SettingsGroup`, `ToggleRow`, `SegmentedRow`, `SliderRow`, `PopUpRow`, `StatusRow`,
+`ButtonRow`); `SettingsModel` gives the bindings onto `Preferences` and the polled states. Pick the page by
+subject and the group by what the control governs; a control that depends on a switch sits under it with
+`enabled:`. A rule about a state's colour goes in `SettingsStatus` (Core, tested); the Updates group's rules
+are `UpdatePanel` (Core, tested). How it looks or reads is judged by the owner in the running app, never by
+the agent.
 
-**A permission or a hook row.** Add a `PermissionItem` to `PermissionCatalog.items` or `HookCatalog.items`:
-title, why, `required`, a synchronous `granted` closure (cache asynchronous state the way notifications do),
-button title and an action that calls `done` when the state may have changed. Settings and onboarding both pick
-it up.
+**A permission or a hook row.** Add a case to `SettingsGrant` (Core) with its colour rule and test in
+`SettingsStatus`, then a `PermissionItem` to `PermissionCatalog.items` or `HookCatalog.items`: its `id`, title,
+why, `required`, a synchronous `granted` closure (cache asynchronous state the way notifications do), button
+title and an action that calls `done` when the state may have changed. The onboarding lists it from the catalog;
+the Settings page that owns it adds its `StatusRow`, and its `ButtonRow` shown only while it is missing.
 
 **A block reason.** Add the case to `ArmBlockReason` (Core, with tests), handle it in
 `KoffeeLidController.notifyBlocked(_:)` and `describe(_:)` (exhaustive switches), add the notification text.
@@ -164,7 +169,7 @@ only.
 `clamped()`, `decodeIfPresent … ?? Self.default.x` in `init(from:)` so stored settings keep decoding); its tests
 in `EffectParametersTests`; the maths in `PlaneRemap` with tests in `PlaneRemapTests`; the same maths in
 `PlaneShader.source` and the value in `PlaneUniforms` (field order must match the MSL `Uniforms` struct); a
-`labelledSlider` in `AdvancedViewController` with its `fr` string; the defaults row in
+`SliderRow` in `SettingsLidEffectPage` with its `fr` string; the defaults row in
 `docs/functional.md` and the Reset item in `docs/manual-checks.md`. Then check the shader offline.
 
 **Tuning the effect's look without the lid.** The plane is `PlaneRemap` plus four Gaussian levels, so a CPU

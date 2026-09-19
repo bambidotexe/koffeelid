@@ -79,8 +79,6 @@ final class Preferences {
 
 enum GestureModifier: String, CaseIterable {
     case fn, option
-    /// Short user-facing name of the gesture, e.g. "Fn + close lid".
-    var gestureName: String { self == .fn ? L("Fn + close lid") : L("Option + close lid") }
     /// The key alone, for sentences ("Hold Fn …").
     var keyName: String { self == .fn ? L("Fn") : L("Option") }
 }

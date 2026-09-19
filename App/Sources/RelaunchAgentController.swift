@@ -4,7 +4,8 @@ import KoffeeLidCore
 
 final class RelaunchAgentController {
     static let agentLabel = "dev.rubens.koffeelid.agent"
-    private let service = SMAppService.agent(plistName: "dev.rubens.koffeelid.agent.plist")
+    static let plistName = agentLabel + ".plist"
+    private let service = SMAppService.agent(plistName: RelaunchAgentController.plistName)
     var onLog: ((String) -> Void)?
     var status: SMAppService.Status { service.status }
 

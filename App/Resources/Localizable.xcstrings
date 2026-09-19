@@ -21,16 +21,6 @@
         }
       }
     },
-    "%@ arms one close. Menu bar and keyboard shortcut arming stay on until you turn KoffeeLid off. Armed + screen on also keeps the display from sleeping.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ active pour une seule fermeture. L’activation depuis la barre des menus ou le raccourci clavier reste jusqu’à ce que vous désactiviez KoffeeLid. Activé + écran allumé empêche aussi l’écran de s’éteindre."
-          }
-        }
-      }
-    },
     "%d min": {
       "localizations": {
         "fr": {
@@ -51,22 +41,42 @@
         }
       }
     },
+    "%d%%": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d %%"
+          }
+        }
+      }
+    },
+    "A session waiting for your answer does not count as running.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une session qui attend votre réponse ne compte pas comme active."
+          }
+        }
+      }
+    },
+    "A sudoers rule for /usr/bin/pmset disablesleep": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une règle sudoers pour /usr/bin/pmset disablesleep"
+          }
+        }
+      }
+    },
     "Activation after": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Activation après"
-          }
-        }
-      }
-    },
-    "Activity": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activité"
           }
         }
       }
@@ -81,12 +91,12 @@
         }
       }
     },
-    "Advanced settings…": {
+    "After allowing Screen Recording, quit and reopen KoffeeLid.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Réglages avancés…"
+            "value": "Après avoir autorisé l’enregistrement de l’écran, quittez puis rouvrez KoffeeLid."
           }
         }
       }
@@ -97,6 +107,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tout est prêt"
+          }
+        }
+      }
+    },
+    "Allow Input Monitoring": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser la surveillance de l’entrée"
+          }
+        }
+      }
+    },
+    "Allow Notifications": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser les notifications"
+          }
+        }
+      }
+    },
+    "Allow Screen Recording": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser l’enregistrement de l’écran"
+          }
+        }
+      }
+    },
+    "Allow Screen Recording for KoffeeLid, then quit and reopen it. Without it, the effect cannot show your desktop.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisez l’enregistrement de l’écran pour KoffeeLid, puis quittez et rouvrez-le. Sans cela, l’effet ne peut pas montrer votre bureau."
           }
         }
       }
@@ -117,26 +167,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Une autre app ou automatisation a mis votre Mac en veille alors que KoffeeLid était activé. Vérifiez vos réglages de charge, de programmation et d’automatisation avant de réessayer."
-          }
-        }
-      }
-    },
-    "App": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "App"
-          }
-        }
-      }
-    },
-    "Approve KoffeeLid in System Settings › General › Login Items.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Autorisez KoffeeLid dans Réglages Système › Général › Ouverture."
           }
         }
       }
@@ -181,22 +211,32 @@
         }
       }
     },
+    "Arm after closing by": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer après une fermeture de"
+          }
+        }
+      }
+    },
+    "Arm while Claude Code or a terminal command is running": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer tant que Claude Code ou une commande du terminal tourne"
+          }
+        }
+      }
+    },
     "Arm while you work": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "S’activer pendant que vous travaillez"
-          }
-        }
-      }
-    },
-    "Arm with": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activer avec"
           }
         }
       }
@@ -221,42 +261,52 @@
         }
       }
     },
-    "Armed + screen on shortcut": {
+    "Armed keeps your Mac running with the lid closed, until you turn KoffeeLid off. Armed + screen on also keeps the display awake while the lid is open. Right-click twice within %d seconds to get it.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Raccourci Activé + écran allumé"
+            "value": "Activé garde votre Mac en marche écran rabattu, jusqu’à ce que vous désactiviez KoffeeLid. Activé + écran allumé garde aussi l’écran allumé tant qu’il est ouvert. Pour l’obtenir, faites deux clics droits en moins de %d secondes."
           }
         }
       }
     },
-    "Armed shortcut": {
+    "Arming": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Raccourci Activé"
+            "value": "Activation"
           }
         }
       }
     },
-    "Auto-arm arms only from Off, never shows in the menu bar and ends on its own once the work is over: half an hour after Claude Code, a minute after a command (Advanced). \"Disarm once finished\" in the menu ends your own arm a minute after the work is over.": {
+    "At 0%, the effect waits for each sensor report and runs about 150 ms behind the lid. At 100%, it runs ahead, about 80 ms behind.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "L’activation automatique ne part que depuis Désactivé, n’apparaît jamais dans la barre des menus et s’arrête d’elle-même une fois le travail fini : une demi-heure après Claude Code, une minute après une commande (Avancé). « Désactiver une fois terminé » dans le menu met fin à votre propre activation une minute après la fin du travail."
+            "value": "À 0 %, l’effet attend chaque mesure du capteur, environ 150 ms derrière l’écran. À 100 %, il anticipe, environ 80 ms derrière."
           }
         }
       }
     },
-    "Auto-arm on activity": {
+    "At 100%, the zoom is the true geometry. Responsiveness is how far the effect runs ahead of the lid sensor: low is smoothest and a little late, high sticks to the lid with a little jitter on slow closes.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Activation automatique sur activité"
+            "value": "À 100 %, le zoom suit la géométrie réelle. La réactivité règle l’avance de l’effet sur le capteur de l’écran : basse, il est plus fluide et un peu en retard ; haute, il colle à l’écran, avec un léger tremblement sur les fermetures lentes."
+          }
+        }
+      }
+    },
+    "Auto-Arm": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activation auto"
           }
         }
       }
@@ -311,22 +361,12 @@
         }
       }
     },
-    "Auto-disarm after a command finishes": {
+    "Available": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Désactivation automatique après la fin d'une commande"
-          }
-        }
-      }
-    },
-    "Auto-disarm after Claude Code finishes": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Désactivation automatique après la fin de Claude Code"
+            "value": "Disponible"
           }
         }
       }
@@ -351,6 +391,16 @@
         }
       }
     },
+    "Battery level": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niveau de batterie"
+          }
+        }
+      }
+    },
     "Blip pop": {
       "localizations": {
         "fr": {
@@ -371,12 +421,12 @@
         }
       }
     },
-    "Blur strength": {
+    "Blur": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Intensité du flou"
+            "value": "Flou"
           }
         }
       }
@@ -391,32 +441,32 @@
         }
       }
     },
-    "Cancel if reopened by": {
+    "Cancel when reopened by": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Annuler si réouvert de"
+            "value": "Annuler après une réouverture de"
           }
         }
       }
     },
-    "Check for updates…": {
+    "Check for Updates": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rechercher des mises à jour…"
+            "value": "Rechercher les mises à jour"
           }
         }
       }
     },
-    "Checking…": {
+    "Checking": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vérification…"
+            "value": "Vérification"
           }
         }
       }
@@ -451,12 +501,22 @@
         }
       }
     },
-    "Claude Code sessions blocked on a question or a permission do not count as running. A turn whose helpers are still out stays running until they fall silent.": {
+    "Claude Code hooks": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Une session Claude Code bloquée sur une question ou une permission ne compte pas comme active. Un tour dont les agents auxiliaires tournent encore reste actif jusqu’à ce qu’ils se taisent."
+            "value": "Suivi de Claude Code"
+          }
+        }
+      }
+    },
+    "Claude Code: %d, commands: %d": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code : %d, commandes : %d"
           }
         }
       }
@@ -467,6 +527,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rabattez l’écran et partez : Claude Code, vos builds, serveurs et téléchargements continuent sur un écran noir et silencieux. Rouvrez-le et votre Mac se verrouille."
+          }
+        }
+      }
+    },
+    "Compatibility": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compatibilité"
           }
         }
       }
@@ -491,32 +561,32 @@
         }
       }
     },
-    "Crash recovery": {
+    "Denied": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Récupération après plantage"
+            "value": "Refusée"
           }
         }
       }
     },
-    "Defaults": {
+    "Diagnostics": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Valeurs par défaut"
+            "value": "Diagnostic"
           }
         }
       }
     },
-    "Diagnostics log": {
+    "Disabled": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Journal de diagnostic"
+            "value": "Désactivé"
           }
         }
       }
@@ -531,22 +601,22 @@
         }
       }
     },
-    "Download and open…": {
+    "Downloaded": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Télécharger et ouvrir…"
+            "value": "Téléchargé"
           }
         }
       }
     },
-    "Downloading…": {
+    "Downloading": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Téléchargement…"
+            "value": "Téléchargement"
           }
         }
       }
@@ -561,12 +631,32 @@
         }
       }
     },
-    "Edge softness": {
+    "Drag KoffeeLid to Applications, then quit and reopen it.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Adoucissement des bords"
+            "value": "Faites glisser KoffeeLid vers Applications, puis quittez et rouvrez-le."
+          }
+        }
+      }
+    },
+    "Effect": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effet"
+          }
+        }
+      }
+    },
+    "Enabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé"
           }
         }
       }
@@ -581,12 +671,32 @@
         }
       }
     },
+    "Failed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec"
+          }
+        }
+      }
+    },
     "Finish": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Terminer"
+          }
+        }
+      }
+    },
+    "Flatten again when still for": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remettre à plat après une pause de"
           }
         }
       }
@@ -601,42 +711,12 @@
         }
       }
     },
-    "Fn (Globe)": {
+    "General": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fn (Globe)"
-          }
-        }
-      }
-    },
-    "Fn + close lid": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fn + rabattre l’écran"
-          }
-        }
-      }
-    },
-    "Force volume for lid-close sound": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forcer le volume du son de fermeture"
-          }
-        }
-      }
-    },
-    "Forced volume unmutes and sets the output level only while the sound plays, then restores your volume. Your Mac locks whenever the lid reopens.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Le volume forcé réactive le son et règle le niveau de sortie uniquement pendant la lecture du son, puis rétablit votre volume. Votre Mac se verrouille chaque fois que vous ouvrez l’écran."
+            "value": "Général"
           }
         }
       }
@@ -651,32 +731,32 @@
         }
       }
     },
-    "Hold %@ while you start closing the lid. KoffeeLid arms after the activation travel; the plane appears once the lid passes the gesture's start angle (Lid effect below) and follows it from there. If the Globe key triggers its system action when released, set System Settings › Keyboard › \"Press 🌐 key to\" to Do Nothing.": {
+    "Hold %@ and close the lid to arm for one close": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Maintenez %@ en commençant à rabattre l’écran. KoffeeLid s’active après la course d’activation ; le plan apparaît dès que l’écran passe sous l’angle de départ du geste (Effet de l’écran, ci-dessous) et le suit ensuite. Si la touche Globe déclenche son action système au relâchement, réglez Réglages Système › Clavier › « Appuyer sur 🌐 pour » sur Ne rien faire."
+            "value": "Maintenir %@ et rabattre l’écran pour activer le temps d’une fermeture"
           }
         }
       }
     },
-    "Hold while closing": {
+    "Hold the key while you start closing the lid. Your Mac stays awake until you open it and log back in. To cancel, reopen the lid a little before it shuts.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Touche maintenue en rabattant"
+            "value": "Maintenez la touche en commençant à rabattre l’écran. Votre Mac reste éveillé jusqu’à ce que vous le rouvriez et ouvriez votre session. Pour annuler, rouvrez un peu l’écran avant qu’il soit fermé."
           }
         }
       }
     },
-    "Hooks": {
+    "If 🌐 Fn opens something when you let go, set “Press 🌐 key to” to “Do Nothing” in Keyboard settings.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hooks"
+            "value": "Si 🌐 Fn ouvre quelque chose au relâchement, réglez « Appuyer sur 🌐 pour » sur « Ne rien faire » dans les réglages Clavier."
           }
         }
       }
@@ -691,12 +771,12 @@
         }
       }
     },
-    "Inner screen zoom": {
+    "In General, Login Items, allow KoffeeLid in the background.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zoom de l’écran intérieur"
+            "value": "Dans Général, Ouverture, autorisez KoffeeLid en arrière-plan."
           }
         }
       }
@@ -711,6 +791,26 @@
         }
       }
     },
+    "Input Monitoring permission": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisation de surveillance de l’entrée"
+          }
+        }
+      }
+    },
+    "Keep a diagnostics log": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tenir un journal de diagnostic"
+          }
+        }
+      }
+    },
     "Keep this Mac awake with the lid closed and the built-in display off.": {
       "localizations": {
         "fr": {
@@ -721,12 +821,52 @@
         }
       }
     },
+    "Key to hold": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touche à maintenir"
+          }
+        }
+      }
+    },
     "KoffeeLid Status": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "État de KoffeeLid"
+          }
+        }
+      }
+    },
+    "KoffeeLid adds its hooks to ~/.claude/settings.json and backs the file up first. The wait leaves you time to pick a session up from another device: touching this Mac's keyboard or trackpad ends it at once.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ajoute ses hooks à ~/.claude/settings.json, après en avoir fait une copie. L’attente vous laisse le temps de reprendre une session depuis un autre appareil : toucher au clavier ou au trackpad de ce Mac y met fin aussitôt."
+          }
+        }
+      }
+    },
+    "KoffeeLid adds one line to ~/.zshrc. Open a new terminal window afterwards.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ajoute une ligne à ~/.zshrc. Ouvrez ensuite une nouvelle fenêtre de terminal."
+          }
+        }
+      }
+    },
+    "KoffeeLid arms itself while work is running and turns itself off once it is over. It never changes the mode you picked yourself.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid s’active tout seul tant que du travail tourne, et se désactive une fois qu’il est fini. Il ne change jamais le mode que vous avez choisi vous-même."
           }
         }
       }
@@ -851,6 +991,16 @@
         }
       }
     },
+    "KoffeeLid in Login Items": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid dans Ouverture"
+          }
+        }
+      }
+    },
     "KoffeeLid is retrying. Until the warning icon clears, open the lid before leaving your Mac; restarting the Mac always resets this setting.": {
       "localizations": {
         "fr": {
@@ -931,6 +1081,16 @@
         }
       }
     },
+    "Lid Effect": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effet d’écran"
+          }
+        }
+      }
+    },
     "Lid angle": {
       "localizations": {
         "fr": {
@@ -941,12 +1101,22 @@
         }
       }
     },
-    "Lid effect": {
+    "Lid angle now": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Effet d'écran"
+            "value": "Angle actuel de l’écran"
+          }
+        }
+      }
+    },
+    "Lid angle sensor": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capteur d’angle de l’écran"
           }
         }
       }
@@ -1011,6 +1181,16 @@
         }
       }
     },
+    "Look": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apparence"
+          }
+        }
+      }
+    },
     "Look for the mug in your menu bar, at the top right. Hold %@ and close the lid anytime to keep working.": {
       "localizations": {
         "fr": {
@@ -1021,32 +1201,42 @@
         }
       }
     },
-    "Low-battery disarm": {
+    "Low battery": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Désactivation batterie faible"
+            "value": "Batterie faible"
           }
         }
       }
     },
-    "Not granted": {
+    "Menu bar and shortcuts": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Non accordé"
+            "value": "Barre des menus et raccourcis"
           }
         }
       }
     },
-    "Not set up": {
+    "Missing": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Non configuré"
+            "value": "Manquant"
+          }
+        }
+      }
+    },
+    "None": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun"
           }
         }
       }
@@ -1067,6 +1257,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Notifications"
+          }
+        }
+      }
+    },
+    "Notifications permission": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisation des notifications"
           }
         }
       }
@@ -1101,6 +1301,46 @@
         }
       }
     },
+    "Off, KoffeeLid writes nothing to its log. Turn it back on before you report a problem.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sans cette option, KoffeeLid n’écrit plus rien dans son journal. Réactivez-la avant de signaler un problème."
+          }
+        }
+      }
+    },
+    "On battery, at this level or below, KoffeeLid turns itself off and will not arm, so your Mac can sleep instead of running flat. Plugged in, nothing changes.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur batterie, à ce niveau ou en dessous, KoffeeLid se désactive et refuse de s’activer : votre Mac peut se mettre en veille au lieu de se vider. Sur secteur, rien ne change."
+          }
+        }
+      }
+    },
+    "On, KoffeeLid unmutes your Mac and sets this volume just for the sound, then puts your volume back. Off, the sound plays at your current volume, and not at all if your Mac is muted.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avec cette option, KoffeeLid réactive le son de votre Mac et règle ce volume le temps du son, puis rétablit le vôtre. Sans, le son joue à votre volume actuel, et pas du tout si votre Mac est muet."
+          }
+        }
+      }
+    },
+    "Open Diagnostics Log": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir le journal de diagnostic"
+          }
+        }
+      }
+    },
     "Open Login Items": {
       "localizations": {
         "fr": {
@@ -1111,22 +1351,12 @@
         }
       }
     },
-    "Open diagnostics log": {
+    "Open Login Items Settings": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ouvrir le journal de diagnostic"
-          }
-        }
-      }
-    },
-    "Opened KoffeeLid-%@.dmg. Drag KoffeeLid to Applications, then quit and reopen it.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "KoffeeLid-%@.dmg ouvert. Faites glisser KoffeeLid vers Applications, puis quittez et rouvrez-le."
+            "value": "Ouvrir les réglages Ouverture"
           }
         }
       }
@@ -1141,22 +1371,22 @@
         }
       }
     },
-    "Option + close lid": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Option + rabattre l’écran"
-          }
-        }
-      }
-    },
     "Optional. Let KoffeeLid arm itself while Claude Code or a terminal command is running, and disarm a minute after nothing is. Setting up either turns auto-arm on; both can be changed later in Settings.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Facultatif. Laissez KoffeeLid s’activer tout seul quand Claude Code ou une commande du terminal tourne, et se désactiver une minute après que plus rien ne tourne. Configurer l’un ou l’autre active cette option ; tout se modifie ensuite dans Réglages."
+          }
+        }
+      }
+    },
+    "Otherwise, start below": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sinon, démarrer sous"
           }
         }
       }
@@ -1181,12 +1411,82 @@
         }
       }
     },
+    "Play a sound when the lid closes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jouer un son quand l’écran se ferme"
+          }
+        }
+      }
+    },
+    "Play it at a set volume": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le jouer à un volume défini"
+          }
+        }
+      }
+    },
+    "Plays a %d° fold over %d seconds, whether KoffeeLid is armed or not.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Joue un pli de %d° en %d secondes, que KoffeeLid soit activé ou non."
+          }
+        }
+      }
+    },
+    "Plays when the lid closes while KoffeeLid is armed, so you hear that your Mac stays awake.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Joué quand l’écran se ferme alors que KoffeeLid est activé : vous entendez que votre Mac reste éveillé."
+          }
+        }
+      }
+    },
+    "Press %@ to arm with the screen on, or to turn off": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appuyer sur %@ pour activer avec l’écran allumé, ou désactiver"
+          }
+        }
+      }
+    },
+    "Press %@ to arm, or to turn off": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appuyer sur %@ pour activer, ou désactiver"
+          }
+        }
+      }
+    },
     "Preview": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Aperçu"
+          }
+        }
+      }
+    },
+    "Quit": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitter"
           }
         }
       }
@@ -1207,6 +1507,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Retirer"
+          }
+        }
+      }
+    },
+    "Remove from Claude Code": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer de Claude Code"
+          }
+        }
+      }
+    },
+    "Remove from the Terminal": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer du terminal"
           }
         }
       }
@@ -1251,12 +1571,32 @@
         }
       }
     },
-    "Reset permissions and undo every change…": {
+    "Reset KoffeeLid…": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Réinitialiser les autorisations et annuler toutes les modifications…"
+            "value": "Réinitialiser KoffeeLid…"
+          }
+        }
+      }
+    },
+    "Reset to Defaults": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rétablir les valeurs par défaut"
+          }
+        }
+      }
+    },
+    "Reset turns KoffeeLid off, removes the sleep lock, the login items, the hooks and every permission, and clears every setting. It asks first.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La réinitialisation désactive KoffeeLid, retire le verrou de veille, les éléments d’ouverture, les hooks et toutes les autorisations, puis efface tous les réglages. Une confirmation est demandée."
           }
         }
       }
@@ -1271,22 +1611,12 @@
         }
       }
     },
-    "Return to flat when still for": {
+    "Right-click the menu bar icon to arm": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Retour à plat après une pause de"
-          }
-        }
-      }
-    },
-    "Right-click menu bar icon": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clic droit sur l'icône de la barre des menus"
+            "value": "Clic droit sur l’icône de la barre des menus pour activer"
           }
         }
       }
@@ -1297,6 +1627,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enregistrement de l'écran"
+          }
+        }
+      }
+    },
+    "Screen Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’enregistrement de l’écran permet à l’effet d’écran de montrer votre bureau. La surveillance de l’entrée permet au geste de l’écran de distinguer la touche 🌐 Fn de ce Mac de celle d’un clavier externe. Les notifications vous préviennent quand KoffeeLid se désactive de lui-même."
+          }
+        }
+      }
+    },
+    "Screen Recording permission": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisation d’enregistrement de l’écran"
           }
         }
       }
@@ -1331,12 +1681,62 @@
         }
       }
     },
+    "Set Up Claude Code": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurer Claude Code"
+          }
+        }
+      }
+    },
+    "Set Up Sleep Lock…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurer le verrou de veille…"
+          }
+        }
+      }
+    },
+    "Set Up the Terminal": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurer le terminal"
+          }
+        }
+      }
+    },
     "Set up": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Configuré"
+          }
+        }
+      }
+    },
+    "Set up Claude Code or the terminal below. Until then, KoffeeLid cannot tell when work is running.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurez Claude Code ou le terminal ci-dessous. D’ici là, KoffeeLid ne peut pas savoir quand du travail tourne."
+          }
+        }
+      }
+    },
+    "Set up the sleep lock. It asks for your administrator password once.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurez le verrou de veille. Votre mot de passe administrateur est demandé une seule fois."
           }
         }
       }
@@ -1371,6 +1771,16 @@
         }
       }
     },
+    "Show Onboarding Again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revoir l’introduction"
+          }
+        }
+      }
+    },
     "Show in menu bar": {
       "localizations": {
         "fr": {
@@ -1381,27 +1791,27 @@
         }
       }
     },
-    "Show lid angle": {
+    "Show the desktop folding away as the lid closes": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Afficher l'angle de l'écran"
+            "value": "Montrer le bureau qui se replie quand l’écran se rabat"
           }
         }
       }
     },
-    "Show onboarding again": {
+    "Show the lid angle in the menu bar": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Revoir l’introduction"
+            "value": "Afficher l’angle de l’écran dans la barre des menus"
           }
         }
       }
     },
-    "Simulate a fold": {
+    "Simulate a Fold": {
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -1441,6 +1851,26 @@
         }
       }
     },
+    "Soft edges": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bords adoucis"
+          }
+        }
+      }
+    },
+    "Sound": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son"
+          }
+        }
+      }
+    },
     "Standing by: external display": {
       "localizations": {
         "fr": {
@@ -1451,22 +1881,22 @@
         }
       }
     },
-    "Start below (except the lid gesture)": {
+    "Start over": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Démarrer sous (sauf geste de l’écran)"
+            "value": "Repartir de zéro"
           }
         }
       }
     },
-    "Start below (with the lid gesture)": {
+    "Startup": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Démarrer sous (avec geste de l’écran)"
+            "value": "Démarrage"
           }
         }
       }
@@ -1481,12 +1911,52 @@
         }
       }
     },
+    "Stay armed after Claude Code finishes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rester activé après la fin de Claude Code"
+          }
+        }
+      }
+    },
+    "Stay armed after a command finishes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rester activé après la fin d’une commande"
+          }
+        }
+      }
+    },
+    "Staying awake safely": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rester éveillé en sécurité"
+          }
+        }
+      }
+    },
     "Stops macOS from sleeping the closed Mac when the charger is plugged in or a display changes. Asks for your administrator password once.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Empêche macOS de mettre en veille le Mac fermé lorsque le chargeur est branché ou qu’un écran change. Demande votre mot de passe administrateur une seule fois."
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Système"
           }
         }
       }
@@ -1511,12 +1981,32 @@
         }
       }
     },
+    "Terminal": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal"
+          }
+        }
+      }
+    },
     "Terminal (zsh)": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Terminal (zsh)"
+          }
+        }
+      }
+    },
+    "Terminal hook (zsh)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivi du terminal (zsh)"
           }
         }
       }
@@ -1531,12 +2021,22 @@
         }
       }
     },
-    "The lid gesture needs a Mac with a lid-angle sensor. Right-click arming and the keyboard shortcut still work.": {
+    "The first angle is also where your desktop stands upright. Armed from the menu bar or a shortcut, the effect waits for the second angle, so adjusting your screen while you work starts nothing.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le geste de l’écran nécessite un Mac doté d’un capteur d’angle d’ouverture. L’activation par clic droit et le raccourci clavier restent disponibles."
+            "value": "Le premier angle est aussi celui où votre bureau se tient droit. Activé depuis la barre des menus ou un raccourci, l’effet attend le second angle : ajuster l’écran en travaillant ne déclenche rien."
+          }
+        }
+      }
+    },
+    "The lid gesture and the lid effect need it. Everything else works without it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le geste de l’écran et l’effet d’écran en ont besoin. Tout le reste fonctionne sans."
           }
         }
       }
@@ -1551,22 +2051,42 @@
         }
       }
     },
-    "The sleep lock and Login Items are required for a closed Mac to stay awake safely. The lid effect needs Screen Recording; after allowing it, quit and reopen KoffeeLid. Input Monitoring makes the lid gesture ignore an external keyboard's Fn key.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Le verrou de veille et les éléments d’ouverture sont indispensables pour qu’un Mac fermé reste éveillé en toute sécurité. L’effet d’écran nécessite l’enregistrement de l’écran ; après l’avoir autorisé, quittez puis rouvrez KoffeeLid. La surveillance de l'entrée fait ignorer au geste du capot la touche Fn d'un clavier externe."
-          }
-        }
-      }
-    },
     "The sleep lock could not be set up": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Le verrou de veille n’a pas pu être configuré"
+          }
+        }
+      }
+    },
+    "The sleep lock stops macOS from sleeping your closed Mac when you plug in the charger or a display changes. Login Items lets KoffeeLid come back after a crash and give your Mac its normal sleep back.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le verrou de veille empêche macOS de mettre en veille votre Mac fermé quand vous branchez le chargeur ou qu’un écran change. Ouverture permet à KoffeeLid de revenir après un plantage et de rendre à votre Mac sa veille normale."
+          }
+        }
+      }
+    },
+    "This Mac has no lid angle sensor, so the lid effect is not available.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce Mac n’a pas de capteur d’angle de l’écran : l’effet d’écran n’est pas disponible."
+          }
+        }
+      }
+    },
+    "This Mac has no lid angle sensor, so the lid gesture is not available.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce Mac n’a pas de capteur d’angle de l’écran : le geste de l’écran n’est pas disponible."
           }
         }
       }
@@ -1671,12 +2191,32 @@
         }
       }
     },
-    "Up to date.": {
+    "Turn off when the battery runs low": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "À jour."
+            "value": "Désactiver quand la batterie est faible"
+          }
+        }
+      }
+    },
+    "Up to date": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À jour"
+          }
+        }
+      }
+    },
+    "Update": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettre à jour"
           }
         }
       }
@@ -1701,82 +2241,92 @@
         }
       }
     },
-    "Version %@ is available.": {
+    "Version %@ is available": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "La version %@ est disponible."
+            "value": "La version %@ est disponible"
           }
         }
       }
     },
-    "Watchdog enabled": {
+    "Volume": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Surveillance activée"
+            "value": "Volume"
           }
         }
       }
     },
-    "Watchdog not registered": {
+    "When it starts": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Surveillance non enregistrée"
+            "value": "Déclenchement"
           }
         }
       }
     },
-    "Watchdog unavailable": {
+    "While KoffeeLid is armed, your desktop stays upright behind the screen as it folds down. The effect only plays while the lid closes, and nothing is captured while the lid rests.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Surveillance indisponible"
+            "value": "Quand KoffeeLid est activé, votre bureau reste droit derrière l’écran qui se rabat. L’effet ne joue que pendant la fermeture, et rien n’est capturé tant que l’écran ne bouge pas."
           }
         }
       }
     },
-    "While Claude Code or a terminal command is running": {
+    "While you work": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quand Claude Code ou une commande du terminal tourne"
+            "value": "Pendant que vous travaillez"
           }
         }
       }
     },
-    "While KoffeeLid is armed": {
+    "With the icon hidden, KoffeeLid keeps working. Open it again from the Applications folder or Spotlight to get back to this window.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lorsque KoffeeLid est actif"
+            "value": "Icône masquée, KoffeeLid continue de fonctionner. Rouvrez-le depuis le dossier Applications ou Spotlight pour revenir à cette fenêtre."
           }
         }
       }
     },
-    "While armed, closing the lid shows the desktop as an inner screen that stays upright behind the folding display: anchored at the hinge, it grows as the lid tilts (100 % zoom is the true geometry, 1 ÷ cos of the fold), narrows toward the top as it recedes behind the glass (perspective), blurs there, where the display is furthest from it, melts into the dark at its edges (edge softness: crisp at the hinge, widest at the top corners) and darkens toward the top (shading). The fold follows the lid 1:1 below the gesture's start angle, where the inner screen stands. The sensor reports the angle every 100 ms; Responsiveness sets how far the plane predicts between reports: 0 % waits for each report (smoothest, about 150 ms behind the lid), 100 % runs ahead (about 80 ms behind, a little jitter on slow closes). Nothing is captured until the lid moves. Armed from the menu bar or the shortcut, the effect waits until the lid is below the angle above, then moves faster than the lid until it has caught up.": {
+    "With the lid gesture, start below": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Une fois activé, fermer le capot montre le bureau comme un écran intérieur qui reste droit derrière l’écran qui se replie : ancré à la charnière, il grandit à mesure que le capot s’incline (un zoom à 100 % suit la géométrie exacte, 1 ÷ cos de l’angle de pli), se rétrécit vers le haut en s’éloignant derrière la vitre (perspective), s’y floute, là où l’écran en est le plus éloigné, se fond dans le noir sur ses bords (adoucissement des bords : nets à la charnière, le plus larges aux coins supérieurs) et s’assombrit vers le haut (ombrage). Le pli suit l’écran degré pour degré sous l’angle de départ du geste, là où se tient l’écran intérieur. Le capteur transmet l’angle toutes les 100 ms ; Réactivité règle ce que le plan anticipe entre deux mesures : 0 % attend chaque mesure (le plus fluide, environ 150 ms derrière le capot), 100 % anticipe (environ 80 ms derrière, un léger tremblement sur les fermetures lentes). Rien n’est capturé tant que le capot ne bouge pas. Activé depuis la barre des menus ou le raccourci, l’effet attend que le capot passe sous l’angle ci-dessus, puis avance plus vite que l’écran jusqu’à l’avoir rattrapé."
+            "value": "Avec le geste de l’écran, démarrer sous"
           }
         }
       }
     },
-    "With the log off KoffeeLid writes nothing to diagnostics.log. Turn it back on before reporting a problem.": {
+    "Work running now": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Journal désactivé, KoffeeLid n’écrit plus rien dans diagnostics.log. Réactivez-le avant de signaler un problème."
+            "value": "Travail en cours"
+          }
+        }
+      }
+    },
+    "Your Mac locks every time the lid reopens.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre Mac se verrouille à chaque réouverture de l’écran."
           }
         }
       }
@@ -1787,6 +2337,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vos agents continuent de travailler. Écran rabattu."
+          }
+        }
+      }
+    },
+    "Zoom": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom"
           }
         }
       }
@@ -1847,6 +2407,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "élevée"
+          }
+        }
+      }
+    },
+    "“Disarm once finished” in the menu also ends your own arm, one minute after the work is over.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "« Désactiver une fois terminé », dans le menu, met aussi fin à votre propre activation, une minute après la fin du travail."
           }
         }
       }
