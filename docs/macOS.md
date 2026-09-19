@@ -1,7 +1,7 @@
 # macOS mechanisms
 
 What KoffeeLid asks of macOS, through which interface, and how each one behaves on a MacBook with Apple
-silicon (developed on Mac16,8, macOS 26). The traps these mechanisms hide are in `docs/pitfalls.md`.
+silicon (developed on Mac16,8, macOS 27). The traps these mechanisms hide are in `docs/pitfalls.md`.
 
 Tools that show the state of each mechanism: `ioreg -r -d1 -c IOPMrootDomain`, `pmset -g`, `pmset -g assertions`,
 `pmset -g log`, the unified log (`/usr/bin/log show`, kernel lines start with `PMRD:`), and the app's
@@ -17,6 +17,7 @@ Tools that show the state of each mechanism: `ioreg -r -d1 -c IOPMrootDomain`, `
 | Distributed notifications `com.apple.screenIsLocked` / `com.apple.screenIsUnlocked`, and `CGSSessionScreenIsLocked` in `CGSessionCopyCurrentDictionary` | `ScreenLockObserver`, `LidReopenLockController.isScreenLocked` | Knowing when the user logs back in | A one-close arm falls back to ending when the lid opens |
 | Lid-angle HID sensor (vendor `0x05AC`, product `0x8104`, usage page `0x20`, usage `0x8A`), feature report 1 | `LidAngleSensor` | The lid gesture and the lid effect | Both are unavailable; every other arming path works |
 | `~/Library/Group Containers/group.com.apple.usernoted/Library/Preferences/group.com.apple.usernoted.plist` | `KoffeeLidController.resetNotificationGrant` | Advanced › Reset puts the notification grant back to "not determined" | The reset reports nothing for notifications |
+| The built-in keyboard's HID device (`Built-In`, usage page 1, usage 6) and its Fn key element on Apple's vendor top-case page `0xFF`, usage 3 | `BuiltInFnKeyReader` | Telling the built-in keyboard's Fn key from an external keyboard's | Any keyboard's Fn key arms the lid gesture |
 | Claude Code's hook payloads and `<config>/sessions/<pid>.json` registry records | `ActivityTrim`, `ClaudeRegistryRecord` | Auto-arm on activity | See § Claude Code below |
 
 The app is not sandboxed (`com.apple.security.app-sandbox` = false): an IOKit user client, private
@@ -105,9 +106,21 @@ which `LocalInputMonitor` reads, does not see it.
   `0x800100` (no numeric-pad flag) with `CGEventSource.keyState(…, 63 /* kVK_Function */)` = 1, and clears on
   release. macOS also sets the Fn flag on every arrow-key event, together with `maskNumericPad` / `.numericPad`
   (raw `0xa00100`, key state of 63 = 0), and **those flags stay in the session state after the arrow key is
-  released, until the next keyboard event**. A reading that carries the numeric-pad flag is therefore an arrow
-  key and does not count as Fn (`FnKeyReading`). Function keys used as F1–F12 and an external keyboard's
-  navigation keys carry the Fn flag without the numeric-pad flag.
+  released, until the next keyboard event**. Function keys used as F1–F12 and an external keyboard's navigation
+  keys carry the Fn flag without the numeric-pad flag and without key 63. A reading therefore counts as Fn only
+  without the numeric-pad flag and with `CGEventSource.keyState(.combinedSessionState, key: 63)` true
+  (`FnKeyReading`). Whether an external keyboard's own Fn/Globe key presses key 63 has not been checked on this
+  Mac; a third-party keyboard's Fn key is usually handled inside the keyboard and never reaches macOS.
+- **Per-keyboard Fn.** An external Apple keyboard's Globe key sets the same flag and, on this Mac, exposes the
+  same HID element as the built-in one (both keyboards carry usage page `0xFF`, usage 3). `BuiltInFnKeyReader`
+  enumerates the keyboards through `IOHIDManager`, keeps the one whose `Built-In` property is set (the kernel
+  does not match on that key: a matching dictionary carrying it matched both keyboards), opens that one device
+  (`IOHIDDeviceOpen`), subscribes to the Fn element's input values on the main run loop, and `FnKeyReading`
+  requires the reading in addition to the session key state.
+  Keyboard HID input is gated by the Input Monitoring grant (`IOHIDCheckAccess` /
+  `IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)`; `IOHIDManagerOpen` fails without it): System Settings ›
+  Privacy & Security › Input Monitoring, per bundle path like Screen Recording. The reader retries whenever the
+  app becomes active, so a grant made in System Settings is picked up on return.
 - macOS runs the Globe key's "Press 🌐 key to" action on release when nothing else was pressed; set it to
   "Do Nothing" if the emoji picker appears after the gesture.
 
@@ -146,7 +159,8 @@ the desktop at fold 0.
 | Sleep lock | `/etc/sudoers.d/koffeelid` | `SleepLock.removeRule()` (administrator dialog) |
 | Login Items | Background Task Management (bundle id + team id) | none per app |
 | Screen Recording | TCC | `tccutil reset ScreenCapture dev.rubens.koffeelid` |
-| Notifications | usernoted's group preferences, `apps[]` entry with `bundle-id` | drop the entry, `killall usernoted` |
+| Input Monitoring | TCC | `tccutil reset ListenEvent dev.rubens.koffeelid` |
+| Notifications | usernoted's group preferences, `apps[]` entry with `bundle-id` | drop the entry, `killall usernoted` and `killall NotificationCenter` |
 | Preferences | UserDefaults domain `dev.rubens.koffeelid` | `defaults delete dev.rubens.koffeelid` |
 
 Apple Development-signed builds are rejected by Gatekeeper on other Macs; distribution needs a Developer ID

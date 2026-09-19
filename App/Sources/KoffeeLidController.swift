@@ -35,6 +35,9 @@ final class KoffeeLidController {
     private var lidObserver: LidObserver!
     private(set) var lidAngleObserver: LidAngleObserver?
     private let gesture = GestureController(prefs: .shared)
+    /// The built-in keyboard's Fn key (Input Monitoring): only it arms the lid gesture when it can be read.
+    private let builtInFn = BuiltInFnKeyReader()
+    private var fnReaderObservers: [NSObjectProtocol] = []
     /// Set after an Option + close arm until the lid actually closes: reopening cancels the arm.
     private var reopenWatch: ReopenCancelWatch?
     /// Holds a reopen lock that `standingBy` skipped, in case the topology was one event out of date.
@@ -137,6 +140,19 @@ final class KoffeeLidController {
         } else { log.log("lid-angle sensor not found; lid gesture and effect unavailable") }
 
         gesture.onEvent = { [weak self] e in self?.handleGesture(e) }
+        builtInFn.onLog = { [log] in log.log($0) }
+        gesture.builtInFnDown = { [builtInFn] in builtInFn.fnDown }
+        builtInFn.start()
+        // The Input Monitoring grant lands while the system prompt or System Settings is in front, and the
+        // keyboard device can come back after a wake: retry on both.
+        fnReaderObservers = [
+            NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.builtInFn.retryIfNotReading() }
+            },
+            NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.builtInFn.retryIfNotReading() }
+            },
+        ]
         effect.onNeedsAngleSampling = { [weak self] on in
             on ? self?.lidAngleObserver?.addConsumer("effect") : self?.lidAngleObserver?.removeConsumer("effect")
         }
@@ -181,7 +197,8 @@ final class KoffeeLidController {
 
     func shutdown() {
         activity.stop(); activityTimer?.invalidate(); inputTimer?.invalidate()
-        screenLock.stop()
+        screenLock.stop(); builtInFn.stop()
+        fnReaderObservers.forEach { NotificationCenter.default.removeObserver($0); NSWorkspace.shared.notificationCenter.removeObserver($0) }; fnReaderObservers = []
         flagRetryTimer?.invalidate(); flagRetryTimer = nil
         let wasArmed = isArmed
 
@@ -614,12 +631,13 @@ final class KoffeeLidController {
         try? agent.register()   // back to "requires approval" so the onboarding row has something to approve
         done.append("login items unregistered")
         if Self.run("/usr/bin/tccutil", ["reset", "ScreenCapture", Bundle.main.bundleIdentifier ?? "dev.rubens.koffeelid"]) == 0 { done.append("screen recording reset") }
+        if Self.run("/usr/bin/tccutil", ["reset", "ListenEvent", Bundle.main.bundleIdentifier ?? "dev.rubens.koffeelid"]) == 0 { done.append("input monitoring reset") }
         if Self.resetNotificationGrant() { done.append("notifications reset") }
         for url in [AppSupport.relaunchHistoryURL, AppSupport.brightnessRecoveryURL] { try? FileManager.default.removeItem(at: url) }
         if (HookInstaller.installedCount() ?? 0) > 0 { done.append(HookInstaller.uninstall().ok ? "claude code hooks removed" : "claude code hooks removal failed") }
         if HookInstaller.zshrcHasSnippet() { done.append(HookInstaller.removeFromZshrc().ok ? "zsh snippet removed" : "zsh snippet removal failed") }
         if let id = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: id); done.append("preferences cleared") }
-        hotKey.register(); refreshGestureSampling(); effect.parameters = prefs.effect; refreshStatusItem()
+        hotKey.register(); refreshGestureSampling(); effect.parameters = prefs.effect; builtInFn.start(); refreshStatusItem()
         log.log("reset: " + done.joined(separator: ", "))
         return done
     }
@@ -666,6 +684,12 @@ final class KoffeeLidController {
     func sleepLockRuleChanged() {
         guard isStarted, isArmed, !sleepLock.engaged else { return }
         engageSleepLock()
+    }
+
+    /// The Input Monitoring row was acted on (Settings / onboarding): reopen the built-in keyboard, or let it go.
+    func inputMonitoringChanged() {
+        guard isStarted else { return }
+        builtInFn.start()
     }
 
     private func releaseSleepLock() {

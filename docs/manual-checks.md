@@ -32,6 +32,8 @@
 - [ ] Armed from the menu, lid folding, hold Fn and stop the lid → the plane does not return to flat while Fn is held; release → it does after the delay
 - [ ] Releasing Fn after the gesture does not trigger the Globe key action (System Settings › Keyboard › "Press 🌐 key to" = Do Nothing if it does)
 - [ ] **Arrow keys are not Fn**: Off, lid open, hold ↓ (or tap it and touch nothing else) and tilt the lid 5° → no `gesture: started` line, nothing arms. Armed from the menu, same thing → no `gesture: modifier + close while armed`, no fold above the start-below angle. Armed from the menu, lid folded below the start-below angle, hold ↓ with the lid still → the plane still returns to flat after the delay
+- [ ] **Function and navigation keys are not Fn**: Off, lid open, hold F5 with "Use F1, F2… as standard function keys" on (or Home on an external keyboard) and tilt the lid 5° → no `gesture: started`; hold the built-in Fn key instead → `gesture: started` as before
+- [ ] **Only the built-in Fn key** (Input Monitoring): with the grant absent the log says `built-in Fn reader: Input Monitoring not granted`, and the Magic Keyboard's Globe key + tilt arms (any keyboard counts). Settings › Permissions › Input Monitoring › Allow… → system prompt → Allow → the log says `built-in Fn reader: reading Apple Internal Keyboard / Trackpad` (note whether it needed a relaunch: `open FAILED`); now Globe on the external keyboard + tilt → no `gesture: started`; the built-in Fn + tilt → `gesture: started … (fn via hardware, built-in keyboard)`; hold the built-in Fn with the lid still → the plane stays; release → it settles. Advanced › Reset → `input monitoring reset` in the `reset:` line, the row reads Not granted and the log falls back to `not granted`
 - [ ] Advanced › Hold while closing = Option → the same checks pass with Option; labels update after reopening Settings
 
 ## Effect
@@ -94,18 +96,18 @@
 - [ ] Switching Armed ↔ Armed + screen on keeps `AppleClamshellCausesSleep = No` throughout (no flag clear/set in the log)
 - [ ] CLI: `koffeelid status` (works with the app not running: `mode: off (KoffeeLid is not running)`), `koffeelid arm` launches the app if needed and prints `mode: armed · lid: open`, `koffeelid caffeinate`, `koffeelid toggle-caffeinate`, `koffeelid toggle-armed`, `koffeelid off`, `koffeelid settings`; a blocked arm prints `did not arm: …` and exits 1; `koffeelid bogus` prints the usage and exits 2
 - [ ] `open 'koffeelid://caffeinate'` and `open 'koffeelid://toggle'` work
-- [ ] Shortcuts app shows Arm / Arm + screen on / Turn Off / Toggle / Toggle screen on / Status actions and they work; Status returns the mode name
+- [ ] Shortcuts app shows Arm / Arm + screen on / Turn Off / Toggle / Toggle screen on / Status actions and they work; Status returns the mode name (the bundle must contain `Contents/Resources/Metadata.appintents`; a Debug build whose log printed `Metadata extraction skipped` has none until rebuilt)
 
 ## Onboarding
 - [ ] First launch (or Advanced › Show onboarding again): page 1 headline "Vos agents continuent de travailler. Écran rabattu." with "agents" in brown, three capsules inside the margins, clicking the headline changes nothing; the window stays above other windows
-- [ ] Page 2 "Autorisations": Verrou de veille ⚠︎, Éléments d’ouverture ⚠︎, Enregistrement de l’écran, Notifications, separators between rows; each button runs its grant (password dialog / System Settings / system prompts) and the window comes back to front with the row now "Accordée"; bottom right says "Ignorer" until both ⚠︎ rows are granted, then "Continuer"
+- [ ] Page 2 "Autorisations": Verrou de veille ⚠︎, Éléments d’ouverture ⚠︎, Enregistrement de l’écran, Surveillance de l'entrée, Notifications, separators between rows; each button runs its grant (password dialog / System Settings / system prompts) and the window comes back to front with the row now "Accordée"; bottom right says "Ignorer" until both ⚠︎ rows are granted, then "Continuer"
 - [ ] Page 3 "Arm while you work": the two hooks, one "Set up…" button each (details under Auto-arm on activity)
 - [ ] Page 4 "Tout est prêt" mentions the mug; Finish sets `onboardingCompleted`
 - [ ] Notifications are not requested at launch before onboarding: the system prompt appears only from the Notifications row
 
 ## Settings UI
 - [ ] Launch with `--open-settings`: `"/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLid" --open-settings &` (or `open -a "KoffeeLid" --args --open-settings`) → App group first, grouped rows, opaque title bar with no gap above the first header, fits the visible screen (scrolls if not, never under the Dock); "Réglages avancés…" opens the Advanced window
-- [ ] Settings › Permissions shows the four grants with `Accordée` / `Non accordée` and a button only while missing; coming back from System Settings refreshes the rows
+- [ ] Settings › Permissions shows the five grants with `Accordée` / `Non accordée` and a button only while missing; coming back from System Settings refreshes the rows
 - [ ] Advanced › App › Journal de diagnostic off → the log stops after `diagnostics log disabled from Advanced settings`; on → `diagnostics log enabled from Advanced settings`
 - [ ] Advanced › Réinitialiser… → confirmation, then (password dialog if the rule exists) the log gets one `reset:` line listing what was undone, `pmset -g | grep SleepDisabled` is 0, `/etc/sudoers.d/koffeelid` is gone, preferences are back to defaults and the onboarding opens on page 1
 - [ ] Advanced › Réinitialiser… while **auto-armed** (Claude Code working, the menu shows Off): the log gets `disarmed (reset)` before the `reset:` line, `koffeelid status` says `mode: off`, `pmset -g | grep SleepDisabled` is 0 and only then is `/etc/sudoers.d/koffeelid` gone (the reset calls `disarm` directly: Off from the menu keeps an auto-armed session)

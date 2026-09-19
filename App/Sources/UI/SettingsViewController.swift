@@ -73,7 +73,7 @@ final class SettingsViewController: PaneViewController {
                 g.row(item.title, value, button)
             }
         }
-        f.note(L("The sleep lock and Login Items are required for a closed Mac to stay awake safely. The lid effect needs Screen Recording; after allowing it, quit and reopen KoffeeLid."))
+        f.note(L("The sleep lock and Login Items are required for a closed Mac to stay awake safely. The lid effect needs Screen Recording; after allowing it, quit and reopen KoffeeLid. Input Monitoring makes the lid gesture ignore an external keyboard's Fn key."))
 
         f.header(L("Hooks"))
         f.group { g in

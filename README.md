@@ -16,7 +16,7 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-248%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-253%20passing-2ea44f">
 </p>
 
 ## The problem
@@ -120,7 +120,8 @@ Everything that returns the app to Off also clears the kernel flag. That rule ha
 Download `KoffeeLid-<version>.dmg` from the [latest release](https://github.com/bambidotexe/koffeelid/releases/latest),
 open it, drag `KoffeeLid.app` to Applications and launch it. A four-page onboarding asks for what it needs: the
 sleep lock (administrator password, once), Login Items (crash recovery), Screen Recording (the fold),
-notifications (optional), and offers to set up the Claude Code hooks and the zsh snippet.
+Input Monitoring (optional: only the built-in keyboard's Fn key then arms the gesture), notifications (optional),
+and offers to set up the Claude Code hooks and the zsh snippet.
 
 The current build is signed with a development certificate and is not notarized. On another Mac, macOS will
 warn; control-click the app and choose Open, or build from source.

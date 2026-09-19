@@ -62,7 +62,8 @@ and calls `setMode`, `perform`, `resetEverything`, `sleepLockRuleChanged`.
   `arm(source:mode:)`. While armed and the target differs, or the arm is auto-only: switch in place (`mode`,
   `armSource = source`, `reopenWatch = nil`, `gestureHold.clear()`, `applyCaffeinate()`); the kernel flag is
   not touched.
-- `perform(_:source:)` maps a `DeepLink` verb onto `setMode` and returns `statusLine()`.
+- `perform(_:source:)` maps the arming verbs of a `DeepLink` onto `setMode` (`status` does nothing, `settings`
+  opens the window) and returns `statusLine()`, or `did not arm: …` for a refused arm.
 - `arm(source:mode:)`: `isStarted` → not already armed → `ArmingPolicy.evaluate` → `setLidSleepDisabled(true)` →
   cancel the clear-retry → `acquireAssertions()` → `engageSleepLock()` → fresh `SleepOverrideGuard` → `mode`
   (unless the source is `activity`) → `state` from the lid → `armSource` → `gesture.reset()`,
@@ -77,7 +78,7 @@ and calls `setMode`, `perform`, `resetEverything`, `sleepLockRuleChanged`.
   attempt and `state = .idle`.
 - `applyAuto(_:)`: the auto level changed. `.on` arms only an idle Mac (`arm(source: .activity)`; a refusal
   calls `armFailed()`). `.off(releaseManual:)` disarms only when `mode == .off`.
-- `shutdown()`: stops the activity monitor and timers; if armed, cancels the lock, stops the effect, releases
+- `shutdown()`: stops the activity monitor, the screen-lock observer, the built-in Fn reader and the timers; if armed, cancels the lock, stops the effect, releases
   the sleep lock and assertions, restores brightness; clears the flag (three attempts, 0.3 s apart) only if
   `wasArmed || flagClearPending || power.lidSleepDisabled`; removes the pid file.
 - `start()`: opens the root domain; clears the flag only when a stale pid file or brightness-recovery file
@@ -105,7 +106,8 @@ The launch and quit clears are conditional because other lid-sleep utilities dri
 | Lid open/closed | `PowerManager` → `LidObserver` (`LidStateTransitionFilter`) | `kIOGeneralInterest` on `IOPMrootDomain`, `AppleClamshellState` | `handleLid` |
 | Flag dropped by macOS | `PowerManager` | root-domain interest, `IOPSNotificationCreateRunLoopSource`, display sleep/wake, system wake, screen parameters | `reapplyFlag` |
 | Lid angle | `LidAngleSensor` → `LidAngleObserver` (`AngleSampleFilter`) | HID feature report, polled | `handleAngle` |
-| Gesture modifier | `GestureController.readModifier` (`FnKeyReading`) | `CGEventSource.flagsState`, `NSEvent.modifierFlags`, read per sample | inside `handleAngle` |
+| Gesture modifier | `GestureController.readModifier` (`FnKeyReading`) | `CGEventSource.flagsState`, `NSEvent.modifierFlags`, `CGEventSource.keyState(63)`, `BuiltInFnKeyReader.fnDown`, read per sample | inside `handleAngle` |
+| Built-in keyboard's Fn key | `BuiltInFnKeyReader` | `IOHIDDeviceOpen` on the keyboard whose `Built-In` property is set (Input Monitoring), input values of the Fn element on the main run loop; reopened on `didBecomeActiveNotification`, `didWakeNotification` and from the permission row | read by `GestureController` |
 | Gesture | `GestureController` (`OptionGateFilter`, `LidProgressDriver`) | fed by `handleAngle` while `gestureWanted` | `handleGesture` |
 | Displays | `DisplayTopologyMonitor` | `didChangeScreenParametersNotification`, `CGGetOnlineDisplayList` | `handleDisplays` |
 | Battery | `BatteryMonitor` | `IOPSNotificationCreateRunLoopSource`, `IOPSCopyPowerSourcesInfo` | `handleBattery` (`LowBatteryPolicy`) |
@@ -122,7 +124,8 @@ The launch and quit clears are conditional because other lid-sleep utilities dri
 Who creates and releases what: `PowerManager` owns the root-domain connection, the kernel flag and the four
 assertions (`acquireAssertions`/`releaseAssertions`; `keepDisplayOn` and `tickleUserActivity` are properties
 whose setters create and release). `SleepLock` owns `pmset disablesleep` and its marker file.
-`InternalDisplayBrightnessController` owns the panel brightness and its recovery file.
+`InternalDisplayBrightnessController` owns the panel brightness and its recovery file. `BuiltInFnKeyReader`
+owns the open HID device of the built-in keyboard.
 `LidReopenLockController` owns the lock retry chain. The coordinator decides when; they never decide.
 
 `applyCaffeinate()` runs on arm, disarm, mode switch, `releaseManual` and both lid transitions:
@@ -234,7 +237,7 @@ while idle.
 | `PermissionRequest`, `StopFailure`; `Notification` of type `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog` | `waiting` |
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |
 | `Notification` `idle_prompt` / `agent_needs_input`, state `working`, 50 s of main-agent quiet | treated as a lost `Stop` |
-| helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn; a helper active after `done` reopens it |
+| helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`), and the next helper event ends that wait; a helper active after `done` reopens it |
 | `SessionEnd`, process exit | session removed |
 
 Time rules (`tick`): a helper counts as live for 240 s after its last event; a held `Stop` becomes `done` 90 s
@@ -291,8 +294,10 @@ built in Core (`SleepLockSetup`), validated user name, absolute tool paths, stag
 checked with `visudo -cf`. After that, `sudo -n` runs exactly `/usr/bin/pmset disablesleep 1` and
 `… disablesleep 0`, nothing else. There is no privileged helper, no XPC service, no `SMJobBless`.
 
-Process commands are scoped to the bundle: `pgrep`/`pkill` patterns use `KoffeeLid.app/Contents/MacOS/`, the
-watchdog uses the pid from the pid file and checks `proc_pidpath` against the recorded executable.
+Process commands are scoped to the bundle: the one `pkill` in the tree (`script/install.sh`) matches the full
+`KoffeeLid.app/Contents/MacOS/` path, and the watchdog uses the pid from the pid file and checks `proc_pidpath`
+against the recorded executable. Advanced › Reset restarts `usernoted` and `NotificationCenter` by name; those
+are Apple's daemons, not KoffeeLid processes.
 
 ## Threading
 

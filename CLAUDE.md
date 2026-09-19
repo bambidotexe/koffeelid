@@ -31,7 +31,7 @@ Docs, all present tense; read them when the task touches the area:
 ## Commands
 
 ```bash
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (248); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (253); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -59,7 +59,9 @@ wrapper when that directory is writable; otherwise it prints the `sudo` one-line
   `Tests/KoffeeLidCoreTests/SmokeTests.swift`; the README test badge is a static shields.io URL.
 - App targets only build with `xcodebuild` (App Intents metadata, String Catalog, asset catalog). `swift build`
   covers `Sources/` only.
-- Treat compiler warnings as failures; the tree is warning-free. No linter is configured.
+- Treat compiler warnings as failures; the tree is warning-free. A `warning:` line from
+  `appintentsmetadataprocessor` is not one: that Debug build wrote no App Intents metadata, the next relink does
+  (`docs/pitfalls.md` § Working on this Mac). No linter is configured.
 - XCTest's summary line undercounts here; count the per-case `passed` lines.
 
 ## Architecture in one screen
@@ -123,8 +125,10 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
    itself when the modifier is released after an arm; the coordinator resets it on `arm`, `disarm` and every
    change of `gestureWanted`. Fn + close while armed from another source is visual confirmation
    (`effect.followLidFromHere()`, never a second arm). The modifier is read fresh on every sample, nothing
-   cached, and the Fn flag only counts without the numeric-pad flag (`FnKeyReading`: arrow keys set the Fn
-   flag too). The effect's return to flat has no timer behind it; it depends on samples arriving and on
+   cached, and the Fn flag only counts without the numeric-pad flag and with virtual key 63 physically down
+   (`FnKeyReading`, `CGEventSource.keyState`: arrow keys, F1–F12 and an external keyboard's navigation keys
+   set the Fn flag too); with the Input Monitoring grant the built-in keyboard's own Fn key is read through HID
+   (`BuiltInFnKeyReader`) and required as well, so an external keyboard's Fn never arms. The effect's return to flat has no timer behind it; it depends on samples arriving and on
    `holding` being true only while a key is really down (`docs/pitfalls.md`).
 10. **One threshold.** The effect has no start threshold of its own: `gestureActivationDegrees` drives both the
     gesture and `EffectController.foldThresholdDegrees` (synced in `start()` and `preferenceChanged`).
@@ -157,7 +161,7 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
   send `off` while the user's lid is closed on an armed session.
 - Launch with `--open-settings` (run the binary inside the bundle directly) to render the Settings window
   without clicking the status item.
-- Screen Recording and Login Items approvals are per bundle path and per team id: the DerivedData build and the
+- Screen Recording, Input Monitoring and Login Items approvals are per bundle path and per team id: the DerivedData build and the
   `/Applications` build are different apps to TCC/launchd.
 
 ## Conventions
@@ -178,8 +182,10 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 ## State of the tree
 
 - Version 1.0.3 is tagged, released on GitHub with its DMG, and installed in `/Applications`. The working tree
-  after it carries the arrow-key fix for the modifier read (`FnKeyReading`), the dead-code cleanup and the
-  rewritten docs; none of that is installed or released.
+  after it carries the arrow-key fix for the modifier read (`FnKeyReading`), the dead-code cleanup, the
+  rewritten docs, the 2026-09-19 verification pass (`docs/_audit.md`) and the owner's decisions of that day: the
+  Fn read requires the physical key and, with Input Monitoring, the built-in keyboard's own Fn key
+  (`BuiltInFnKeyReader`, a fifth permission row); none of that is installed or released.
 - Hardware verification is tracked only in `docs/manual-checks.md`. Not walked on hardware: the dark-wake hold,
   the one-close hold, the late-display reopen lock, the arrow-key check, and most of the auto-arm section.
 - The `/usr/local/bin/koffeelid` wrapper may be missing (`/usr/local/bin` is root-owned); call the bundle binary.

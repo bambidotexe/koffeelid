@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import KoffeeLidCore
 
 /// The Fn (or Option) + close detector: modifier state + lid angle → `GestureEvent`s for the coordinator.
@@ -9,9 +10,10 @@ import KoffeeLidCore
 /// stick whenever a key is released while one of our own windows is active, and the gesture would then
 /// arm on any close.
 ///
-/// Fn is the secondary-Fn flag *without* the numeric-pad flag (`FnKeyReading`): macOS raises the
-/// secondary-Fn flag on arrow keys as well, and reading one of those as the gesture modifier both arms
-/// on a plain lid adjustment and keeps the lid effect from settling back to flat.
+/// Fn is the secondary-Fn flag *without* the numeric-pad flag *and* virtual key 63 physically down
+/// (`FnKeyReading`, `CGEventSource.keyState`): macOS raises the secondary-Fn flag on arrow keys, on F1–F12
+/// used as function keys and on an external keyboard's navigation keys as well, and reading one of those as
+/// the gesture modifier both arms on a plain lid adjustment and keeps the lid effect from settling back to flat.
 final class GestureController {
     private let prefs: Preferences
     private var gate = OptionGateFilter()
@@ -19,6 +21,8 @@ final class GestureController {
     /// Which source last saw the modifier down ("hardware", "events" or "none"), for the log only.
     private(set) var modifierSource = "none"
     var onEvent: ((GestureEvent) -> Void)?
+    /// The built-in keyboard's own Fn key (`BuiltInFnKeyReader.fnDown`); nil while it cannot be read.
+    var builtInFnDown: (() -> Bool?)?
 
     init(prefs: Preferences) {
         self.prefs = prefs
@@ -32,15 +36,18 @@ final class GestureController {
         let ns = NSEvent.modifierFlags
         let hardware: Bool
         let events: Bool
+        var builtIn: Bool?
         switch prefs.gestureModifier {
         case .fn:
-            hardware = FnKeyReading.isFnDown(secondaryFn: cg.contains(.maskSecondaryFn), numericPad: cg.contains(.maskNumericPad))
-            events = FnKeyReading.isFnDown(secondaryFn: ns.contains(.function), numericPad: ns.contains(.numericPad))
+            let keyDown = CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(kVK_Function))
+            builtIn = builtInFnDown.flatMap { $0() }
+            hardware = FnKeyReading.isFnDown(secondaryFn: cg.contains(.maskSecondaryFn), numericPad: cg.contains(.maskNumericPad), keyDown: keyDown, builtInKeyDown: builtIn)
+            events = FnKeyReading.isFnDown(secondaryFn: ns.contains(.function), numericPad: ns.contains(.numericPad), keyDown: keyDown, builtInKeyDown: builtIn)
         case .option:
             hardware = cg.contains(.maskAlternate)
             events = ns.contains(.option)
         }
-        modifierSource = hardware ? "hardware" : events ? "events" : "none"
+        modifierSource = (hardware ? "hardware" : events ? "events" : "none") + (builtIn == nil ? "" : ", built-in keyboard")
         return hardware || events
     }
 

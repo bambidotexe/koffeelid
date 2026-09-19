@@ -21,7 +21,7 @@ struct PermissionItem {
     var remove: ((_ window: NSWindow?, _ done: @escaping () -> Void) -> Void)? = nil
 }
 
-/// The four grants, in the order they matter. Notification authorization is asynchronous, so callers
+/// The five grants, in the order they matter. Notification authorization is asynchronous, so callers
 /// refresh it with `refreshNotifications` and read the cached value through `notificationsGranted`.
 @MainActor
 enum PermissionCatalog {
@@ -46,6 +46,15 @@ enum PermissionCatalog {
                        granted: { ScreenCapturePermission.isGranted },
                        buttonTitle: L("Allow…"),
                        action: { _, done in if !ScreenCapturePermission.request() { ScreenCapturePermission.openSystemSettings() }; done() }),
+        PermissionItem(title: L("Input Monitoring"),
+                       why: L("Lets KoffeeLid read the built-in keyboard's Fn key directly, so only that key arms the lid gesture and an external keyboard's Fn key does not."),
+                       required: false,
+                       granted: { BuiltInFnKeyReader.isGranted },
+                       buttonTitle: L("Allow…"),
+                       action: { _, done in
+                           if BuiltInFnKeyReader.isDenied { BuiltInFnKeyReader.openSystemSettings() } else { BuiltInFnKeyReader.requestAccess() }
+                           KoffeeLidController.shared.inputMonitoringChanged(); done()
+                       }),
         PermissionItem(title: L("Notifications"),
                        why: L("Tells you when KoffeeLid disarms itself (low battery, thermal pressure) or cannot lock the screen."),
                        required: false,

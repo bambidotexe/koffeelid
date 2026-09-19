@@ -2,7 +2,7 @@
 
 ## Environment
 
-- macOS 14+ target; developed on macOS 26 with Xcode 26 / Swift 6.3 in Swift 5 language mode.
+- macOS 14+ target; developed on macOS 27 with Xcode 27 / Swift 6.4 in Swift 5 language mode.
 - XcodeGen (`brew install xcodegen`) generates `KoffeeLid.xcodeproj` from `project.yml`; `script/bootstrap.sh`
   installs it if missing and generates. Run it again after adding, removing or moving a file under
   `App/Sources`, `App/Resources`, `Watchdog/Sources` or `Hook/Sources` (directories are included whole).
@@ -38,8 +38,10 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"
 osascript -e 'tell application id "dev.rubens.koffeelid" to quit'
 ```
 
-Compiler warnings are failures; the tree is warning-free. `swift build` covers `Sources/` only: the app
-targets need `xcodebuild` (App Intents metadata, String Catalog, asset catalog). No linter is configured.
+Compiler warnings are failures; the tree is warning-free. A `warning:` line from `appintentsmetadataprocessor`
+(`Metadata extraction skipped`) is not a compiler warning: that build wrote no `Metadata.appintents`, and the next
+build that relinks the app does (`docs/pitfalls.md` § Working on this Mac). `swift build` covers `Sources/` only:
+the app targets need `xcodebuild` (App Intents metadata, String Catalog, asset catalog). No linter is configured.
 XCTest's summary line undercounts here; count the per-case `passed` lines.
 
 `script/install.sh` does a Release build into `/Applications/KoffeeLid.app`, quitting the running instance and
@@ -106,6 +108,7 @@ effect: capture started|capture stopped|stopped|retracting from N°|following th
 effect: gesture fold ended; waiting below N° again
 activity: running (…)|idle|quiet turn …|hooks look dead for …|no registry record for pid …
 auto-armed (activity) · auto-disarm scheduled in Ns · auto-arm ended: local input during the hold-off
+built-in Fn reader: reading …|Input Monitoring not granted|no built-in keyboard found|open FAILED
 ```
 
 ## Safety on this Mac
@@ -127,14 +130,14 @@ existing French (macOS System Settings vocabulary). No interpolation inside `L()
 `String(format: L("… %d …"), …)`. App Intents titles, descriptions and dialogs are `LocalizedStringResource`
 literals and use the same catalog. App name + version strings are not localized. Edit the catalog **in place**;
 renaming a key means renaming it where `L("…")` is called and in the catalog's key, nothing else. Check
-coverage: `rg -o 'L\("([^"]+)"\)' -r '$1' --no-filename App/Sources | sort -u` against the catalog's keys. An
+coverage: `grep -rhoE 'L\("[^"]+"\)' App/Sources | sort -u` against the catalog's keys. An
 untranslated key is a build warning.
 
 **A settings control.** `SettingsViewController` only if a first-time user needs it; everything else goes in
 `AdvancedViewController`. Both subclass `PaneViewController` and build once in `build(_ f: SettingsForm)`:
 `f.header`, `f.group { g in g.row(label, control…) / g.sliderRow / g.labelledSlider }`, `f.note`, `f.link`.
-`labelledSlider` returns a `SliderHandle`; keep it only when another control must move that slider, as the two
-"Start below" sliders do. Never rebuild the page from inside a slider's action. Keep the density: 13 pt text,
+`labelledSlider` returns a `SliderHandle`; keep it only when another control must move that slider, as the
+gesture "Start below" slider does (the other one pushes it up). Never rebuild the page from inside a slider's action. Keep the density: 13 pt text,
 small controls, one control per row.
 
 **A permission or a hook row.** Add a `PermissionItem` to `PermissionCatalog.items` or `HookCatalog.items`:

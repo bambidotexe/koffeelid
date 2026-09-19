@@ -66,7 +66,10 @@ With "Fn + close lid" on (Settings › Arm with) and a lid-angle sensor present:
 - The detector is off while an external display is connected, while the lid is closed, and during a one-close
   arm.
 
-Arrow keys carry the same modifier flag as Fn; a reading with the numeric-pad flag is not treated as Fn.
+Arrow keys, F1–F12 used as function keys and an external keyboard's navigation keys carry the same modifier
+flag as Fn; a reading counts as Fn only without the numeric-pad flag and with the physical Fn key (virtual key
+63) down. With the Input Monitoring grant KoffeeLid also reads the built-in keyboard's own Fn key, and only that
+key counts: an external keyboard's Fn/Globe key never arms. Without the grant any keyboard's Fn key counts.
 
 ### Auto-arm on activity
 
@@ -83,7 +86,8 @@ hook from Settings › Hooks or onboarding turns it on.
   Interactive programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `claude`, …) never count.
 - **Without an end event**: a Claude process or shell that exits drops its sessions and jobs at once (kqueue). A
   turn ended with Esc or Ctrl-C fires no hook; Claude Code's own `sessions/<pid>.json` record going `idle`
-  ends it within about 35 s. Anything silent for 2 h is dropped.
+  ends it within about 35 s, and an `idle_prompt` or `agent_needs_input` notification after 50 s of
+  main-agent quiet ends it too. Anything silent for 2 h is dropped.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after
@@ -146,8 +150,8 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   for" (default 0.5 s) eases back to flat over 0.6 s; its position becomes the new rest angle, and the capture
   stops 0.75 s later. The reset is evaluated on every lid-angle sample (30 Hz), in every mode. While the
   gesture modifier is physically held, stillness does not count: the fold stays until the key is released.
-- **End.** The lid shutting, a disarm, an external display or switching the effect off stops it at once. A
-  cancelled one-close arm retracts the plane over 0.3 s.
+- **End.** The lid shutting, a disarm or switching the effect off stops it at once. An external display
+  connecting and a cancelled one-close arm retract the plane over 0.3 s (at once if no fold is showing).
 - Advanced › Lid effect › "Simulate a fold" previews a 35° fold over 2 s, armed or not.
 
 ## User interface
@@ -202,23 +206,29 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Sleep lock (administrator password once, a sudoers rule for `pmset disablesleep`) | a closed armed Mac surviving a charger or display change | every arm logs `sleep lock unavailable`; only the dark-wake hold protects the session |
 | Login Items approval | the crash-recovery watchdog and launch at login | no relaunch after a crash; a crashed armed app leaves the flag set until the next launch |
 | Screen Recording | the lid effect | `effect: screen recording not granted; effect stays off`; arming works |
+| Input Monitoring | reading the built-in keyboard's Fn key, so only it arms the lid gesture | `built-in Fn reader: Input Monitoring not granted`; any keyboard's Fn/Globe key counts |
 | Notifications | every message above | silent failures; the log still has them |
 | Lid-angle sensor (hardware) | the gesture and the effect | both unavailable; other arming paths work |
 
 Advanced › "Reset permissions and undo every change…" disarms, removes the sudoers rule, unregisters the
-login items, resets Screen Recording and notifications, removes the hooks and the zsh block, clears the
+login items, resets Screen Recording, Input Monitoring and notifications, removes the hooks and the zsh block, clears the
 preferences and reopens onboarding.
 
 ## What KoffeeLid does not do
 
 - It does not arm twice: a second instance exits at launch without touching shared state.
 - It does not clear a kernel flag it has no evidence of having set (another lid-sleep utility may own it).
-- It never signals processes by name; it only uses pids from its own pid file.
-- The hook binary never launches the app, never blocks a Claude Code turn and always exits 0.
+- It never signals its own processes by name; it only uses pids from its own pid file. The only processes it
+  signals by name are `usernoted` and `NotificationCenter`, restarted by Advanced › Reset to drop the
+  notification grant.
+- The hook binary never launches the app, never blocks a Claude Code turn and always exits 0 from the `hook`
+  verb (only a malformed `job` command line, which the snippet never produces, exits 2).
 - It does not record prompts, tool input or output: the activity journal holds event names and identifiers only.
 
 ## Unconfirmed — ask the owner
 
 - Whether macOS's purple screen-recording indicator is hidden by the effect's overlay.
+- Whether the Input Monitoring grant takes effect without relaunching the app (the reader retries when the app
+  becomes active; `built-in Fn reader: open FAILED` in the log means it did not).
 - The dark-wake hold and the one-close hold have been exercised through logs on this Mac; the manual
   checklist (`docs/manual-checks.md`) is the record of what has been verified on hardware.

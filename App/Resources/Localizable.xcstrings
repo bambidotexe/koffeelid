@@ -651,6 +651,16 @@
         }
       }
     },
+    "Input Monitoring": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surveillance de l'entrée"
+          }
+        }
+      }
+    },
     "Keep this Mac awake with the lid closed and the built-in display off.": {
       "localizations": {
         "fr": {
@@ -837,6 +847,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laisser ce Mac se mettre normalement en veille lorsque l’écran est rabattu."
+          }
+        }
+      }
+    },
+    "Lets KoffeeLid read the built-in keyboard's Fn key directly, so only that key arms the lid gesture and an external keyboard's Fn key does not.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permet à KoffeeLid de lire directement la touche Fn du clavier intégré : seule cette touche arme le geste du capot, pas celle d'un clavier externe."
           }
         }
       }
@@ -1441,12 +1461,12 @@
         }
       }
     },
-    "The sleep lock and Login Items are required for a closed Mac to stay awake safely. The lid effect needs Screen Recording; after allowing it, quit and reopen KoffeeLid.": {
+    "The sleep lock and Login Items are required for a closed Mac to stay awake safely. The lid effect needs Screen Recording; after allowing it, quit and reopen KoffeeLid. Input Monitoring makes the lid gesture ignore an external keyboard's Fn key.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le verrou de veille et les éléments d’ouverture sont indispensables pour qu’un Mac fermé reste éveillé en toute sécurité. L’effet d’écran nécessite l’enregistrement de l’écran ; après l’avoir autorisé, quittez puis rouvrez KoffeeLid."
+            "value": "Le verrou de veille et les éléments d’ouverture sont indispensables pour qu’un Mac fermé reste éveillé en toute sécurité. L’effet d’écran nécessite l’enregistrement de l’écran ; après l’avoir autorisé, quittez puis rouvrez KoffeeLid. La surveillance de l'entrée fait ignorer au geste du capot la touche Fn d'un clavier externe."
           }
         }
       }
