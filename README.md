@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/icon.png" width="128" alt="KoffeeLid icon">
+  <img src="docs/assets/icon.png" width="256" height="256" alt="KoffeeLid icon">
 </p>
 
 <h1 align="center">KoffeeLid</h1>
