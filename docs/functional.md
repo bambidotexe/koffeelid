@@ -5,7 +5,11 @@ running with the lid closed. It can be armed by hand, for one close with a lid g
 Claude Code or a terminal command is working. While armed it darkens the built-in panel when the lid shuts,
 plays a sound, shows a closing-only "the desktop stays upright behind the glass" effect, and locks the screen
 when the lid reopens. A `koffeelid` command line, `koffeelid://` URLs and App Intents drive the same modes.
-English and French; no updater, no licensing.
+English and French; a manual update check against GitHub releases (no auto-update), no licensing.
+
+This document is the authority on behaviour: what it says is what the app does today. It changes in the same
+commit as the code, an outdated rule is replaced rather than annotated, and a request that contradicts a rule
+written here is put to the owner before anything is implemented (`CLAUDE.md` § Changing behaviour).
 
 ## Modes and arming
 
@@ -164,7 +168,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   "Disarm once finished"; Settings…; Quit.
 - **Settings.** App (launch at login); Arm with (gesture, right-click, the two shortcuts, activity); While
   KoffeeLid is armed (lid effect, sound and its switch, forced volume, low-battery disarm); Permissions; Hooks;
-  link to Advanced.
+  Updates; link to Advanced.
 - **Advanced.** Lid gesture (modifier, activation, cancel, live angle); Lid effect (every tunable, preview,
   reset to defaults); Auto-arm on activity (two hold-offs, minimum command length, live activity); App
   (watchdog status, diagnostics switch); links: open the log, show onboarding, reset everything.
@@ -213,6 +217,17 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 Advanced › "Reset permissions and undo every change…" disarms, removes the sudoers rule, unregisters the
 login items, resets Screen Recording, Input Monitoring and notifications, removes the hooks and the zsh block, clears the
 preferences and reopens onboarding.
+
+## Updates
+
+Settings › Updates shows "KoffeeLid `<version>`" and a "Check for updates…" button. Pressing it asks GitHub's
+anonymous API for the latest release; the result is "Up to date.", "Version `<version>` is available." with a
+"Download and open…" button, or "Could not check: `<reason>`" on a network failure. Downloading fetches the
+release's DMG asset into `<Application Support>/KoffeeLid/updates/` (any older DMG there is removed first)
+and opens it with `NSWorkspace`, which mounts it and shows the volume with its Applications link; the status
+line then reads "Opened KoffeeLid-`<version>`.dmg. Drag KoffeeLid to Applications, then quit and reopen it."
+KoffeeLid never installs over itself: the check is manual, there is no background polling, and replacing the
+running app is left to the user dragging the new copy into Applications.
 
 ## What KoffeeLid does not do
 

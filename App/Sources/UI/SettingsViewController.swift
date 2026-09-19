@@ -12,6 +12,11 @@ final class SettingsViewController: PaneViewController {
     /// A hook action taken from the Hooks group below can flip `armOnActivity` on; kept so
     /// `refreshPermissions()` can reflect that back onto this switch without rebuilding the page.
     private var armOnActivitySwitch: NSSwitch?
+    private let updateChecker = UpdateChecker()
+    private var updateStatusLabel: NSTextField?
+    private var updateCheckButton: NSButton?
+    private var updateDownloadButton: NSButton?
+    private var pendingRelease: LatestRelease?
 
     override func build(_ f: SettingsForm) {
         f.header(L("App"))
@@ -92,7 +97,61 @@ final class SettingsViewController: PaneViewController {
         f.note(L("Auto-arm arms only from Off, never shows in the menu bar and ends on its own once the work is over: half an hour after Claude Code, a minute after a command (Advanced). \"Disarm once finished\" in the menu ends your own arm a minute after the work is over."))
         refreshPermissions()
 
+        f.header(L("Updates"))
+        f.group { g in
+            let check = SettingsForm.button(L("Check for updates…"), { [weak self] in self?.checkForUpdates() })
+            let download = SettingsForm.button(L("Download and open…"), { [weak self] in self?.downloadUpdate() })
+            download.isHidden = true
+            let row = g.row("KoffeeLid \(KoffeeLidCore.version)", check, download)
+            updateStatusLabel = Self.leadingLabel(of: row)
+            updateCheckButton = check
+            updateDownloadButton = download
+        }
+
         f.link(L("Advanced settings…"), { [weak self] in self?.onOpenAdvanced?() })
+    }
+
+    /// `SettingsForm.row` builds its leading label internally and does not return it; this reaches into the
+    /// row it did return (a plain `NSStackView`) to get a handle we can update as the check runs.
+    private static func leadingLabel(of row: NSView) -> NSTextField? {
+        ((row as? NSStackView)?.arrangedSubviews.first as? NSStackView)?.arrangedSubviews.first as? NSTextField
+    }
+
+    private func checkForUpdates() {
+        updateCheckButton?.isEnabled = false
+        updateDownloadButton?.isHidden = true
+        pendingRelease = nil
+        updateStatusLabel?.stringValue = L("Checking…")
+        updateChecker.check { [weak self] result in
+            guard let self else { return }
+            self.updateCheckButton?.isEnabled = true
+            switch result {
+            case .success(.upToDate):
+                self.updateStatusLabel?.stringValue = L("Up to date.")
+            case .success(.available(let release)):
+                self.pendingRelease = release
+                self.updateStatusLabel?.stringValue = String(format: L("Version %@ is available."), release.version.displayString)
+                self.updateDownloadButton?.isHidden = false
+            case .failure(let error):
+                self.updateStatusLabel?.stringValue = String(format: L("Could not check: %@"), error.localizedDescription)
+            }
+        }
+    }
+
+    private func downloadUpdate() {
+        guard let release = pendingRelease else { return }
+        updateDownloadButton?.isEnabled = false
+        updateStatusLabel?.stringValue = L("Downloading…")
+        updateChecker.download(release) { [weak self] result in
+            guard let self else { return }
+            self.updateDownloadButton?.isEnabled = true
+            switch result {
+            case .success:
+                self.updateStatusLabel?.stringValue = String(format: L("Opened KoffeeLid-%@.dmg. Drag KoffeeLid to Applications, then quit and reopen it."), release.version.displayString)
+            case .failure(let error):
+                self.updateStatusLabel?.stringValue = String(format: L("Update failed: %@"), error.localizedDescription)
+            }
+        }
     }
 
     /// Every row re-reads its grant; notifications are asynchronous and come in a second pass. A hook

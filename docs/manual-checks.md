@@ -115,6 +115,7 @@
 - [ ] App › Enregistrement de l'écran shows Accordée, or Non accordé with an Autoriser… button
 - [ ] Advanced sliders update their value labels live and sit inside the group padding
 - [ ] Changing the sound popup plays a preview that honours Force volume
+- [ ] Settings › Updates: press "Check for updates…" → "Up to date." and the log line `update check: up to date`; with Wi-Fi off → "Could not check: …" and `update check FAILED`
 
 ## Watchdog
 - [ ] Login Items approved; `kill -9` app → relaunched within 2 s; 4th kill in 10 min → `crash loop detected`

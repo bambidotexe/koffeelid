@@ -401,6 +401,26 @@
         }
       }
     },
+    "Check for updates…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher des mises à jour…"
+          }
+        }
+      }
+    },
+    "Checking…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification…"
+          }
+        }
+      }
+    },
     "Chime blip": {
       "localizations": {
         "fr": {
@@ -461,6 +481,16 @@
         }
       }
     },
+    "Could not check: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification impossible : %@"
+          }
+        }
+      }
+    },
     "Crash recovery": {
       "localizations": {
         "fr": {
@@ -497,6 +527,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Désactiver une fois terminé"
+          }
+        }
+      }
+    },
+    "Download and open…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Télécharger et ouvrir…"
+          }
+        }
+      }
+    },
+    "Downloading…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargement…"
           }
         }
       }
@@ -1071,6 +1121,16 @@
         }
       }
     },
+    "Opened KoffeeLid-%@.dmg. Drag KoffeeLid to Applications, then quit and reopen it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid-%@.dmg ouvert. Faites glisser KoffeeLid vers Applications, puis quittez et rouvrez-le."
+          }
+        }
+      }
+    },
     "Option": {
       "localizations": {
         "fr": {
@@ -1247,6 +1307,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Écran allumé"
+          }
+        }
+      }
+    },
+    "Server returned status %d.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le serveur a répondu avec le statut %d."
           }
         }
       }
@@ -1461,6 +1531,16 @@
         }
       }
     },
+    "The release information could not be read.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les informations de version n'ont pas pu être lues."
+          }
+        }
+      }
+    },
     "The sleep lock and Login Items are required for a closed Mac to stay awake safely. The lid effect needs Screen Recording; after allowing it, quit and reopen KoffeeLid. Input Monitoring makes the lid gesture ignore an external keyboard's Fn key.": {
       "localizations": {
         "fr": {
@@ -1577,6 +1657,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Désactiver ${applicationName}"
+          }
+        }
+      }
+    },
+    "Up to date.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À jour."
+          }
+        }
+      }
+    },
+    "Update failed: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la mise à jour : %@"
+          }
+        }
+      }
+    },
+    "Updates": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mises à jour"
+          }
+        }
+      }
+    },
+    "Version %@ is available.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La version %@ est disponible."
           }
         }
       }
