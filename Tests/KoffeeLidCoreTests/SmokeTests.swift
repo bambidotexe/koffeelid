@@ -3,6 +3,6 @@ import KoffeeLidCore
 
 final class SmokeTests: XCTestCase {
     func testModuleLoads() {
-        XCTAssertEqual(KoffeeLidCore.version, "1.0.4")
+        XCTAssertEqual(KoffeeLidCore.version, "1.0.5")
     }
 }
