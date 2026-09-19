@@ -181,11 +181,12 @@ touching `arm`, `disarm`, `shutdown`, `start` or `reapplyFlag`.
 
 ## State of the tree
 
-- Version 1.0.3 is tagged, released on GitHub with its DMG, and installed in `/Applications`. The working tree
-  after it carries the arrow-key fix for the modifier read (`FnKeyReading`), the dead-code cleanup, the
-  rewritten docs, the 2026-09-19 verification pass (`docs/_audit.md`) and the owner's decisions of that day: the
-  Fn read requires the physical key and, with Input Monitoring, the built-in keyboard's own Fn key
-  (`BuiltInFnKeyReader`, a fifth permission row); none of that is installed or released.
+- Version 1.0.4 is tagged and released on GitHub with its DMG: the arrow-key fix for the modifier read
+  (`FnKeyReading`), the dead-code cleanup, the rewritten docs, the 2026-09-19 verification pass (`docs/_audit.md`)
+  and the built-in-keyboard Fn rule (physical key 63 required; with Input Monitoring, the built-in keyboard's own
+  Fn key through `BuiltInFnKeyReader`, a fifth permission row). `/Applications` still runs 1.0.3: run
+  `script/install.sh` when the app is not armed, then grant Input Monitoring from Settings › Permissions if the
+  built-in-keyboard rule is wanted.
 - Hardware verification is tracked only in `docs/manual-checks.md`. Not walked on hardware: the dark-wake hold,
   the one-close hold, the late-display reopen lock, the arrow-key check, and most of the auto-arm section.
 - The `/usr/local/bin/koffeelid` wrapper may be missing (`/usr/local/bin` is root-owned); call the bundle binary.
