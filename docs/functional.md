@@ -162,13 +162,20 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 
 - **Menu-bar cup.** Four glyphs: empty (Off), closed eyes (auto-armed only), sleepy eyes (Armed), round eyes
   (Armed + screen on). A manual mode always wins over the auto glyph. Orange = the kernel flag could not be
-  cleared. Optional lid angle next to it.
+  cleared. Optional lid angle next to it. "Show in menu bar" off hides the cup and nothing else: every arming
+  path that does not go through it (the gesture, the two shortcuts, auto-arm, the CLI, URLs, App Intents) and
+  every armed behaviour work exactly as before; right-clicking to arm and the lid angle simply have no icon
+  left to use.
 - **Menu.** Header with the mode; a greyed line while the auto level holds ("Auto-armed while Claude Code
   works", "… while a command runs", "… and a command run", or "Auto-armed, off in N min"); the three modes;
   "Disarm once finished"; Settings…; Quit.
-- **Settings.** App (launch at login); Arm with (gesture, right-click, the two shortcuts, activity); While
-  KoffeeLid is armed (lid effect, sound and its switch, forced volume, low-battery disarm); Permissions; Hooks;
-  Updates; link to Advanced.
+- **Opening the app.** KoffeeLid has no Dock icon. Opening it again from Finder, Spotlight, the Applications
+  folder or `open -b dev.rubens.koffeelid` while it runs opens Settings — the way back in when the menu-bar
+  cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,
+  from the CLI) opens nothing.
+- **Settings.** App (launch at login, show in menu bar); Arm with (gesture, right-click, the two shortcuts,
+  activity); While KoffeeLid is armed (lid effect, sound and its switch, forced volume, low-battery disarm);
+  Permissions; Hooks; Updates; link to Advanced.
 - **Advanced.** Lid gesture (modifier, activation, cancel, live angle); Lid effect (every tunable, preview,
   reset to defaults); Auto-arm on activity (two hold-offs, minimum command length, live activity); App
   (watchdog status, diagnostics switch); links: open the log, show onboarding, reset everything.
@@ -188,6 +195,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Setting | Key | Default | Range |
 |---|---|---|---|
 | Launch at login | `launchAtLogin` (mirror of `SMAppService.mainApp`) | on | |
+| Show in menu bar | `showInMenuBar` | on | |
 | Fn + close lid | `armWithOption` | on | |
 | Hold while closing | `gestureModifier` | `fn` | `fn`, `option` |
 | Right-click menu bar icon | `armWithRightClick` | on | |

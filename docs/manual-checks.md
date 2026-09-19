@@ -111,6 +111,9 @@
 - [ ] Advanced › App › Journal de diagnostic off → the log stops after `diagnostics log disabled from Advanced settings`; on → `diagnostics log enabled from Advanced settings`
 - [ ] Advanced › Réinitialiser… → confirmation, then (password dialog if the rule exists) the log gets one `reset:` line listing what was undone, `pmset -g | grep SleepDisabled` is 0, `/etc/sudoers.d/koffeelid` is gone, preferences are back to defaults and the onboarding opens on page 1
 - [ ] Advanced › Réinitialiser… while **auto-armed** (Claude Code working, the menu shows Off): the log gets `disarmed (reset)` before the `reset:` line, `koffeelid status` says `mode: off`, `pmset -g | grep SleepDisabled` is 0 and only then is `/etc/sudoers.d/koffeelid` gone (the reset calls `disarm` directly: Off from the menu keeps an auto-armed session)
+- [ ] Settings › App › "Afficher dans la barre des menus" off → the cup disappears at once; `koffeelid status` still answers, ⌃⌥⌘L still arms (the status line says `mode: armed`), Fn + close still arms, auto-arm still arms; on → the cup comes back in its current state
+- [ ] With the cup hidden: `open -b dev.rubens.koffeelid` (or opening KoffeeLid in Finder / Spotlight) brings up Settings; with a window already open it just comes to the front
+- [ ] Quit and relaunch with the cup hidden → still hidden, still armable from the shortcut; at login the app starts with no Settings window
 - [ ] Both windows follow light and dark mode
 - [ ] App › Enregistrement de l'écran shows Accordée, or Non accordé with an Autoriser… button
 - [ ] Advanced sliders update their value labels live and sit inside the group padding

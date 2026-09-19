@@ -33,6 +33,7 @@ final class SettingsViewController: PaneViewController {
                     DiagnosticLog.shared.log("launch at login \(on ? "register" : "unregister") failed: \(error.localizedDescription)")
                 }
             })
+            g.row(L("Show in menu bar"), SettingsForm.switch(prefs.showInMenuBar) { [prefs] in prefs.showInMenuBar = $0 })
         }
 
         f.header(L("Arm with"))

@@ -28,6 +28,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for u in urls { if let link = DeepLink(url: u) { KoffeeLidController.shared.perform(link, source: .url) } }
     }
 
+    /// Opening KoffeeLid again (Finder, Spotlight, `open -b`) has nothing else to show: Settings is the window.
+    /// A cold launch gets no reopen (and none from the login item either, `docs/macOS.md`), so it stays quiet.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows { showSettings() }
+        return true
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         KoffeeLidController.shared.shutdown(); return .terminateNow
     }

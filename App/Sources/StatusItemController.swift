@@ -12,9 +12,14 @@ final class StatusItemController: NSObject {
     /// Armed with an external display connected: the arm stands, the built-in-screen behaviours wait.
     var standingBy = false { didSet { render() } }
     var angleText: String? { didSet { render() } }
+    /// "Show in menu bar": the item stays alive and keeps its state, `isVisible` is what the bar reads.
+    /// Set from the preference at construction, before the item can draw once.
+    var visible: Bool { didSet { item.isVisible = visible } }
 
-    override init() {
+    init(visible: Bool) {
+        self.visible = visible
         super.init()
+        item.isVisible = visible
         item.button?.target = self
         item.button?.action = #selector(clicked(_:))
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])

@@ -60,7 +60,7 @@ final class KoffeeLidController {
     let soundPlayer: LidCloseSoundPlayer
     let effect: EffectController
     private let hotKey = HotKeyController(prefs: .shared)
-    let statusItem = StatusItemController()
+    let statusItem = StatusItemController(visible: Preferences.shared.showInMenuBar)
     private let agent = RelaunchAgentController()
     private let commands = CommandServer()
     /// Auto-arm on activity.
@@ -781,6 +781,7 @@ final class KoffeeLidController {
         switch key {
         case "armWithShortcut", "armWithCaffeinateShortcut", "hotKeyCode", "hotKeyModifiers", "caffeinateHotKeyCode", "caffeinateHotKeyModifiers":
             hotKey.register()   // registers only the enabled ones
+        case "showInMenuBar": statusItem.visible = prefs.showInMenuBar
         case EffectParameters.userDefaultsKey: effect.parameters = prefs.effect; if isArmed, state == .armedWaitingClose, prefs.effect.enabled { effect.start() }
         case "armWithOption", "gestureModifier", "gestureActivationDegrees", "gestureReverseCancelDegrees":
             if key == "gestureActivationDegrees" { effect.foldThresholdDegrees = prefs.gestureActivationDegrees }

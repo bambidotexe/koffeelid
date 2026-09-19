@@ -1371,6 +1371,16 @@
         }
       }
     },
+    "Show in menu bar": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher dans la barre des menus"
+          }
+        }
+      }
+    },
     "Show lid angle": {
       "localizations": {
         "fr": {

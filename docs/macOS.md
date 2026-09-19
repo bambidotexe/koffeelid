@@ -151,6 +151,14 @@ the desktop at fold 0.
   bundle id **and** team id; there is no per-app reset (`sfltool resetbtm` wipes every app's).
 - launchd starts a `BundleProgram` agent with a relative `argv[0]` and `/` as working directory.
 - launchd starts the agent before the app at login, so the app runs `launchctl kickstart` on every start.
+- An `LSUIElement` app that is **already running** receives `applicationShouldHandleReopen(_:hasVisibleWindows:)`
+  when it is opened again (Finder, Spotlight, `open`); no second process starts. A **cold** open receives
+  `applicationDidFinishLaunching` only: it never becomes active (`NSApp.isActive` stays false, no
+  `applicationDidBecomeActive`), gets no arguments and has the same `XPC_SERVICE_NAME`
+  (`application.<bundle id>.…`) as the launch-at-login one — so a cold user open cannot be told apart from
+  launchd's. The only difference is LaunchServices' `parentASN` (`Finder` vs `loginwindow`, visible in
+  `lsappinfo info -app <bundle id>`), which has no public API. Reopen is therefore the one reliable "the user
+  asked for the app" signal.
 
 ## Permissions and how each is reset
 

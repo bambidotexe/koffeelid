@@ -13,7 +13,7 @@ final class Preferences {
             "lidCloseSoundEnabled": true, "lidCloseSoundName": "blip-pop",
             "forceVolumeEnabled": true, "forceVolumeLevel": 0.6,
             "lowBatteryDisarm": true, "lowBatteryDisarmPercent": 10,
-            "onboardingCompleted": false, "launchAtLogin": true, "diagnosticsEnabled": true,
+            "onboardingCompleted": false, "launchAtLogin": true, "showInMenuBar": true, "diagnosticsEnabled": true,
             "gestureActivationDegrees": 4.0, "gestureReverseCancelDegrees": 4.0, "gestureAngleOpen": 120.0,
             "hotKeyCode": UInt32(kVK_ANSI_L), "hotKeyModifiers": UInt32(controlKey | optionKey | cmdKey),
             "caffeinateHotKeyCode": UInt32(kVK_ANSI_K), "caffeinateHotKeyModifiers": UInt32(controlKey | optionKey | cmdKey),
@@ -53,6 +53,8 @@ final class Preferences {
     var lowBatteryDisarm: Bool { get { d.bool(forKey: "lowBatteryDisarm") } set { set("lowBatteryDisarm", newValue) } }
     var lowBatteryDisarmPercent: Int { get { d.integer(forKey: "lowBatteryDisarmPercent") } set { set("lowBatteryDisarmPercent", newValue) } }
     var launchAtLogin: Bool { get { d.bool(forKey: "launchAtLogin") } set { set("launchAtLogin", newValue) } }
+    /// Off = no status item at all; every other way in (shortcuts, the gesture, the CLI, auto-arm) is unchanged.
+    var showInMenuBar: Bool { get { d.bool(forKey: "showInMenuBar") } set { set("showInMenuBar", newValue) } }
     var onboardingCompleted: Bool { get { d.bool(forKey: "onboardingCompleted") } set { set("onboardingCompleted", newValue) } }
     /// Off = `DiagnosticLog.log` writes nothing (the watchdog's own few lines are unaffected).
     var diagnosticsEnabled: Bool { get { d.bool(forKey: "diagnosticsEnabled") } set { set("diagnosticsEnabled", newValue) } }
