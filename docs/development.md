@@ -44,6 +44,11 @@ build that relinks the app does (`docs/pitfalls.md` § Working on this Mac). `sw
 the app targets need `xcodebuild` (App Intents metadata, String Catalog, asset catalog). No linter is configured.
 XCTest's summary line undercounts here; count the per-case `passed` lines.
 
+**Definition of done.** A change is done when the code and `docs/functional.md` (and the other documents it
+touches: architecture, macOS facts, pitfalls, the manual checklist) describe the same app, `swift test` and the
+warning check pass, the string catalog covers every new `L("…")` key, and the commit is per task. A request that
+contradicts a written rule is put to the owner before the code changes (`CLAUDE.md` § Changing behaviour).
+
 `script/install.sh` does a Release build into `/Applications/KoffeeLid.app`, quitting the running instance and
 its watchdog first. It **refuses unless `koffeelid status` says `mode: off` without `auto-armed`** (`FORCE=1`
 overrides), because quitting an armed app ends the user's session. It does not launch the app: run

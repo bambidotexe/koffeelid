@@ -16,7 +16,7 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-253%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-268%20passing-2ea44f">
 </p>
 
 ## The problem
@@ -160,7 +160,8 @@ sensor at 30 Hz and interpolated per frame. See `docs/architecture.md` and `docs
 
 ## Documentation
 
-- `CLAUDE.md` — orientation, commands, invariants (start here)
+- `CLAUDE.md` — the operating manual for an agent: what the app is, the workflow for a change, where a change lands, rules, traps (start here)
+- `docs/README.md` — the index: which document answers which question, how to start a session
 - `docs/functional.md` — what the app does, every mode, setting and default
 - `docs/architecture.md` — targets, arming state machine, kernel-flag ownership, the effect, the activity pipeline, threading
 - `docs/macOS.md` — the macOS mechanisms it relies on and how they behave
@@ -170,6 +171,6 @@ sensor at 30 Hz and interpolated per frame. See `docs/architecture.md` and `docs
 
 ## Notes
 
-- Personal build: English and French, no updater, no licensing.
+- Personal build: English and French, a manual update check against GitHub releases (no auto-update), no licensing.
 - Any other utility that disables lid-close sleep drives the same kernel flag; do not arm two at once.
 - Sound effects are free to use (`App/Resources/Sounds/SoundEffects-LICENSE.txt`).
