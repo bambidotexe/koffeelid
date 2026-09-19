@@ -89,7 +89,8 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 | auto-arm on activity | `Core/ActivityConstants.swift`, `ActivityEvent.swift`, `ActivitySessionStore.swift`, `ActivityJobStore.swift`, `ActivityArmPolicy.swift`, `ActivityTrim.swift`, `ClaudeRegistryRecord.swift`, `ProcWalk.swift`; `App/ActivityMonitor.swift`, `ActivityJournalTailer.swift`, `ActivityProcessWatcher.swift`, `ClaudeProcessRegistry.swift`, `LocalInputMonitor.swift`; `KoffeeLidController.applyAuto` | `functional.md` § Modes and arming (auto-arm); `architecture.md` § Auto-arm on activity; `macOS.md` § Claude Code; `pitfalls.md` § Claude Code hooks and the shell |
 | the hooks, the zsh snippet, the hook binary | `Hook/Sources/main.swift`; `Core/HookConfig.swift`, `HookSettingsFile.swift`, `ShellInit.swift`, `ActivityJournalWriter.swift`; `App/HookInstaller.swift`, `App/UI/Hooks.swift` (`HookCatalog`) | the same, plus `macOS.md` § zsh |
 | the CLI, `koffeelid://` URLs, App Intents | `App/main.swift`, `App/CommandServer.swift` (`CommandLineClient`), `Core/DeepLink.swift`, `App/Intents/KoffeeLidIntents.swift`; `KoffeeLidController.perform(_:source:)` | `functional.md` § User interface; `development.md` § How to add things (a CLI / URL verb) |
-| the menu, the status item, the icon | `App/StatusItemController.swift`, `MugShape.swift`, `App/Resources/Glyphs`, `script/make_icon.sh` | `functional.md` § User interface |
+| the menu, the status item, the menu-bar glyph | `App/StatusItemController.swift`, `MugShape.swift`, `App/Resources/Glyphs` | `functional.md` § User interface; `development.md` § Icons |
+| the app icon | `App/Resources/AppIcon.icon` (Icon Composer document), its `type: file` source entry in `project.yml` | `development.md` § Icons; `architecture.md` § Build, signing, entitlements |
 | Settings, Advanced, onboarding | `App/UI/SettingsForm.swift`, `SettingsViewController.swift`, `AdvancedViewController.swift`, `OnboardingWindowController.swift`, `SettingsWindowController.swift` | `functional.md` § User interface, § Settings and defaults; `development.md` § How to add things (a settings control) |
 | a preference and its default | `App/Preferences.swift`; `KoffeeLidController.preferenceChanged(_:)` | `functional.md` § Settings and defaults |
 | a user-visible string | `App/Resources/Localizable.xcstrings`, edited in place, with its `fr` entry | `development.md` § How to add things (a user-visible string) |
@@ -115,7 +116,6 @@ xcodebuild -project KoffeeLid.xcodeproj -scheme KoffeeLid -configuration Debug \
 script/build.sh [Release|Debug]                       # same, prints the .app path last
 script/install.sh                                     # Release build → /Applications/KoffeeLid.app; REFUSES while the app is armed (FORCE=1 overrides)
 script/run.sh                                         # install + launch + tail the diagnostics log (never returns)
-script/make_icon.sh                                   # regenerate the app icon PNGs from MugShape (glyph SVGs in App/Resources/Glyphs)
 
 "/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLid" status   # CLI: arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings | install-hooks | uninstall-hooks | shell-init zsh
 tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the primary debugging tool

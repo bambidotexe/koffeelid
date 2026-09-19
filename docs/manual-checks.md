@@ -121,6 +121,14 @@
 - [ ] Changing the sound popup plays a preview that honours Force volume
 - [ ] Settings › Updates: press "Check for updates…" → "Up to date." and the log line `update check: up to date`; with Wi-Fi off → "Could not check: …" and `update check FAILED`
 
+## App icon
+- [ ] Finder shows the built `KoffeeLid.app` with the espresso cup: the system's rounded-square mask and
+      drop shadow, the cup catching a specular highlight (`AppIcon.icon` is a layer stack, not a flat PNG —
+      a flat brown square with no shadow means `actool` received the four layer files instead of the document)
+- [ ] ⌘I on the app, then the 16 px list view: the two eyes are still separable at the small end
+- [ ] Light and dark mode: the icon keeps its contrast in both (translucency 0.3)
+- [ ] Launched app: the same icon in the Dock, in ⌘Tab and in the About panel
+
 ## Watchdog
 - [ ] Login Items approved; `kill -9` app → relaunched within 2 s; 4th kill in 10 min → `crash loop detected`
 - [ ] Quit from menu → `app exited cleanly; standing down`, no relaunch

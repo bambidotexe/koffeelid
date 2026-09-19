@@ -1,0 +1,42 @@
+{
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.54118,0.29020,0.14902,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "1_coffee.svg",
+          "name" : "1_coffee",
+          "opacity" : 1
+        },
+        {
+          "glass" : true,
+          "image-name" : "2_cup.svg",
+          "name" : "2_cup",
+          "opacity" : 0.85
+        },
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "0_background.png",
+          "name" : "0_background"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.3
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

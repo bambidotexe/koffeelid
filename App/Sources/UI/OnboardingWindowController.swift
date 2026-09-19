@@ -6,7 +6,7 @@ import ServiceManagement
 /// are rebuilt on every render so their state is always current.
 final class OnboardingWindowController: NSWindowController {
     private var step = 0
-    /// The mug's brown (script/make_icon.sh gradient start); used to accent one word of the headline.
+    /// The espresso brown of the mug; used to accent one word of the headline.
     private static let brand = NSColor(srgbRed: 0.42, green: 0.25, blue: 0.15, alpha: 1)
     private var observer: NSObjectProtocol?
 

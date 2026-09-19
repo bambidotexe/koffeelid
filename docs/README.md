@@ -24,7 +24,7 @@ document answers which question.
 | How is it built? Which object owns what? What is the arming state machine? Who watches which system event? | `architecture.md` |
 | What does macOS actually do here (kernel flag, powerd, sleep lock, assertions, lid sensor, modifier keys, displays, capture, TCC, Claude Code's hooks and registry, zsh)? | `macOS.md` |
 | What looked right and was not? What must the code never do again? | `pitfalls.md` — symptom, cause, what the code does, what not to do |
-| How do I build, install, debug, add a preference, a string, a control, a permission row, a verb, an effect tunable, a collaborator? How is a release made? | `development.md` |
+| How do I build, install, debug, add a preference, a string, a control, a permission row, a verb, an effect tunable, a collaborator? How do I change the menu-bar glyph or the app icon? How is a release made? | `development.md` |
 | How is a hardware-only behaviour verified? Which log line proves it? | `manual-checks.md` |
 | What was read, verified and decided in the September 2026 audits? | `_audit.md` (the findings and decisions) and `_coverage.md` (the file manifest); records, not rules |
 

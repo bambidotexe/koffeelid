@@ -2,8 +2,8 @@ import AppKit
 
 // The KoffeeLid mug, from the user's SVG artwork in App/Resources/Glyphs (viewBox 325 × 244, one even-odd
 // `cup` path per state whose extra sub-paths are the eyes, plus a `liquid` ellipse in every state but off).
-// Shared by StatusItemController (menu bar glyph) and script/make_icon.sh (app icon), which pastes this
-// file in front of its own rendering code. Keep it AppKit-only with no other dependencies.
+// Drives the menu bar glyph (StatusItemController). The app icon is separate artwork,
+// App/Resources/AppIcon.icon. Keep it AppKit-only with no other dependencies.
 enum MugShape {
     /// The four glyphs: `mug-off.svg`, `mug-auto.svg`, `mug-armed.svg`, `mug-caffeinate.svg`.
     enum State: String, CaseIterable { case off, auto, armed, caffeinate }

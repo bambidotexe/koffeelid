@@ -339,4 +339,7 @@ start so a live watchdog observes the current pid.
   `Contents/Library/LaunchAgents/`; the two tools are embedded in `Contents/MacOS`.
 - The version lives in `App/Info.plist`, `KoffeeLidCore.version` and its assertion in `SmokeTests`.
 - `script/build.sh`, `install.sh` (refuses while the installed app is armed unless `FORCE=1`), `run.sh`,
-  `release.sh` (Developer ID export, notarization, staple), `make_icon.sh` (icon PNGs from `MugShape`).
+  `release.sh` (Developer ID export, notarization, staple).
+- The app icon is `App/Resources/AppIcon.icon`, an Icon Composer document compiled by `actool`. `project.yml`
+  adds it as a single `type: file` source and excludes it from the recursive `App/Resources` entry, so Xcode
+  receives the document whole rather than its four layer files.

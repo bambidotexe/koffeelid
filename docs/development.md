@@ -186,14 +186,36 @@ it can fail, a `deinit` that tears down any C callback holding an unretained `se
 
 ## Icons
 
-- Menu-bar glyph and app icon share `App/Sources/MugShape.swift`, whose path constants are the `d` attributes of
-  `App/Resources/Glyphs/mug-off.svg`, `mug-auto.svg`, `mug-armed.svg`, `mug-caffeinate.svg` (viewBox 325 × 244,
-  even-odd fill): the shared `cup`, one eye string per armed state, and the `liquid` ellipse in every state
-  but off. To change the artwork: edit the SVGs, paste the new `d` strings into `MugShape` (the parser handles
-  M L H V C A Z), update `MugShape.box` if the cup bounds moved, then `script/make_icon.sh` (regenerates
-  `AppIcon.appiconset` from the armed cup; copy `icon_256x256.png` to `docs/assets/icon.png`) and rebuild. The
-  script pastes `MugShape.swift` in front of its own renderer, so the two cannot drift.
-- Glyph size and vertical offset: `StatusItemController.mugImage` (22 pt wide, template image).
+The menu-bar glyph and the app icon are two separate pieces of artwork of the same mug. They are not
+generated from each other: a change to one is a change to one.
+
+**The menu-bar glyph** is `App/Sources/MugShape.swift`, whose path constants are the `d` attributes of
+`App/Resources/Glyphs/mug-off.svg`, `mug-auto.svg`, `mug-armed.svg`, `mug-caffeinate.svg` (viewBox 325 × 244,
+even-odd fill): the shared `cup`, one eye string per armed state, and the `liquid` ellipse in every state but
+off. To change it: edit the SVGs, paste the new `d` strings into `MugShape` (the parser handles M L H V C A Z),
+update `MugShape.box` if the cup bounds moved, and rebuild. Glyph size and vertical offset live in
+`StatusItemController.mugImage` (22 pt wide, template image).
+
+**The app icon** is `App/Resources/AppIcon.icon`, an Icon Composer document (Xcode ships Icon Composer.app
+under Xcode › Open Developer Tool). It holds `icon.json` and three 1024 × 1024 layers in `Assets/`:
+`0_background.png` (the espresso gradient), `1_coffee.svg` (the coffee surface, `#9A5A2E`) and `2_cup.svg`
+(the armed cup in `#FFF4E6`, `glass: true`, opacity 0.85, its rim, handle and eyes even-odd holes). The
+group carries a neutral shadow at 0.5 and translucency 0.3. `actool` compiles it into `Assets.car` as a
+layer stack plus pre-rendered sizes and an `AppIcon.icns` fallback, so macOS 26 and later draw it with the
+system mask, shadow and specular glass while older systems get the flat rendering.
+
+`project.yml` reaches it as **one file reference**, not as the four files inside: `App/Resources` excludes
+`AppIcon.icon`, and a second `sources` entry adds `App/Resources/AppIcon.icon` with `type: file`. Without
+that, XcodeGen walks into the directory, `actool` never sees a document, and the app ships with no icon.
+`ASSETCATALOG_COMPILER_APPICON_NAME` is `AppIcon`, matching the bundle's base name.
+
+To change it: edit the layers in Icon Composer (or replace the files), `script/bootstrap.sh` only if the set
+of files changed, then rebuild. To refresh the README image, take the 256 px rendering out of the built app:
+
+```bash
+iconutil -c iconset DerivedData/Build/Products/Debug/KoffeeLid.app/Contents/Resources/AppIcon.icns -o /tmp/AppIcon.iconset
+cp /tmp/AppIcon.iconset/icon_128x128@2x.png docs/assets/icon.png
+```
 
 ## Release checklist
 
