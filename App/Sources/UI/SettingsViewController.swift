@@ -110,6 +110,8 @@ final class SettingsViewController: PaneViewController {
         }
 
         f.link(L("Advanced settings…"), { [weak self] in self?.onOpenAdvanced?() })
+        // The menu's Quit: `applicationShouldTerminate` runs `shutdown()`, which disarms and clears the flag.
+        f.link(L("Quit KoffeeLid"), { NSApp.terminate(nil) })
     }
 
     /// `SettingsForm.row` builds its leading label internally and does not return it; this reaches into the

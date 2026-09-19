@@ -175,7 +175,8 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   from the CLI) opens nothing.
 - **Settings.** App (launch at login, show in menu bar); Arm with (gesture, right-click, the two shortcuts,
   activity); While KoffeeLid is armed (lid effect, sound and its switch, forced volume, low-battery disarm);
-  Permissions; Hooks; Updates; link to Advanced.
+  Permissions; Hooks; Updates; links to Advanced and "Quit KoffeeLid" (the menu's Quit: disarms, clears the
+  kernel flag, releases the sleep lock, then exits).
 - **Advanced.** Lid gesture (modifier, activation, cancel, live angle); Lid effect (every tunable, preview,
   reset to defaults); Auto-arm on activity (two hold-offs, minimum command length, live activity); App
   (watchdog status, diagnostics switch); links: open the log, show onboarding, reset everything.

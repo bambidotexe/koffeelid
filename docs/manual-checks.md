@@ -114,6 +114,7 @@
 - [ ] Settings › App › "Afficher dans la barre des menus" off → the cup disappears at once; `koffeelid status` still answers, ⌃⌥⌘L still arms (the status line says `mode: armed`), Fn + close still arms, auto-arm still arms; on → the cup comes back in its current state
 - [ ] With the cup hidden: `open -b dev.rubens.koffeelid` (or opening KoffeeLid in Finder / Spotlight) brings up Settings; with a window already open it just comes to the front
 - [ ] Quit and relaunch with the cup hidden → still hidden, still armable from the shortcut; at login the app starts with no Settings window
+- [ ] Settings › "Quitter KoffeeLid" at the bottom → the app exits like the menu's Quit: the log gets `disarmed` then `clean termination`, `pmset -g | grep SleepDisabled` is 0 and the cup is gone
 - [ ] Both windows follow light and dark mode
 - [ ] App › Enregistrement de l'écran shows Accordée, or Non accordé with an Autoriser… button
 - [ ] Advanced sliders update their value labels live and sit inside the group padding
