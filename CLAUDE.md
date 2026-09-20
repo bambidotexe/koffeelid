@@ -338,14 +338,15 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 ## Status
 
-- Version 0.1.2 everywhere it must agree (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`). Every tag
-  and release has been deleted from GitHub: there is no published release, and the update check finds nothing
-  to offer, so the version rule leaves the tree free to sit above 0.0.1. The tree carries the manual update
+- Version 1.1.1 everywhere it must agree (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), one patch
+  above the published **1.1.0**, which is the rule. The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
   requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
   Icon Composer icon, the six-page Settings window with its macOS 15 target, and the automatic update (weekly
-  check, notification, update window, Install and Relaunch). `/Applications/KoffeeLid.app` is installed at this
-  version, with the sudoers rule, the watchdog agent, the Claude Code hooks and the zsh snippet in place.
+  check, notification, update window, Install and Relaunch). `/Applications/KoffeeLid.app` is installed at
+  **0.1.3**, the version 1.1.0 is offered to: `script/publish.sh --no-install` published the release and left
+  the Mac on the older copy on purpose, so that the update a user gets is the one that is walked here. The
+  sudoers rule, the watchdog agent, the Claude Code hooks and the zsh snippet are all in place.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
 - `swift test` is green (354 distinct cases: 332 Core, 22 LidPlaneKit) and the Debug build warning-free at this
