@@ -284,6 +284,14 @@ the Claude Code hooks calling a binary that is not there once per event for ever
    writes the folder back;
 9. moves the bundle to the Trash, not to a delete: what was just removed is still there to put back.
 
+**Steps 7 and 8 are done twice, and the second time is the one that holds.** Removing either while the app is
+still running is not enough: the way out through `shutdown()` recreates the activity journal, and so the
+Application Support folder with it, and `cfprefsd` writes the preferences domain out again as the process
+exits, leaving an empty plist where a Mac that never had KoffeeLid has no file at all. Both were seen on a
+real uninstall. So a detached helper waits for the pid to go, for at most a minute, then deletes the domain,
+removes the folder, and removes the preferences file, the ByHost preferences, the caches, the HTTP storage
+and the saved window state, all of which are named after the bundle identifier and belong to nothing else.
+
 It then says what it could not remove, if anything, and quits. Reset, in Settings › System, is the other thing:
 it puts the app back to a first launch and keeps it installed.
 

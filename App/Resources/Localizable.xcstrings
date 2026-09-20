@@ -2790,6 +2790,16 @@
           }
         }
       }
+    },
+    "The last step could not be started: %@. The settings and the KoffeeLid folder in Application Support are still there; remove them by hand.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La dernière étape n’a pas pu démarrer : %@. Les réglages et le dossier KoffeeLid dans Application Support sont toujours là ; retirez-les à la main."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

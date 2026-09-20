@@ -98,7 +98,7 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 | a preference and its default | `App/Preferences.swift`; `KoffeeLidController.preferenceChanged(_:)` | `functional.md` § Settings and defaults |
 | a user-visible string | `App/Resources/Localizable.xcstrings`, edited in place, with its `fr` entry | `development.md` § How to add things (a user-visible string) |
 | a permission row, the sudoers setup, Reset | `App/UI/Permissions.swift` (`PermissionCatalog`), `Core/SettingsStatus.swift` (`SettingsGrant`), `App/UI/SettingsSystemPage.swift`, `App/UI/SleepLockSetupAction.swift`; `KoffeeLidController.resetEverything` | `functional.md` § Permissions and what breaks without them; `macOS.md` § Permissions and how each is reset |
-| the uninstall | `Core/UninstallPlan.swift` (the root-owned files and the one privileged line); `KoffeeLidController.uninstallEverything`, `App/SleepLock.swift` (`runPrivilegedScript`), `App/DiagnosticLog.swift` (`silence`), the Uninstall group of `App/UI/SettingsGeneralPage.swift` | `functional.md` § Uninstall; `manual-checks.md` § Settings UI |
+| the uninstall | `Core/UninstallPlan.swift` (the root-owned files, the one privileged line, and the helper that waits for this pid); `KoffeeLidController.uninstallEverything`, `App/SleepLock.swift` (`runPrivilegedScript`), `App/DiagnosticLog.swift` (`silence`), the Uninstall group of `App/UI/SettingsGeneralPage.swift` | `functional.md` § Uninstall; `manual-checks.md` § Settings UI |
 | a notification | `App/NotificationsController.swift` and the call site | the section of the behaviour that posts it |
 | the shortcuts | `App/HotKeyController.swift` | `functional.md` § User interface |
 | the watchdog, crash recovery, the pid file | `Watchdog/Sources/main.swift`; `App/RelaunchAgentController.swift`; `Core/CrashLoopGuard.swift`, `PidFileRecord.swift`, `RelaunchHistoryStore.swift`, `DiagnosticFileWriter.swift` | `architecture.md` § Watchdog contract; `macOS.md` § Login items and the watchdog; `pitfalls.md` § Watchdog and launch |
@@ -116,7 +116,7 @@ script/install.sh                                     # skill: install-locally. 
 script/publish.sh                                     # skill: publish-release. The same, plus tag, push, GitHub release, and the tree moves on
 # -------------------------------------------------------------------------------------------------
 
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (346); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (353); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -349,7 +349,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   removed, and the TCC grants reset, so the next install meets the Mac a new user's would.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
-- `swift test` is green (346 distinct cases: 324 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (353 distinct cases: 331 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-checks.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-checks.md` § Settings UI; the owner
   approved its look and wording in the running app), the dark-wake hold, the one-close hold, the late-display

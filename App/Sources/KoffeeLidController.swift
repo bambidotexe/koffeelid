@@ -743,7 +743,20 @@ final class KoffeeLidController {
         // Nothing may write into the folder after this, or it comes back with the line that created it.
         DiagnosticLog.shared.silence()
         try? FileManager.default.removeItem(at: AppSupport.directory)
-        done.append("support folder removed")
+
+        // **And again, once this process has gone.** Removing either of those here is not enough: the way
+        // out through `shutdown()` recreates the activity journal, and so the folder with it, and cfprefsd
+        // writes the domain back out as the process exits, leaving an empty plist where a Mac that never
+        // had KoffeeLid has no file at all. Both were seen on a real uninstall. The helper waits for the pid.
+        let script = UninstallPlan.helperScript(pid: getpid(), domain: bundleID,
+                                                supportDirectory: AppSupport.directory.path,
+                                                home: FileManager.default.homeDirectoryForCurrentUser.path)
+        do {
+            try DetachedProcess.spawn(executable: "/bin/sh", arguments: ["-c", script], environment: [:])
+            done.append("support folder and preferences handed to the helper")
+        } catch {
+            failed.append(String(format: L("The last step could not be started: %@. The settings and the KoffeeLid folder in Application Support are still there; remove them by hand."), "\(error)"))
+        }
         return (done, failed)
     }
 
