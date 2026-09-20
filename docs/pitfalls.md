@@ -191,6 +191,37 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
   `launchctl kickstart` on every start so a live watchdog observes the current pid. A relaunch attempt is
   recorded before `open` runs, so a bundle that cannot launch still trips `CrashLoopGuard`.
 
+## Updates
+
+### A helper started by the app dies with the app
+- **Symptom.** The app quits for an update and nothing happens: the helper that was to swap the bundles is gone.
+- **Why.** launchd kills what is left in a job's process group when the job's main process exits, and an app is
+  a launchd job.
+- **What the code does.** `DetachedProcess` spawns the helper with `POSIX_SPAWN_SETPGROUP` (a group of its own),
+  no inherited descriptors and an environment of the app's making.
+- **Do not** start it with a plain `posix_spawn` or a shell `&`.
+
+### The new version exits at once if the old one is still there
+- **Why.** `AppDelegate` exits a duplicate instance, and an app that has been asked to quit is still a running
+  application for a moment.
+- **What the code does.** The helper waits for the old pid to be gone before it touches or opens anything, and
+  gives up untouched after 20 s.
+
+### Swapping the bundle under the running app wakes the watchdog
+- **Why.** The watchdog compares the app's executable path with the one in the pid file; a bundle moved aside
+  while the app runs no longer matches, which reads as a dead app with a pid file, and it relaunches.
+- **What the code does.** Nothing moves until the app has quit cleanly: the pid file is gone and the watchdog
+  has stood down.
+
+### The outcome has to be written before the new version starts
+- **Why.** The new version reads `updates/result` as it launches, while the helper is still watching it start.
+- **What the code does.** The helper writes `installed` before `open` and overwrites it if it rolls back. The
+  app never deletes `updates/previous/`: the helper may still need to put it back.
+
+### `diskutil eject <folder>` names the volume the folder sits on
+- **Why.** A plain folder's path resolves to its volume, which is the Mac's own.
+- **What the code does.** `UpdateStager` only detaches a folder whose device differs from its parent's.
+
 ## Privilege
 
 ### `sudo -n -l` says yes to anything once any NOPASSWD rule exists

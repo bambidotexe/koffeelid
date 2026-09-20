@@ -10,9 +10,9 @@ links the SwiftPM package; `Package.swift` defines the two libraries and their t
 
 | Target | Kind | Depends on | Contents |
 |---|---|---|---|
-| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy, filter and state machine as a value type with injected time, plus the update check's `ReleaseVersion`, `LatestRelease` and `UpdateCheck`, and the Settings window's rules: `SettingsStatus` (which colour a state takes) and `UpdatePanel` (the Updates group). All logic tests live against it. |
+| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy, filter and state machine as a value type with injected time, plus the update feature's rules (`ReleaseVersion`, `LatestRelease`, `UpdateCheck`, `UpdateSchedule`, `UpdatePanel`, `UpdateSession`, `StagedUpdateCheck`, `UpdateInstallPlan`/`UpdateInstallScript`/`UpdateResult`, `DetachedProcess`) and the Settings window's `SettingsStatus` (which colour a state takes). All logic tests live against it. |
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library (AppKit, Metal, ScreenCaptureKit) | Core | The lid effect: `EffectController`, `DesktopCapture`, `PlaneRenderer`, `PlaneShader`, `EffectOverlayPanel`, `CaptureStartGate`, `PlaneRemap`. |
-| `KoffeeLid` (`App/Sources`) | app, `LSUIElement` | Core, LidPlaneKit | The coordinator, one adapter per system API, the UI, `UpdateChecker`, App Intents, the CLI client. |
+| `KoffeeLid` (`App/Sources`) | app, `LSUIElement` | Core, LidPlaneKit | The coordinator, one adapter per system API, the UI, the update feature (`UpdateController` and what it runs), App Intents, the CLI client. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | LaunchAgent that relaunches the app after an unclean exit. |
 | `KoffeeLidHook` (`Hook/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | `hook` and `job begin\|end`: append one line to the activity journal. |
 
@@ -33,7 +33,8 @@ announce their own changes to SwiftUI (the coordinator stays the one subscriber 
 the states a page reports, polled on the main thread and started and stopped by the window (open, close,
 miniaturise), never by a view: the grants, the hooks and the login item every 2 s, the lid angle and the
 activity counts every 0.25 s, the window being a consumer of `LidAngleObserver` for as long as it is up. The
-rules the pages apply are Core's: `SettingsStatus` colours a state and `UpdatePanel` is the Updates group. The
+rules the pages apply are Core's: `SettingsStatus` colours a state and `UpdatePanel` is the Updates group, whose
+state is the app's (`UpdateController.shared`) and not the page's. The
 onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. The window's
 structure, numbers and wording rules are in `.claude/skills/building-settings-pages/SKILL.md`.
 
@@ -277,6 +278,30 @@ backs up to `settings.json.backup-koffeelid` before writing, `ShellInit` builds 
 `~/.zshrc` (it removes only what sits between its two header lines, its marker comment, and uncommented
 `shell-init zsh` lines that name KoffeeLid).
 
+## Updates
+
+`UpdateController` (main actor, `shared`) owns the feature; `AppDelegate.startUpdates()` wires it after the
+coordinator has started. The decisions are Core's and tested; the app layer runs requests and words answers.
+
+| Piece | Where | What it is |
+|---|---|---|
+| `UpdateSchedule` | Core | when an unasked check is due: fresh at launch, a week after an answer, an hour after a failure. The controller asks it 10 s after launch, on a 30-minute timer and at `NSWorkspace.didWakeNotification` |
+| `UpdatePanel` | Core | the Updates group: `press()` is `.check` or `.update(release)`; `checked` answers a press, `autoChecked` a check nobody asked for, `installFailed` what the last install ended with |
+| `UpdateSession` | Core | the update window: downloading → preparing → ready or manual → installing, failed from anywhere, `retry`, `installStalled` |
+| `UpdateChecker`, `UpdateDownload` | app | the latest-release request (`KOFFEELID_UPDATE_FEED` replaces its URL, `docs/development.md`) and one fetch with progress, held against the asset's stated length and SHA-256 before it is reported |
+| `UpdateStager` | app, off the main thread | mounts the image (`hdiutil`, then `diskutil image`), copies the app carrying our bundle identifier to `updates/staged/`, applies `StagedUpdateCheck` (same app, strictly newer, this macOS is enough) and `CodeSignature.verify` (valid; same team as the running app when it has one), detaches |
+| `UpdateInstaller` | app | `obstacle` (not an `.app`, translocated, not writable, another volume) and `start`, which writes `UpdateInstallScript.text` to `updates/install.sh` and starts it through `DetachedProcess` |
+| `UpdateInstallScript` | Core | the helper's text, a `/bin/sh` script told everything as arguments (`UpdateInstallPlan`): wait for the pid, two renames, the outcome (`UpdateResult`), `open`, watch for the executable in `ps`, roll back |
+| `UpdateWindowController`, `UpdateView` | app | the window, sized to what it says around its top-left corner |
+| `NotificationsController` | app | the `update` category with its one action; as the centre's delegate it turns the action and a click into `UpdateController.presentUpdate()`, and shows that one notification even while the app is frontmost |
+
+The order of an install is what keeps a failure harmless. Everything that can refuse (the network, the file,
+the image, the version, the signature, the folder's permissions) runs while the app is up and can say so; the
+helper is started before the quit and only acts once the pid is gone, so the app's own `shutdown()` has
+already disarmed, cleared the kernel flag and released the sleep lock, and the watchdog has seen a clean exit
+and stood down; after the quit there are two renames on one volume and a launch, each with its way back. A
+fetch or an unpacking that ends after the session it belonged to is dropped by a generation counter.
+
 ## Persistence
 
 `~/Library/Application Support/KoffeeLid/` (`AppSupport`):
@@ -289,6 +314,7 @@ backs up to `settings.json.backup-koffeelid` before writing, `ShellInit` builds 
 | `sleep-lock` | app | pid of the instance that engaged `pmset disablesleep 1` |
 | `activity.jsonl`, `activity.1.jsonl` | hook binary; rotated by the app | one JSON event per line, snake_case keys |
 | `diagnostics.log`, `diagnostics.1.log`, `diagnostics.lock` | app and watchdog (`DiagnosticFileWriter`, `flock`) | timestamped lines, rotated at 256 KB |
+| `updates/` | app, and the install helper once the app has quit | `KoffeeLid-<version>.dmg`, `staged/KoffeeLid.app`, `install.sh`, all three removed when a fetch starts, is cancelled, and at launch; `previous/KoffeeLid.app`, the helper's alone, which it deletes once the new version is seen running; `install.log`; `result`, one line, read and deleted at launch |
 
 UserDefaults domain `dev.rubens.koffeelid`: the keys and defaults in `docs/functional.md` § Settings and
 defaults, registered in `Preferences.init`. `effectParameters` is a JSON `EffectParameters`; a stored value

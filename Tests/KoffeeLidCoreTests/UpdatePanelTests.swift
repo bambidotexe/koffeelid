@@ -19,7 +19,6 @@ final class UpdatePanelTests: XCTestCase {
         XCTAssertNil(panel.severity)
         XCTAssertFalse(panel.isBusy)
         XCTAssertFalse(panel.offersUpdate)
-        XCTAssertFalse(panel.isProminent)
     }
     func testFirstPressChecks() {
         var panel = UpdatePanel()
@@ -35,7 +34,7 @@ final class UpdatePanelTests: XCTestCase {
         XCTAssertEqual(panel.state, .checking)
     }
 
-    // MARK: The answers to a check
+    // MARK: The answers to a press
 
     func testUpToDateIsGreenAndChecksAgain() {
         var panel = UpdatePanel()
@@ -51,7 +50,6 @@ final class UpdatePanelTests: XCTestCase {
         XCTAssertEqual(panel.state, .available(release.version))
         XCTAssertEqual(panel.severity, .info)
         XCTAssertTrue(panel.offersUpdate)
-        XCTAssertTrue(panel.isProminent)
     }
     func testFailedCheckIsOrangeAndChecksAgain() {
         var panel = UpdatePanel()
@@ -62,31 +60,50 @@ final class UpdatePanelTests: XCTestCase {
         XCTAssertEqual(panel.press(), .check)
     }
 
-    // MARK: Fetching
+    // MARK: Update
 
-    func testPressWithAReleaseDownloadsIt() {
+    func testPressWithAReleaseOpensTheUpdateAndKeepsTheRow() {
         var panel = panelWithRelease()
-        XCTAssertEqual(panel.press(), .download(release))
-        XCTAssertEqual(panel.state, .downloading)
-        XCTAssertEqual(panel.severity, .busy)
-        XCTAssertFalse(panel.isProminent)
+        XCTAssertEqual(panel.press(), .update(release))
+        XCTAssertEqual(panel.state, .available(release.version))
+        XCTAssertEqual(panel.press(), .update(release), "every press is the same request: the window is shown again")
     }
-    func testDownloadedIsGreenAndKeepsTheButton() {
-        var panel = panelWithRelease()
-        _ = panel.press()
-        panel.downloaded()
-        XCTAssertEqual(panel.state, .downloaded)
-        XCTAssertEqual(panel.severity, .good)
-        XCTAssertTrue(panel.offersUpdate)
-        XCTAssertFalse(panel.isProminent)
+
+    // MARK: A check nobody asked for
+
+    func testAutomaticNewerReleaseShowsLikeAnAnswerToAPress() {
+        var panel = UpdatePanel()
+        panel.autoChecked(.available(release))
+        XCTAssertEqual(panel.state, .available(release.version))
+        XCTAssertEqual(panel.press(), .update(release))
     }
-    func testFailedDownloadKeepsTheReleaseSoThePressIsTheRetry() {
+    func testAutomaticUpToDateIsGreen() {
         var panel = panelWithRelease()
+        panel.autoChecked(.upToDate)
+        XCTAssertEqual(panel.state, .upToDate)
+        XCTAssertFalse(panel.offersUpdate)
+    }
+    func testAutomaticAnswerNeverInterruptsAPress() {
+        var panel = UpdatePanel()
         _ = panel.press()
-        panel.downloadFailed("disk full")
-        XCTAssertEqual(panel.state, .downloadFailed("disk full"))
+        panel.autoChecked(.upToDate)
+        XCTAssertEqual(panel.state, .checking)
+    }
+
+    // MARK: An install that did not end well
+
+    func testFailedInstallIsOrangeAndTheNextPressChecks() {
+        var panel = UpdatePanel()
+        panel.installFailed("did not start")
+        XCTAssertEqual(panel.state, .installFailed("did not start"))
         XCTAssertEqual(panel.severity, .warning)
-        XCTAssertFalse(panel.isProminent)
-        XCTAssertEqual(panel.press(), .download(release))
+        XCTAssertEqual(panel.press(), .check)
+    }
+    func testAutomaticNewerReleaseAfterAFailedInstallKeepsTheReasonAndOffersTheRetry() {
+        var panel = UpdatePanel()
+        panel.installFailed("did not start")
+        panel.autoChecked(.available(release))
+        XCTAssertEqual(panel.state, .installFailed("did not start"))
+        XCTAssertEqual(panel.press(), .update(release))
     }
 }

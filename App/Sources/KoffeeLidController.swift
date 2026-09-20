@@ -28,6 +28,9 @@ final class KoffeeLidController {
     /// behaviours (darken, sound, effect, lock on reopen) stand by and the kernel flag alone remains.
     private var externalDisplay = false
     var standingBy: Bool { isArmed && externalDisplay }
+    /// Quitting now would let macOS sleep the Mac at once: armed, the lid shut, and no external display keeping
+    /// the desktop up. The update's Install and Relaunch waits for the lid to open.
+    var quitWouldSleepTheMac: Bool { isArmed && lidObserver?.isClosed == true && !externalDisplay }
 
     private let prefs = Preferences.shared
     private let log = DiagnosticLog.shared

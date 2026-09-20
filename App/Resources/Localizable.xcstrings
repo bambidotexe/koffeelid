@@ -521,6 +521,26 @@
         }
       }
     },
+    "Click Update to download and install it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cliquez sur Mettre à jour pour la télécharger et l’installer."
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer"
+          }
+        }
+      }
+    },
     "Close the MacBook and walk away: Claude Code, builds, servers and downloads keep running on a dark, silent display. Open the lid and your Mac locks.": {
       "localizations": {
         "fr": {
@@ -601,16 +621,6 @@
         }
       }
     },
-    "Downloaded": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Téléchargé"
-          }
-        }
-      }
-    },
     "Downloading": {
       "localizations": {
         "fr": {
@@ -621,22 +631,22 @@
         }
       }
     },
+    "Downloading: %@ of %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargement : %@ sur %@"
+          }
+        }
+      }
+    },
     "Downloads": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Téléchargements"
-          }
-        }
-      }
-    },
-    "Drag KoffeeLid to Applications, then quit and reopen it.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Faites glisser KoffeeLid vers Applications, puis quittez et rouvrez-le."
           }
         }
       }
@@ -801,6 +811,26 @@
         }
       }
     },
+    "Install and Relaunch": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer et relancer"
+          }
+        }
+      }
+    },
+    "Installing": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation"
+          }
+        }
+      }
+    },
     "Keep a diagnostics log": {
       "localizations": {
         "fr": {
@@ -827,6 +857,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Touche à maintenir"
+          }
+        }
+      }
+    },
+    "KoffeeLid cannot replace itself where it is installed. Open the disk image and drag KoffeeLid to Applications, then quit and reopen it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ne peut pas se remplacer là où il est installé. Ouvrez l’image disque et faites glisser KoffeeLid vers Applications, puis quittez et rouvrez-le."
+          }
+        }
+      }
+    },
+    "KoffeeLid did not quit. Close its open dialogs, then try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid n’a pas quitté. Fermez ses dialogues ouverts, puis réessayez."
           }
         }
       }
@@ -1341,6 +1391,16 @@
         }
       }
     },
+    "Open Disk Image": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir l’image disque"
+          }
+        }
+      }
+    },
     "Open Login Items": {
       "localizations": {
         "fr": {
@@ -1357,6 +1417,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ouvrir les réglages Ouverture"
+          }
+        }
+      }
+    },
+    "Open the lid first. With the lid closed, the Mac goes to sleep when KoffeeLid quits.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrez d’abord l’écran. Écran rabattu, le Mac se met en veille dès que KoffeeLid quitte."
           }
         }
       }
@@ -1451,6 +1521,16 @@
         }
       }
     },
+    "Preparing the update": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Préparation de la mise à jour"
+          }
+        }
+      }
+    },
     "Press %@ to arm with the screen on, or to turn off": {
       "localizations": {
         "fr": {
@@ -1497,6 +1577,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quitter KoffeeLid"
+          }
+        }
+      }
+    },
+    "Ready to install. KoffeeLid will quit and reopen.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prête à être installée. KoffeeLid va quitter puis se rouvrir."
           }
         }
       }
@@ -1861,6 +1951,16 @@
         }
       }
     },
+    "Software Update": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mise à jour de logiciels"
+          }
+        }
+      }
+    },
     "Sound": {
       "localizations": {
         "fr": {
@@ -2021,6 +2121,46 @@
         }
       }
     },
+    "The disk image could not be opened.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’image disque n’a pas pu être ouverte."
+          }
+        }
+      }
+    },
+    "The disk image does not contain KoffeeLid.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’image disque ne contient pas KoffeeLid."
+          }
+        }
+      }
+    },
+    "The disk image does not hold a newer version.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’image disque ne contient pas de version plus récente."
+          }
+        }
+      }
+    },
+    "The download is damaged.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le téléchargement est endommagé."
+          }
+        }
+      }
+    },
     "The first angle is also where your desktop stands upright. Armed from the menu bar or a shortcut, the effect waits for the second angle, so adjusting your screen while you work starts nothing.": {
       "localizations": {
         "fr": {
@@ -2037,6 +2177,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le geste de l’écran et l’effet d’écran en ont besoin. Tout le reste fonctionne sans."
+          }
+        }
+      }
+    },
+    "The new version could not be put in place.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La nouvelle version n’a pas pu être mise en place."
+          }
+        }
+      }
+    },
+    "The new version did not start, so the previous one was put back.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La nouvelle version n’a pas démarré, la précédente a donc été remise en place."
           }
         }
       }
@@ -2071,6 +2231,26 @@
         }
       }
     },
+    "The update is not signed by the same developer.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La mise à jour n’est pas signée par le même développeur."
+          }
+        }
+      }
+    },
+    "The update’s signature is not valid.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La signature de la mise à jour n’est pas valide."
+          }
+        }
+      }
+    },
     "This Mac has no lid angle sensor, so the lid effect is not available.": {
       "localizations": {
         "fr": {
@@ -2097,6 +2277,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Désactive KoffeeLid, retire le verrou de veille et sa règle sudoers (mot de passe administrateur), désinscrit les éléments d’ouverture, réinitialise les autorisations Enregistrement de l’écran et Notifications, et efface tous les réglages. L’introduction recommence ensuite."
+          }
+        }
+      }
+    },
+    "This version needs macOS %@ or later.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette version nécessite macOS %@ ou une version ultérieure."
           }
         }
       }
@@ -2167,6 +2357,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Basculer écran allumé"
+          }
+        }
+      }
+    },
+    "Try Again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
           }
         }
       }

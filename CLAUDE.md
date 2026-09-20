@@ -12,8 +12,9 @@ Option, held while the lid closes) arms for one close. While armed, the built-in
 shuts, a lid-close sound plays (at a forced volume if wanted), a closing-only Metal effect shows the desktop
 staying upright behind the glass, and the screen locks when the lid reopens. Safety rails end an arm: low
 battery, thermal pressure, a sleep started by something else, a reset. A `koffeelid` command line,
-`koffeelid://` URLs and App Intents drive the same modes. Settings can ask GitHub for a newer release and fetch
-its DMG; the app never replaces itself.
+`koffeelid://` URLs and App Intents drive the same modes. It looks for a newer release on GitHub at launch and
+once a week, announces one with a notification, and installs it on a click: a window fetches and checks the
+release while the app runs, and "Install and Relaunch" swaps the bundle once the app has quit cleanly.
 
 The mechanism is one kernel scalar on `IOPMrootDomain` (selector 12, `kPMSetClamshellSleepState`), plus a
 `pmset disablesleep` **sleep lock** through a sudoers rule so that macOS cannot start a clamshell sleep behind
@@ -21,8 +22,9 @@ it. Everything else in the coordinator exists to guarantee that flag is cleared 
 
 Swift 5 language mode. Two SwiftPM libraries plus an XcodeGen-generated Xcode project for the app and its two
 helper tools. Deployment target macOS 15; built and run on macOS 27.0 (26A428) with Xcode 27.0, on one MacBook
-Pro. A personal app by and for one user: English and French, no licensing, a manual update check against GitHub
-releases (no auto-update). Releases are Apple-Development-signed DMGs that run on this Mac only.
+Pro. A personal app by and for one user: English and French, no licensing, updates from GitHub releases (the
+check is automatic, the fetch and the install each need a click). Releases are Apple-Development-signed DMGs
+that run on this Mac only.
 
 Repo `~/Projects/koffeelid`, GitHub `git@github.com:bambidotexe/koffeelid.git` (`origin`, branch `main`, SSH
 as `bambidotexe`, `gh` logged in). **The installed copy `/Applications/KoffeeLid.app` is the owner's daily
@@ -100,13 +102,15 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 | the shortcuts | `App/HotKeyController.swift` | `functional.md` § User interface |
 | the watchdog, crash recovery, the pid file | `Watchdog/Sources/main.swift`; `App/RelaunchAgentController.swift`; `Core/CrashLoopGuard.swift`, `PidFileRecord.swift`, `RelaunchHistoryStore.swift`, `DiagnosticFileWriter.swift` | `architecture.md` § Watchdog contract; `macOS.md` § Login items and the watchdog; `pitfalls.md` § Watchdog and launch |
 | diagnostics and log lines | `App/DiagnosticLog.swift`, `Core/DiagnosticLine.swift` | `docs/manual-checks.md` greps for the phrasing: keep it |
-| the update check | `Core/UpdateCheck.swift` (`ReleaseVersion`, `LatestRelease`, `UpdateCheck`), `Core/UpdatePanel.swift` (the Updates group: mark, button, what a press starts); `App/UpdateChecker.swift`; the Updates group of `App/UI/SettingsGeneralPage.swift` | `functional.md` § Updates |
+| updates: the check, its schedule, the notification | `Core/UpdateCheck.swift` (`ReleaseVersion`, `LatestRelease`, `UpdateCheck`), `Core/UpdateSchedule.swift`, `Core/UpdatePanel.swift` (the Updates group: mark, button, what a press starts); `App/UpdateController.swift` (the one owner), `App/UpdateChecker.swift`, `App/NotificationsController.swift`; the Updates group of `App/UI/SettingsGeneralPage.swift` | `functional.md` § Updates; `architecture.md` § Updates |
+| updates: the window, the fetch, making it ready | `Core/UpdateSession.swift`, `Core/StagedUpdateCheck.swift`; `App/UI/UpdateWindow.swift`, `App/UpdateChecker.swift` (`UpdateDownload`), `App/UpdateStager.swift`, `App/CodeSignature.swift` | the same, plus `macOS.md` § Updates |
+| updates: Install and Relaunch | `Core/UpdateInstallScript.swift` (the helper's text, `UpdateInstallPlan`, `UpdateResult`), `Core/DetachedProcess.swift`; `App/UpdateInstaller.swift`, `UpdateController.installAndRelaunch`, `KoffeeLidController.quitWouldSleepTheMac` | the same, plus `pitfalls.md` § Updates and `manual-checks.md` § Updates. **Read `pitfalls.md` § Updates before touching the order of an install** |
 | build, install, release | `project.yml` (never the xcodeproj), `script/bootstrap.sh`, `build.sh`, `install.sh`, `run.sh`, `release.sh`, `ExportOptions.plist`; the version in its three places (Commands) | `development.md` § Release checklist; `architecture.md` § Build, signing, entitlements |
 
 ## Commands
 
 ```bash
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (288); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (330); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -152,9 +156,9 @@ Five targets, dependency direction strictly downward. Full version in `docs/arch
 
 | Target | Kind | Depends on | Contents |
 |---|---|---|---|
-| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `FnKeyReading`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `GestureArmHold`, `EffectParameters`, `VolumeOverridePolicy`, `SleepInterruptionPolicy`/`SleepOverrideGuard`/`SleepLockSetup`, `CrashLoopGuard`, `PidFileRecord`/`AppSupport`, `DiagnosticFileWriter`, `DeepLink`, `ReleaseVersion`/`LatestRelease`/`UpdateCheck`/`UpdatePanel`, `SettingsStatus`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`. **All logic tests live against it.** |
+| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `FnKeyReading`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `GestureArmHold`, `EffectParameters`, `VolumeOverridePolicy`, `SleepInterruptionPolicy`/`SleepOverrideGuard`/`SleepLockSetup`, `CrashLoopGuard`, `PidFileRecord`/`AppSupport`, `DiagnosticFileWriter`, `DeepLink`, the update feature's `ReleaseVersion`/`LatestRelease`/`UpdateCheck`/`UpdateSchedule`/`UpdatePanel`/`UpdateSession`/`StagedUpdateCheck`/`UpdateInstallScript`/`DetachedProcess`, `SettingsStatus`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`. **All logic tests live against it.** |
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library | Core | The lid-close effect: `EffectController` turns lid angles into a fold (`FoldTracker`, closing only, threshold-gated) and runs a capture session only while folded: `DesktopCapture` (ScreenCaptureKit) → `PlaneRenderer` (Metal, shader in `PlaneShader.swift`; `PlaneRemap.swift` is the same maths in Swift, the tested reference) inside `EffectOverlayPanel`. |
-| `KoffeeLid` (`App/Sources`) | Xcode app target | Core, LidPlaneKit | `KoffeeLidController` is the **only** object that mutates arming state (`setMode(_:source:)` is the entry point; `perform(_:source:)` runs CLI/URL verbs); every other file is a collaborator that reports events to it via closures. `HookInstaller` is a stateless helper used by the CLI client and the Settings window; `UpdateChecker` talks to GitHub for it. UI under `App/Sources/UI`: the Settings window is an AppKit toolbar window (`SettingsWindow`) hosting six SwiftUI pages built only from the kit in `SettingsKit.swift`, sharing one `SettingsModel`; the four-page onboarding is programmatic AppKit; `PermissionCatalog` and `HookCatalog` are the single lists of grants and hooks, read by both. |
+| `KoffeeLid` (`App/Sources`) | Xcode app target | Core, LidPlaneKit | `KoffeeLidController` is the **only** object that mutates arming state (`setMode(_:source:)` is the entry point; `perform(_:source:)` runs CLI/URL verbs); every other file is a collaborator that reports events to it via closures. `HookInstaller` is a stateless helper used by the CLI client and the Settings window; `UpdateController` owns the update feature (the checks, the notification, the update window, Install and Relaunch) and never touches arming state: it quits the app through `NSApp.terminate`. UI under `App/Sources/UI`: the Settings window is an AppKit toolbar window (`SettingsWindow`) hosting six SwiftUI pages built only from the kit in `SettingsKit.swift`, sharing one `SettingsModel`; the four-page onboarding is programmatic AppKit; `PermissionCatalog` and `HookCatalog` are the single lists of grants and hooks, read by both. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | Xcode tool, embedded in the app | Core | LaunchAgent that relaunches the app after an unclean exit (pid file present) and stands down otherwise. |
 | `KoffeeLidHook` (`Hook/Sources/main.swift`) | Xcode tool, embedded in the app | Core | `hook` and `job begin\|end` verbs, run once per Claude Code event and per zsh command: append a trimmed `ActivityEvent` line to `~/Library/Application Support/KoffeeLid/activity.jsonl`. Never launches the app, always exits 0. |
 
@@ -259,8 +263,13 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
    the kinds that ran; local keyboard or mouse input during it drops the level at once; "Disarm once
    finished" shortens it to a minute and releases the manual mode too. Timings in `ActivityConstants` were
    sized from recorded Claude Code sessions — retune only against evidence.
-10. **The app never replaces itself.** The update check downloads and opens a DMG; installing is the owner's
-    drag, and `script/install.sh` for a build from this tree.
+10. **An update never installs by itself, and never leaves a closed Mac armed behind a dead app.** The automatic
+    check only announces; the fetch and the install each need a click. Everything that can refuse an update runs
+    while the app is up. The install leaves through `NSApp.terminate`, so `shutdown()` clears the flag and the
+    sleep lock (invariant 1): never `exit()` or a kill for an update. The helper touches nothing until the pid is
+    gone, and the previous bundle is kept until the new version is seen running. Install and Relaunch is refused
+    while quitting would sleep the Mac (`quitWouldSleepTheMac`: armed, lid closed, no external display).
+    `script/install.sh` stays the way to install a build from this tree.
 
 ## Testing constraints on this machine
 
@@ -307,14 +316,18 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   built-in-keyboard Fn rule with its Input Monitoring row and the physical-key requirement (1.0.4), the arrow-key
   fix, the dead-code cleanup and the rewritten docs. The tree is ahead of it and unreleased: the "Show in menu
   bar" switch, "Quit KoffeeLid", the Icon Composer icon, and the six-page Settings window with its macOS 15
-  target. `/Applications` runs a build of this tree (`script/install.sh`). Settings › General › Updates fetches
-  the next release's DMG.
-- `swift test` is green (288 distinct cases: 266 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+  target, and the automatic update (weekly check, notification, update window, Install and Relaunch).
+  `/Applications` runs a build older than this tree, without the automatic update: its first update is still by
+  hand (`script/install.sh`, or the next release's DMG).
+- `swift test` is green (330 distinct cases: 308 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-checks.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-checks.md` § Settings UI; the owner
   approved its look and wording in the running app), the dark-wake hold, the one-close hold, the late-display
-  reopen lock, the arrow-key check, the built-in-keyboard Fn rule, the update download, and most of the
-  auto-arm section. Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
+  reopen lock, the arrow-key check, the built-in-keyboard Fn rule, and most of the auto-arm section. The update
+  feature has been run through its unit tests, through a real install and a real roll-back of a stand-in app by
+  the real helper, and through the real 1.0.5 release (check, fetch with its digest, unpacking, signature
+  rule); KoffeeLid installing over itself, the notification and the update window have not been seen
+  (`docs/manual-checks.md` § Updates). Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
 - The `/usr/local/bin/koffeelid` wrapper may be missing (`/usr/local/bin` is root-owned); call the bundle binary.
 - Auto-arm on activity is set up on this Mac (both hooks, the switch on): a fresh launch of the app while a
   Claude Code session works auto-arms at once.

@@ -2,7 +2,7 @@ import Foundation
 
 /// A dotted version ("1.0.5", optionally "v1.0.5"), compared numerically per component. A missing trailing
 /// component counts as 0, so "1.1" == "1.1.0"; "1.0.10" > "1.0.9".
-public struct ReleaseVersion: Comparable, Equatable {
+public struct ReleaseVersion: Comparable, Equatable, Sendable {
     let components: [Int]
 
     public init(_ major: Int, _ minor: Int, _ patch: Int) { components = [major, minor, patch] }
@@ -35,15 +35,22 @@ public struct ReleaseVersion: Comparable, Equatable {
     private func padded(to count: Int) -> [Int] { components + Array(repeating: 0, count: max(0, count - components.count)) }
 }
 
-/// The GitHub `/releases/latest` response, reduced to what the app needs.
-public struct LatestRelease: Equatable {
+/// The GitHub `/releases/latest` response, reduced to what the app needs. The asset's length and SHA-256 are
+/// GitHub's own statement about the file it serves: the length sizes the progress bar when the download's
+/// response carries none, and the digest is what a finished download is held against.
+public struct LatestRelease: Equatable, Sendable {
     public let version: ReleaseVersion
     public let dmgURL: URL
+    public let dmgSize: Int64?
+    /// 64 lowercase hex digits, or nil when GitHub states no SHA-256 for the asset.
+    public let dmgSHA256: String?
 
-    public init(version: ReleaseVersion, dmgURL: URL) { self.version = version; self.dmgURL = dmgURL }
+    public init(version: ReleaseVersion, dmgURL: URL, dmgSize: Int64? = nil, dmgSHA256: String? = nil) {
+        self.version = version; self.dmgURL = dmgURL; self.dmgSize = dmgSize; self.dmgSHA256 = dmgSHA256
+    }
 
     private struct DTO: Decodable {
-        struct Asset: Decodable { let name: String; let browser_download_url: String }
+        struct Asset: Decodable { let name: String; let browser_download_url: String; let size: Int64?; let digest: String? }
         let tag_name: String?
         let assets: [Asset]?
     }
@@ -55,11 +62,19 @@ public struct LatestRelease: Equatable {
               let dmg = dto.assets?.first(where: { $0.name.hasSuffix(".dmg") }),
               let url = URL(string: dmg.browser_download_url)
         else { return nil }
-        return LatestRelease(version: version, dmgURL: url)
+        return LatestRelease(version: version, dmgURL: url, dmgSize: dmg.size.flatMap { $0 > 0 ? $0 : nil }, dmgSHA256: sha256(in: dmg.digest))
+    }
+
+    /// GitHub writes an asset's digest as "sha256:<hex>".
+    private static func sha256(in digest: String?) -> String? {
+        guard let digest, digest.hasPrefix("sha256:") else { return nil }
+        let hex = digest.dropFirst("sha256:".count).lowercased()
+        guard hex.count == 64, hex.allSatisfy(\.isHexDigit) else { return nil }
+        return hex
     }
 }
 
-public enum UpdateDecision: Equatable {
+public enum UpdateDecision: Equatable, Sendable {
     case upToDate
     case available(LatestRelease)
 }

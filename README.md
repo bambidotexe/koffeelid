@@ -16,7 +16,7 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-288%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-330%20passing-2ea44f">
 </p>
 
 ## The problem
@@ -123,6 +123,10 @@ sleep lock (administrator password, once), Login Items (crash recovery), Screen 
 Input Monitoring (optional: only the built-in keyboard's 🌐 Fn key then arms the gesture), notifications (optional),
 and offers to set up the Claude Code hooks and the zsh snippet.
 
+After that KoffeeLid keeps itself up to date. It looks for a newer release when it starts and once a week, and
+tells you with a notification. Click Update, there or in Settings › General, and a small window fetches the
+release; Install and Relaunch then swaps the app and reopens it. Nothing is fetched or installed without a click.
+
 The current build is signed with a development certificate and is not notarized. On another Mac, macOS will
 warn; control-click the app and choose Open, or build from source.
 
@@ -171,6 +175,6 @@ sensor at 30 Hz and interpolated per frame. See `docs/architecture.md` and `docs
 
 ## Notes
 
-- Personal build: English and French, a manual update check against GitHub releases (no auto-update), no licensing.
+- Personal build: English and French, no licensing.
 - Any other app that keeps a closed Mac awake fights over the same macOS setting. Do not arm two at once.
 - Sound effects are free to use (`App/Resources/Sounds/SoundEffects-LICENSE.txt`).

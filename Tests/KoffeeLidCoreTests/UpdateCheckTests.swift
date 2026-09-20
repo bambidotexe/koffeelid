@@ -86,4 +86,34 @@ final class UpdateCheckTests: XCTestCase {
         """.data(using: .utf8)!
         XCTAssertNil(LatestRelease.parse(json))
     }
+    func testParseReadsTheAssetsSizeAndDigest() {
+        let json = """
+        {
+          "tag_name": "v1.0.5",
+          "assets": [
+            { "name": "KoffeeLid-1.0.5.dmg", "browser_download_url": "https://example.com/KoffeeLid-1.0.5.dmg",
+              "size": 2777987, "digest": "sha256:287255244B42ed6affc836ae329832962e69a902a385f75e93a7450800e6b3db" }
+          ]
+        }
+        """.data(using: .utf8)!
+        let release = LatestRelease.parse(json)
+        XCTAssertEqual(release?.dmgSize, 2_777_987)
+        XCTAssertEqual(release?.dmgSHA256, "287255244b42ed6affc836ae329832962e69a902a385f75e93a7450800e6b3db")
+    }
+    func testParseLeavesSizeAndDigestOutWhenGitHubDoesNotStateThem() {
+        let json = """
+        { "tag_name": "v1.0.5", "assets": [ { "name": "K.dmg", "browser_download_url": "https://example.com/K.dmg" } ] }
+        """.data(using: .utf8)!
+        let release = LatestRelease.parse(json)
+        XCTAssertNotNil(release)
+        XCTAssertNil(release?.dmgSize)
+        XCTAssertNil(release?.dmgSHA256)
+    }
+    func testParseIgnoresADigestThatIsNotSHA256() {
+        let json = """
+        { "tag_name": "v1.0.5", "assets": [ { "name": "K.dmg", "browser_download_url": "https://example.com/K.dmg",
+          "digest": "md5:0123456789abcdef0123456789abcdef" } ] }
+        """.data(using: .utf8)!
+        XCTAssertNil(LatestRelease.parse(json)?.dmgSHA256)
+    }
 }

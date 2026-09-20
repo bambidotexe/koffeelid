@@ -22,6 +22,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         KoffeeLidController.shared.onOpenSettings = { [weak self] in self?.showSettings() }
         if !Preferences.shared.onboardingCompleted { showOnboarding() }
         if CommandLine.arguments.contains("--open-settings") { showSettings() }
+        startUpdates()
+    }
+
+    /// After the coordinator: a launch that follows an Install and Relaunch opens Settings, and the install is
+    /// refused while quitting would put the Mac to sleep.
+    @MainActor private func startUpdates() {
+        let updates = UpdateController.shared
+        updates.onShowSettings = { [weak self] in self?.showSettings() }
+        updates.othersNeedUsActive = { [weak self] in
+            self?.settings?.isUp == true || self?.onboarding?.window?.isVisible == true
+        }
+        updates.installRefusal = {
+            KoffeeLidController.shared.quitWouldSleepTheMac
+                ? L("Open the lid first. With the lid closed, the Mac goes to sleep when KoffeeLid quits.") : nil
+        }
+        updates.start()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -42,7 +58,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Built once and re-shown: the window keeps its page and its place. `show()` brings the app forward.
     @MainActor func showSettings() {
         if settings == nil {
-            settings = SettingsWindow(othersNeedUsActive: { [weak self] in self?.onboarding?.window?.isVisible == true })
+            settings = SettingsWindow(othersNeedUsActive: { [weak self] in
+                self?.onboarding?.window?.isVisible == true || UpdateController.shared.windowIsUp
+            })
         }
         settings?.show()
     }

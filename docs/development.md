@@ -116,6 +116,28 @@ auto-armed (activity) · auto-disarm scheduled in Ns · auto-arm ended: local in
 built-in Fn reader: reading …|Input Monitoring not granted|no built-in keyboard found|open FAILED
 ```
 
+## Testing an update without publishing one
+
+`KOFFEELID_UPDATE_FEED` replaces the URL of GitHub's latest-release reply with any `file://` or `http://` URL, and
+the `browser_download_url` inside that reply can be a `file://` URL too, so the whole update runs offline:
+
+```bash
+# 1. A build to install: bump the three version places in a scratch copy, script/build.sh Release, then
+hdiutil create -volname KoffeeLid -srcfolder <folder holding KoffeeLid.app and an Applications symlink> -format UDZO /tmp/KoffeeLid-9.9.9.dmg
+# 2. The stand-in reply. "size" and "digest" are optional; when present they are enforced.
+cat > /tmp/latest.json <<JSON
+{ "tag_name": "v9.9.9", "assets": [ { "name": "KoffeeLid-9.9.9.dmg",
+  "browser_download_url": "file:///tmp/KoffeeLid-9.9.9.dmg",
+  "size": $(stat -f %z /tmp/KoffeeLid-9.9.9.dmg), "digest": "sha256:$(shasum -a 256 /tmp/KoffeeLid-9.9.9.dmg | cut -d' ' -f1)" } ] }
+JSON
+# 3. The installed app, started by hand with the stand-in (quit it first, off and lid open: CLAUDE.md § Rules)
+KOFFEELID_UPDATE_FEED=file:///tmp/latest.json /Applications/KoffeeLid.app/Contents/MacOS/KoffeeLid
+```
+
+The update is only accepted from a build signed by the same team as the running one, and the app replaces the
+bundle it runs from: test on the installed copy, not on `DerivedData`. The helper's own log is
+`~/Library/Application Support/KoffeeLid/updates/install.log`; `docs/manual-checks.md` § Updates is the walk.
+
 ## Safety on this Mac
 
 The installed app is the user's daily driver; see `docs/pitfalls.md` § Working on this Mac. Other utilities that
@@ -230,7 +252,10 @@ cp /tmp/AppIcon.iconset/icon_128x128@2x.png docs/assets/icon.png
 3. `script/install.sh`, approve Login Items and grant Screen Recording if asked, quit and reopen.
 4. Walk `docs/manual-checks.md` with any other lid-sleep utility quit.
 5. Commit (`feat|fix|build|docs(scope): …`), `git tag -a vX.Y.Z -m "KoffeeLid X.Y.Z"`,
-   `git push origin main vX.Y.Z`, `gh release create` with the DMG from `dist/`.
+   `git push origin main vX.Y.Z`, `gh release create` with the DMG from `dist/`. The installed copies update
+   themselves from that release, which holds it to a contract: a tag that parses as a version, one asset whose
+   name ends in `.dmg` with `KoffeeLid.app` at the image's root, a `CFBundleShortVersionString` strictly newer
+   than the versions it replaces, and a signature from the same team as theirs.
 6. For other people: `script/release.sh` (archive → Developer ID export → notarize → staple →
    `dist/KoffeeLid-<version>.zip`). It needs a Developer ID Application certificate for the Wooflab team and a
    `notarytool` keychain profile:

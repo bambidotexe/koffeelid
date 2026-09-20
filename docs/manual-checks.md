@@ -124,7 +124,24 @@
 - [ ] Settings › General › "Quitter KoffeeLid" (red) → the app exits like the menu's Quit: the log gets `disarmed` then `clean termination`, `pmset -g | grep SleepDisabled` is 0 and the cup is gone
 - [ ] Settings › General › a refused "Ouvrir à la connexion" (an unsigned build) adds a row with macOS's message marked `Échec`, and the switch settles where the system is
 - [ ] Settings › Sound: picking a clip in the pop-up plays a preview that honours the forced volume
-- [ ] Settings › General › Updates: press "Rechercher les mises à jour" → a spinner and `Vérification`, the button disabled, then green `À jour` and the log line `update check: up to date`; with Wi-Fi off → orange `Vérification impossible : …` and `update check FAILED`; with a newer release published → blue `La version … est disponible` and the button becomes a blue "Mettre à jour"; pressing it → `Téléchargement`, then green `Téléchargé`, the DMG opens and a blue note under the group says to drag KoffeeLid to Applications
+- [ ] Settings › General › Updates: press "Rechercher les mises à jour" → a spinner and `Vérification`, the button disabled, then green `À jour` and the log line `update check: up to date`; with Wi-Fi off → orange `Vérification impossible : …` and `update check FAILED`
+- [ ] Ten seconds after a launch the log gets an `update check:` line nobody asked for; with Wi-Fi off it is `update check FAILED` and Settings shows no orange mark
+
+## Updates
+
+Walk these with a stand-in release (`docs/development.md` § Testing an update without publishing one) or a real newer one. `<App Support>/KoffeeLid/updates/install.log` is the helper's own account.
+
+- [ ] With a newer release, the automatic check posts "La version … est disponible" with a "Mettre à jour" button (hover the banner); Settings › General shows the blue mark and a blue "Mettre à jour" without having been asked
+- [ ] The notification's button, a click on the notification, and the Settings button all open the same "Mise à jour de logiciels" window, and a second press only brings it forward
+- [ ] The window: `Téléchargement : … sur …` with the bar moving, then `Préparation de la mise à jour`, then `Prête à être installée…` with "Installer et relancer" turning blue; the log has `update: downloaded`, `update: staged`, `update: ready to install`
+- [ ] "Annuler" and the close button stop the fetch: `update: cancelled`, and `updates/` holds no `.dmg` and no `staged`
+- [ ] A disk image that is not GitHub's (a wrong `digest` in the stand-in feed) → `Échec de la mise à jour : Le téléchargement est endommagé.` and "Réessayer"
+- [ ] A release signed by another team or ad-hoc → `… n’est pas signée par le même développeur.`; a release whose version is not newer → `… ne contient pas de version plus récente.`
+- [ ] "Installer et relancer" while off: the log gets `update: installing … ; quitting`, `clean termination`, then the new version's `launched`, `update: version … installed`, Settings opens on General with the new version, and `install.log` ends with `version … is running`; `updates/previous` is gone
+- [ ] The same while **armed with the lid open**: the log shows `disarmed` and the kernel flag cleared before `clean termination` (`pmset -g | grep SleepDisabled` is 0 between the two versions)
+- [ ] Armed, lid closed, no external display (through Screen Sharing): "Installer et relancer" adds the orange line "Ouvrez d’abord l’écran…" and the app keeps running; with an external display it installs
+- [ ] A release that cannot start (break its executable before building the image) → the previous version comes back by itself, Settings opens with orange `Échec de la mise à jour : La nouvelle version n’a pas démarré…`, and `install.log` has `did not start; putting the previous one back`
+- [ ] KoffeeLid run from a read-only folder → after the fetch the window offers "Ouvrir l’image disque" and the sentence about dragging it to Applications
 
 ## App icon
 - [ ] Finder shows the built `KoffeeLid.app` with the espresso cup: the system's rounded-square mask and

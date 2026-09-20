@@ -160,6 +160,37 @@ the desktop at fold 0.
   `lsappinfo info -app <bundle id>`), which has no public API. Reopen is therefore the one reliable "the user
   asked for the app" signal.
 
+## Updates: disk images, signatures, the helper
+
+- GitHub's anonymous `GET /repos/<owner>/<repo>/releases/latest` lists each asset with `size` and
+  `digest: "sha256:<hex>"`, and `browser_download_url` answers 302 to a 200 that carries `content-length`. A
+  repository that is private, or has no release, answers 404.
+- A file this app fetches itself is not quarantined (the bundle does not set `LSFileQuarantineEnabled`), so the
+  copy taken out of its disk image opens without a Gatekeeper prompt although no release is notarized.
+- `hdiutil attach <dmg> -nobrowse -readonly -noautoopen -mountpoint <folder>` mounts a release's one volume on a
+  folder of our choosing, so nothing of its output is parsed. On macOS 27 it still works and prints a deprecation
+  notice naming `diskutil image attach --readOnly --nobrowse --mountPoint <folder>`, which the stager falls back
+  on. `hdiutil detach <folder> -force` unmounts; `diskutil eject` is the fallback.
+- `FileManager.copyItem` out of the mounted image keeps the bundle's signature valid (measured against
+  `codesign --verify --deep --strict`).
+- `SecStaticCodeCheckValidity` with `kSecCSCheckAllArchitectures | kSecCSCheckNestedCode | kSecCSStrictValidate`
+  is that same check. The requirement `anchor apple generic and certificate leaf[subject.OU] = "<team>"` holds
+  for an Apple Development and for a Developer ID certificate of one team alike; a copy from another signer
+  fails with `errSecCSReqFailed`, a tampered one with `errSecCSBadResource`. `SecCodeCopySigningInformation`
+  gives the running app's team, and none for an ad-hoc build.
+- When a launchd job's main process exits, launchd kills whatever is left in the job's process group (measured:
+  a plain `posix_spawn` child of a job that exits is gone before it runs; a child spawned with
+  `POSIX_SPAWN_SETPGROUP` and group 0 runs on). Apps opened through LaunchServices are launchd jobs too.
+- `ps -axo comm=` prints each process's full executable path, which `grep -Fx` matches exactly: that is how the
+  helper sees the new version running without matching by name.
+- Moving a bundle is one `rename(2)` when source and destination are on the same volume, which is why the
+  update is unpacked under Application Support and refused when the app lives on another volume.
+- A notification's action button belongs to its `UNNotificationCategory`; with `.foreground` the click brings
+  the app forward. Both the button and a click on the notification reach
+  `userNotificationCenter(_:didReceive:withCompletionHandler:)`, the second as
+  `UNNotificationDefaultActionIdentifier`. A centre with no delegate shows nothing while its app is frontmost;
+  with one, `willPresent` decides per notification.
+
 ## Permissions and how each is reset
 
 | Grant | Store | Reset |

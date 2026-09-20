@@ -5,7 +5,7 @@ running with the lid closed. It can be armed by hand, for one close with a lid g
 Claude Code or a terminal command is working. While armed it darkens the built-in panel when the lid shuts,
 plays a sound, shows a closing-only "the desktop stays upright behind the glass" effect, and locks the screen
 when the lid reopens. A `koffeelid` command line, `koffeelid://` URLs and App Intents drive the same modes.
-English and French; a manual update check against GitHub releases (no auto-update), no licensing.
+English and French; it looks for a newer release on GitHub by itself and installs one on request; no licensing.
 
 This document is the authority on behaviour: what it says is what the app does today. It changes in the same
 commit as the code, an outdated rule is replaced rather than annotated, and a request that contradicts a rule
@@ -211,7 +211,8 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 - **Onboarding.** Four pages in a floating window: pitch, Permissions, "Arm while you work" (hooks), All set.
   Shown at first launch and from Settings › System › "Show Onboarding Again".
 - **Notifications.** Arm refused; disarmed by battery, thermal or external sleep; held awake after a charger
-  or display change; lock failed; lid sleep restoration pending or failed; sleep could not be re-enabled.
+  or display change; lock failed; lid sleep restoration pending or failed; sleep could not be re-enabled; a
+  newer release found by an automatic check, the only one with a button (§ Updates).
 - **CLI.** `koffeelid arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings |
   install-hooks | uninstall-hooks | shell-init zsh`. The arming verbs launch the app if needed and print the
   status line. `status` with the app not running prints `mode: off (KoffeeLid is not running)`. Exit codes:
@@ -257,26 +258,73 @@ preferences and reopens onboarding.
 
 ## Updates
 
+KoffeeLid looks for a newer release on GitHub on its own: once 10 s after launch, then a week after the last
+check that got an answer, whoever asked (`UpdateSchedule`). The question is put on a 30-minute tick and at every
+wake rather than on one week-long timer, so a Mac asleep on the date is asked as soon as it is awake. A check
+that could not reach GitHub is silent and tried again an hour later. Nothing is fetched or installed without a
+click.
+
+An automatic check that finds a strictly newer release shows it in Settings and posts one notification,
+"Version `<version>` is available", with an **Update** button; a later check's notification replaces it. The
+button, and a click on the notification itself, do what Update does in Settings. A notification left by an
+earlier run asks GitHub first, then opens the update window on the answer, or Settings when nothing is newer.
+
 Settings › General › Updates is two rows: the running version ("KoffeeLid `<version>`"), which carries the
-last answer as its mark, and one button. Nothing happens until the button is pressed: there is no check at
-launch, none on a timer and no retry after a failure. A press while a request is in flight starts nothing
-(`UpdatePanel`).
+last answer as its mark, and one button (`UpdatePanel`).
 
 | The moment | The version row's mark | The button |
 |---|---|---|
-| before the first check | none | Check for Updates |
-| asking GitHub's anonymous API for the latest release | a spinner, "Checking" | disabled |
-| nothing newer | green, "Up to date" | Check for Updates |
-| a strictly newer release | blue, "Version `<version>` is available" | **Update**, prominent and blue |
-| could not ask | orange, "Could not check: `<reason>`" | Check for Updates |
-| fetching | a spinner, "Downloading" | disabled |
-| fetched and opened | green, "Downloaded", and a note under the group: "Drag KoffeeLid to Applications, then quit and reopen it." | Update |
-| could not fetch | orange, "Update failed: `<reason>`" | Update, which is the retry |
+| before the first answer | none | Check for Updates |
+| asking GitHub's anonymous API because the button was pressed | a spinner, "Checking" | disabled |
+| nothing newer, whoever asked | green, "Up to date" | Check for Updates |
+| a strictly newer release, whoever asked | blue, "Version `<version>` is available" | **Update**, prominent and blue |
+| a press could not ask | orange, "Could not check: `<reason>`" | Check for Updates |
+| the last Install and Relaunch did not end with the new version running | orange, "Update failed: `<reason>`" | Check for Updates, and Update again once a check has found the release |
 
-Update fetches the release's DMG asset into `<Application Support>/KoffeeLid/updates/` (any older DMG there is
-removed first) and opens it with `NSWorkspace`, which mounts it and shows the volume with its Applications
-link. KoffeeLid never installs over itself: there is no background polling, and replacing the running app is
-left to the user dragging the new copy into Applications.
+An automatic check shows no spinner and its failure changes nothing here. A press while an automatic check is
+in flight adopts that check's answer instead of starting a second request.
+
+**The update window.** Update opens one small window titled "Software Update" and starts fetching at once: the
+app icon, "KoffeeLid `<version>`", one status line, a bar, Cancel and **Install and Relaunch**, which stays
+disabled until the update is ready. Pressing Update again, anywhere, shows that same window (`UpdateSession`).
+
+| Phase | The status line | The bar | The buttons |
+|---|---|---|---|
+| fetching | "Downloading: `<received>` of `<total>`"; "Downloading" when no total is known | follows the bytes | Cancel · Install and Relaunch, disabled |
+| making it ready | "Preparing the update" | indeterminate | the same |
+| ready | "Ready to install. KoffeeLid will quit and reopen." | full | Cancel · **Install and Relaunch** |
+| it cannot replace itself | "KoffeeLid cannot replace itself where it is installed. Open the disk image and drag KoffeeLid to Applications, then quit and reopen it." | none | Cancel · **Open Disk Image** |
+| installing | "Installing" | indeterminate | both disabled; the window does not close |
+| failed | "Update failed: `<reason>`" | none | Close · **Try Again**, which fetches again |
+
+Everything that can refuse an update happens while making it ready, with the app still running: the fetched
+file is held against the length and the SHA-256 GitHub states for the asset; the disk image is mounted
+read-only and hidden; the app in it that carries KoffeeLid's bundle identifier is copied to
+`<Application Support>/KoffeeLid/updates/staged/`; that copy must be strictly newer than the running version,
+ask for no newer macOS than this one, and carry a valid signature from the same team as the running app (a
+running app with no team, an ad-hoc build, only asks for a valid signature). KoffeeLid cannot replace itself
+when it does not run from an `.app`, runs translocated, cannot write to its folder or its bundle, or sits on
+another volume than its Application Support folder; the window then offers the disk image, which macOS mounts
+and shows with its Applications link. Cancel and the window's close button stop the fetch and delete what was
+fetched.
+
+**Install and Relaunch.** It is refused, with an orange line in the window, while KoffeeLid is armed with the
+lid closed and no external display: "Open the lid first. With the lid closed, the Mac goes to sleep when
+KoffeeLid quits." Otherwise KoffeeLid starts a helper (`UpdateInstallScript`, a shell script in a process group
+of its own) and quits the way the menu's Quit does: it disarms, clears the kernel flag and releases the sleep
+lock. The helper waits up to 20 s for the app to be gone and touches nothing before that; if the app is still
+there 25 s after the click, the window says "KoffeeLid did not quit. Close its open dialogs, then try again."
+and the update is still ready. Then it moves the installed bundle to `updates/previous/`, moves the new one
+into its place (a failed move puts the previous one back), writes the outcome, opens the app, and looks for
+the new executable among the running processes for 15 s, then once more 2 s later. Seen both times, the
+previous copy is deleted. Not seen, or not openable, the new copy is moved out, the previous one moved back and
+opened.
+
+The next launch reads the outcome and opens Settings on General: after an install with nothing to add (the
+version row reads the new version), after a failure with the orange mark and its reason, "The new version could
+not be put in place." or "The new version did not start, so the previous one was put back." The relaunched app
+starts like any launch: the manual mode is Off, and the auto level arms again by its own rule if work is
+running.
 
 ## What KoffeeLid does not do
 
@@ -288,6 +336,7 @@ left to the user dragging the new copy into Applications.
 - The hook binary never launches the app, never blocks a Claude Code turn and always exits 0 from the `hook`
   verb (only a malformed `job` command line, which the snippet never produces, exits 2).
 - It does not record prompts, tool input or output: the activity journal holds event names and identifiers only.
+- It does not fetch or install an update by itself: an automatic check only announces a release.
 
 ## Unconfirmed — ask the owner
 

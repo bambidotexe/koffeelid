@@ -104,7 +104,7 @@ symbol and ONE word, both in the state's colour, at the same size as everything 
 - The left text **names the thing** ("Accessibility permission", "macOS edge tiling"). Never "Status".
 - The word is a participle or an adjective, from this vocabulary: **Granted / Denied** (a permission),
   **Enabled / Disabled** (any switch of the OS or of another app, never On / Off, never Yes / No, never
-  "Not granted"), **Available / Missing**, **Valid / Invalid**, **Failed**, **Downloaded**. No ellipsis
+  "Not granted"), **Available / Missing**, **Valid / Invalid**, **Failed**. No ellipsis
   on a busy word: "Checking". A sentence is allowed only when the state **is** a message: an update's
   answer ("Version 1.2.0 is available"), an error's reason. It wraps, trailing aligned.
 - **Red or orange:** `.failure` is a refusal or an input that is wrong and blocks (a permission denied,
@@ -124,20 +124,42 @@ symbol and ONE word, both in the state's colour, at the same size as everything 
 
 ### The Updates group
 
-Two rows and nothing under them: `StatusRow("AppName 1.0.0", mark:)`, then **one** `ButtonRow`. It checks
-only when the button is pressed. No hint.
+Two rows and nothing under them: `StatusRow("AppName 1.0.0", mark:)`, then **one** `ButtonRow`. No hint. The
+app also checks on its own, shortly after launch and then once a week: what such a check finds shows here
+exactly as the answer to a press would, without a spinner, and what it could not find out stays silent. Update
+opens the update window, which is a window of its own: the fetch, its progress and "Install and Relaunch" are
+there, never in this group.
 
 | The moment | The version row's mark | The button |
 |---|---|---|
-| before the first check | none | Check for Updates |
-| asking | `.busy("Checking")` | disabled |
+| before the first answer | none | Check for Updates |
+| asking, because the button was pressed | `.busy("Checking")` | disabled |
 | nothing newer | `.good("Up to date")` | Check for Updates |
 | a newer release | `.info("Version 1.2.0 is available")` | **Update**, `.borderedProminent`, `.tint(.blue)` |
 | no release published | `.warning("No release published yet")` | Check for Updates |
-| could not ask | `.warning("Could not check: <reason>")` | Check for Updates |
-| fetching | `.busy("Downloading")` | disabled |
-| fetched and opened | `.good("Downloaded")`, plus the group's one note: "Drag AppName to Applications, then quit and reopen it." | Update |
-| could not fetch | `.warning("Update failed: <reason>")` | Update, which is the retry |
+| a press could not ask | `.warning("Could not check: <reason>")` | Check for Updates |
+| the last install did not end with the new version running | `.warning("Update failed: <reason>")` | Check for Updates, and Update again once a check has found the release |
+
+### The update window
+
+The same in every app. A window of its own, titled "Software Update", never a sheet and never a page: the app
+icon, then "AppName 1.2.0" in `.headline`, one status line in secondary, a linear bar, an orange warning line
+(the triangle, then the sentence) only while an install is refused, and two buttons at the trailing edge, the
+second being the window's one main action: `.borderedProminent`, `.tint(.blue)`, pressed by Return. It is as
+tall as what it says and keeps its top-left corner when that changes. Closing it is Cancel.
+
+| Phase | The status line | The bar | The buttons |
+|---|---|---|---|
+| fetching | "Downloading: 1.2 MB of 2.8 MB", or "Downloading" with no total | follows the bytes | Cancel · Install and Relaunch, disabled |
+| making it ready | "Preparing the update" | indeterminate | the same |
+| ready | "Ready to install. AppName will quit and reopen." | full | Cancel · **Install and Relaunch** |
+| the app cannot replace itself | "AppName cannot replace itself where it is installed. Open the disk image and drag AppName to Applications, then quit and reopen it." | none | Cancel · **Open Disk Image** |
+| installing | "Installing" | indeterminate | both disabled, and the window does not close |
+| failed | "Update failed: <reason>" | none | Close · **Try Again** |
+
+The words follow the ten rules below. Its numbers (460 wide, the icon at 64, 16 from icon to text, 10 between
+lines, 8 between buttons, 20 around) were chosen by the agent that built it, not fitted by the owner: they are
+the owner's to refit, in one app first and then in the other two.
 
 ## The words
 
@@ -229,7 +251,7 @@ never shows.
    `App/Resources/Localizable.xcstrings`, edited in place. The French follows the same ten rules. A status
    word has one French form, so the left text of its row is written to agree with it: Granted / Denied
    are "Accordée / Refusée" (the left text is "Autorisation …"), Enabled / Disabled "Activé / Désactivé",
-   Available / Missing "Disponible / Manquant", Failed "Échec", Downloaded "Téléchargé", Up to date
+   Available / Missing "Disponible / Manquant", Failed "Échec", Up to date
    "À jour", Checking "Vérification", Downloading "Téléchargement".
 5. A grant or a hook is one entry of `PermissionCatalog` or `HookCatalog`, which the onboarding reads too.
 6. `docs/functional.md` § User interface (the pages and their groups), § Settings and defaults (the
