@@ -88,3 +88,13 @@ version is whatever `script/version.sh`'s rule gave, one patch above the newest 
   the next launch from the activity journal, so a session that is still working arms the new copy at once.
 - **`/usr/local/bin/koffeelid`** is only written when `/usr/local/bin` is writable; otherwise the script
   prints the `sudo` command. Call the binary inside the bundle meanwhile.
+
+## Taking it off again
+
+There is one way, and it is not the Finder. **Settings › General › Uninstall** removes what KoffeeLid put
+outside its own bundle, moves the bundle to the Trash and quits. Dragging the bundle to the Trash removes
+the app and nothing else, and what is left goes on running against an app that is gone.
+
+The last removals belong to a detached helper that waits for the pid: anything taken away while the app is
+still up is written back as it exits. Never suggest removing the pieces by hand instead, and never suggest
+`launchctl disable` for the launch agent — it is permanent, and nothing but `launchctl enable` undoes it.

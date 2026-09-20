@@ -338,15 +338,14 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 ## Status
 
-- Version 0.0.1 everywhere it must agree (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`). Every tag
+- Version 0.1.2 everywhere it must agree (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`). Every tag
   and release has been deleted from GitHub: there is no published release, and the update check finds nothing
-  to offer. The tree carries the manual update check (Settings › Updates), the built-in-keyboard Fn rule with
-  its Input Monitoring row and the physical-key requirement, the arrow-key fix, the "Show in menu bar" switch,
-  "Quit KoffeeLid", the Icon Composer icon, the six-page Settings window with its macOS 15 target, and the
-  automatic update (weekly check, notification, update window, Install and Relaunch). Nothing is installed:
-  `/Applications/KoffeeLid.app`, the preferences, the caches, the Application Support folder, the launch agent,
-  the sudoers rule, the `/usr/local/bin` wrapper, the Claude Code hooks and the zsh snippet have all been
-  removed, and the TCC grants reset, so the next install meets the Mac a new user's would.
+  to offer, so the version rule leaves the tree free to sit above 0.0.1. The tree carries the manual update
+  check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
+  requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
+  Icon Composer icon, the six-page Settings window with its macOS 15 target, and the automatic update (weekly
+  check, notification, update window, Install and Relaunch). `/Applications/KoffeeLid.app` is installed at this
+  version, with the sudoers rule, the watchdog agent, the Claude Code hooks and the zsh snippet in place.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
 - `swift test` is green (353 distinct cases: 331 Core, 22 LidPlaneKit) and the Debug build warning-free at this
@@ -358,10 +357,11 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   the real helper, and end to end against a published GitHub release (check, fetch with its digest, unpacking,
   signature rule); KoffeeLid installing over itself, the notification and the update window have not been seen
   (`docs/manual-checks.md` § Updates). Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
-- There is no `/usr/local/bin/koffeelid` wrapper and no sudoers rule for the sleep lock: `script/install.sh`
-  writes the first when `/usr/local/bin` is writable and prints the one-liner for the second. Until the rule is
-  back, a charger or display change can sleep a closed armed Mac. Call the bundle binary meanwhile.
-- Auto-arm on activity is not set up on this Mac: the hooks and the zsh snippet were removed with the app, and
-  Settings › Hooks installs them again.
+- There is no `/usr/local/bin/koffeelid` wrapper: `/usr/local/bin` is root-owned here, so `script/install.sh`
+  prints the `sudo` one-liner instead of writing it. Call the bundle binary meanwhile. The sudoers rule for the
+  sleep lock **is** in place.
+- The uninstall (Settings › General › Uninstall) has been walked end to end on this Mac: it left no launch
+  agent, no sudoers rule, no hooks, no zsh block, no preferences and no Application Support folder, and the
+  Mac slept on a closed lid afterwards.
 - A Claude turn that dies when the Thunderbolt dock is unplugged is the dock's Ethernet going away, not a failed
   arm (`docs/pitfalls.md` § Working on this Mac).
