@@ -110,16 +110,19 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 ## Commands
 
 ```bash
+# ---- the two actions. A build of this app reaches a Mac by one of these and by nothing else. ----
+script/install.sh                                     # skill: install-locally. Production build → /Applications; leaves no .app or .dmg behind
+script/publish.sh                                     # skill: publish-release. The same, plus tag, push, GitHub release, and the tree moves on
+# -------------------------------------------------------------------------------------------------
+
 swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (342); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
 
 script/bootstrap.sh                                   # xcodegen generate (run after adding/removing App, Hook or Watchdog files)
-xcodebuild -project KoffeeLid.xcodeproj -scheme KoffeeLid -configuration Debug \
-  -derivedDataPath DerivedData build 2>&1 | grep -E 'error|warning:|BUILD'   # Debug app build
-script/build.sh [Release|Debug]                       # same, prints the .app path last
-script/install.sh                                     # Release build → /Applications/KoffeeLid.app; REFUSES while the app is armed (FORCE=1 overrides)
+script/build.sh                                       # Release build, prints the .app path last; Debug refuses without DEBUG_OK=1
+script/release.sh                                     # the notarized disk image on its own, publishing and installing nothing
 script/run.sh                                         # install + launch + tail the diagnostics log (never returns)
 
 "/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLid" status   # CLI: arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings | install-hooks | uninstall-hooks | shell-init zsh
@@ -133,9 +136,13 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
 - `KoffeeLid.xcodeproj`, `DerivedData/` and `.build/` are generated and git-ignored; edit `project.yml`, never
   the xcodeproj. If `xcodebuild` prints "Stale file … outside of the allowed root paths" or `swift test` fails
   on a module-cache path, the repo folder moved: `rm -rf DerivedData .build` and rebuild.
-- The version lives in three places that must agree: `App/Info.plist` `CFBundleShortVersionString` (bump
-  `CFBundleVersion` with it), `KoffeeLidCore.version` (`Sources/KoffeeLidCore/KoffeeLidCore.swift`) and its
-  assertion in `Tests/KoffeeLidCoreTests/SmokeTests.swift`; the README test badge is a static shields.io URL.
+- **The version lives in three places that must agree**, and `script/version.sh` is the only thing that writes
+  them: `App/Info.plist` `CFBundleShortVersionString` (with `CFBundleVersion` rising beside it),
+  `KoffeeLidCore.version` and its assertion in `Tests/KoffeeLidCoreTests/SmokeTests.swift`. **The tree is
+  always one patch ahead of the newest GitHub release**, so the copy on this Mac is newer than anything
+  published and is never offered an update that would replace it with something older. Publishing is the only
+  thing that moves the version: `script/publish.sh` releases the tree's version and then raises the tree again.
+  The README test badge is a static shields.io URL.
 - App targets only build with `xcodebuild` (App Intents metadata, String Catalog, asset catalog). `swift build`
   covers `Sources/` only.
 - Treat compiler warnings as failures; the tree is warning-free. A `warning:` line from
@@ -143,14 +150,11 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
   (`docs/pitfalls.md` § Working on this Mac). No linter is configured.
 - XCTest's summary line undercounts here; count the per-case `passed` lines
   (`swift test 2>&1 | grep -E "^Test Case '.*' passed" | sort -u | wc -l`).
-- A release: bump the three version locations, commit `build: release X.Y.Z`, `git tag -a vX.Y.Z -m "KoffeeLid
-  X.Y.Z"`, `script/release.sh` (sources `script/signing.env`; refuses early if the Developer ID Application
-  certificate or the `wooflab-notary` notarytool profile is missing; archives, exports with Developer ID,
-  verifies the export, zips and notarizes the app, staples it, calls `script/make-dmg.sh` to build the disk
-  image, signs and notarizes the image, staples it, asserts Gatekeeper accepts both, and prints the image's
-  path — it publishes nothing), `git push origin main vX.Y.Z`, `gh release create vX.Y.Z <image path> --title
-  "KoffeeLid X.Y.Z" --notes-file …`. The DMG is signed with the Wooflab team's Developer ID (`85F6AC5QZF`) and
-  notarized; it runs on any Mac.
+- A release is `script/publish.sh` and nothing else: it refuses on a dirty tree, an existing tag or a `HEAD`
+  that differs from `origin` before it builds anything, then builds the notarized image, tags, pushes, creates
+  the GitHub release, installs the same bundle in `/Applications`, and raises the tree to the next patch —
+  which it leaves uncommitted for the owner to see. `script/release.sh` underneath it makes the image alone.
+  The DMG is signed with the Wooflab team's Developer ID (`85F6AC5QZF`) and notarized; it runs on any Mac.
 
 ## Architecture in one screen
 
@@ -178,13 +182,30 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   `docs/pitfalls.md`.
 - **A request that conflicts with a written rule is a question, not a change.** Quote the rule, ask whether it
   is overruled, and only then implement. If the owner reaffirms the request, that is the answer: replace the rule.
-- **The installed app is the owner's daily driver.** `AppleClamshellCausesSleep = No` in `ioreg` usually
-  means it is armed — run `koffeelid status` before drawing conclusions. **Never quit or reinstall it without
-  checking `koffeelid status` first**: `script/install.sh` refuses while it is armed or auto-armed (`FORCE=1`
-  overrides); quitting an armed instance ends the owner's live session and, with the lid closed, may sleep the
-  Mac. Never send `off` while the lid is closed on an armed session. Restore the mode the owner was in
-  afterwards (`koffeelid caffeinate` / `arm`). Any other utility that sets the same kernel flag will fight the
-  arm; quit it before testing.
+- **A build of this app reaches a Mac in exactly two ways, and there is no third.** `script/install.sh`
+  (skill `install-locally`) builds the production bundle and puts it in `/Applications`; `script/publish.sh`
+  (skill `publish-release`) does the same and puts the disk image on GitHub. Both build the real thing —
+  Release, Developer ID, Hardened Runtime, notarized, stapled — so what runs on this Mac is what a stranger
+  would download. **Neither leaves an `.app` or a `.dmg` anywhere under the repository**, on any exit path,
+  including a failed one: a signed bundle in `build/` or `DerivedData/` is a complete application that
+  Spotlight indexes and the owner can launch by accident, giving a second instance with the same bundle
+  identifier, the same preferences and the same launch agent — two KoffeeLids fighting over the kernel
+  lid-sleep flag. `script/no-leftovers.sh` holds that rule; keep it holding.
+- **A Debug build is never installed, and never made without asking the owner first.** It exists only to read
+  something a Release build will not show. `script/build.sh Debug` refuses without `DEBUG_OK=1`; that guard is
+  there to make the decision deliberate, not to be worked around. If a Debug build would help, say why and
+  ask. Delete the bundle when done with it.
+- **The installed app is the owner's daily driver, and the lid decides what may be done to it.**
+  `AppleClamshellCausesSleep = No` in `ioreg` usually means it is armed — run `koffeelid status` before
+  drawing conclusions. **The lid being shut is the refusal, not the arm.** With the lid open, a Mac that stops
+  being held awake goes back to its idle timer; with the lid shut it can sleep there and then. So
+  `script/install.sh` refuses outright while `status` says `lid: closed`, with no override, and it checks
+  again after the build because the lid may have been shut during it. With the lid open it installs over any
+  arm and puts the manual mode back itself (`caffeinate` / `arm`), so the Mac is unarmed only for the seconds
+  between the quit and the relaunch — the build and the notarizing are already done by then. The auto level
+  needs no restoring: a launch while a session is working arms at once by itself. Never send `off` while the
+  lid is closed on an armed session. Any other utility that sets the same kernel flag will fight the arm;
+  quit it before testing.
 - **Any work on the Settings window starts with the `building-settings-pages` skill**
   (`.claude/skills/building-settings-pages/SKILL.md`): adding, moving, renaming or rewording a setting, a
   status, a group, a page or any sentence the window shows. It holds the window's structure, its numbers and

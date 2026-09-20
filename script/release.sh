@@ -13,6 +13,7 @@
 set -euo pipefail
 ROOT="${0:A:h:h}"
 source "$ROOT/script/signing.env"
+source "$ROOT/script/no-leftovers.sh"
 
 DIST="$ROOT/dist"
 ARCHIVE="$DIST/$APP_NAME.xcarchive"
@@ -38,6 +39,9 @@ xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 ||
 [ -d "$ROOT/$APP_NAME.xcodeproj" ] || "$ROOT/script/bootstrap.sh" >&2
 rm -rf "$ARCHIVE" "$EXPORT" "$DMG" "$ZIP"
 mkdir -p "$DIST"
+# A bundle exists under these for as long as the build runs; Spotlight must not offer it meanwhile.
+never_indexed "$DIST"
+never_indexed "$ROOT/DerivedData"
 
 echo "building ${APP_NAME} ${VERSION}…" >&2
 xcodebuild -project "$ROOT/$APP_NAME.xcodeproj" -scheme "$APP_NAME" -configuration Release \
@@ -114,5 +118,9 @@ case "$VERDICT" in
   *accepted*) ;;
   *) echo "Gatekeeper does not accept the app:" >&2; echo "$VERDICT" >&2; exit 1 ;;
 esac
+
+# Only the image survives. The archive and the exported bundle are launchable, so they go.
+rm -rf "$ARCHIVE" "$EXPORT"
+find "$ROOT/DerivedData" -name '*.app' -prune -exec rm -rf {} + 2>/dev/null || true
 
 echo "$DMG"

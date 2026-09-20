@@ -33,9 +33,7 @@
 swift test                                   # Core + LidPlaneKit unit tests, hermetic
 swift test --filter FoldTrackerTests         # one class; append /testName for one test
 script/bootstrap.sh                          # only when files were added or removed
-xcodebuild -project KoffeeLid.xcodeproj -scheme KoffeeLid -configuration Debug \
-  -derivedDataPath DerivedData build 2>&1 | grep -E 'error|warning:|BUILD'
-open -a "DerivedData/Build/Products/Debug/KoffeeLid.app"
+script/install.sh                            # the change, installed in /Applications and running
 tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"
 osascript -e 'tell application id "dev.rubens.koffeelid" to quit'
 ```
@@ -51,19 +49,42 @@ touches: architecture, macOS facts, pitfalls, the manual checklist) describe the
 warning check pass, the string catalog covers every new `L("…")` key, and the commit is per task. A request that
 contradicts a written rule is put to the owner before the code changes (`CLAUDE.md` § Changing behaviour).
 
-`script/install.sh` does a Release build into `/Applications/KoffeeLid.app`, quitting the running instance and
-its watchdog first. It **refuses unless `koffeelid status` says `mode: off` without `auto-armed`** (`FORCE=1`
-overrides), because quitting an armed app ends the user's session. It does not launch the app: run
-`open -a KoffeeLid` and check `status`. Cycle when the user is armed with the lid open:
-`"$BIN" off && script/install.sh && open -a KoffeeLid && "$BIN" caffeinate` (restore the mode they had, or
-nothing if they were Off). With a Claude Code session working, a fresh launch auto-arms at once (`launched`
-then `armed (activity, armed)`); a CLI `arm`/`caffeinate` afterwards takes that arm over as a manual one.
-`script/run.sh` installs, launches and tails the log. `script/build.sh [Release|Debug]` builds and prints the
-`.app` path.
+## The two actions
 
-A runtime smoke that is always safe: launch the Debug app with `KOFFEELID_DISABLE_ACTIVITY=1`, confirm
-`launched (pid …)` in the log, quit with the `osascript` line above, confirm `clean termination`. A Debug
-instance launched while the installed app runs exits at once (`duplicate-instance exit`).
+A build of this app reaches a Mac by one of two paths and by nothing else.
+
+| | | |
+|---|---|---|
+| `script/install.sh` | skill `install-locally` | The production bundle in `/Applications` |
+| `script/publish.sh` | skill `publish-release` | The same, plus the disk image on GitHub |
+
+Both build the real thing — Release, signed with the Wooflab Developer ID under the Hardened Runtime,
+notarized, stapled, wrapped in the disk image — and install the bundle from inside that image, so what runs
+here is what a stranger would download. Both take about five minutes, most of it Apple's notary service.
+
+**Neither leaves an `.app` or a `.dmg` anywhere under the repository**, on any exit path including a failed
+one. A signed bundle in `build/` or `DerivedData/` is a complete application: Spotlight indexes it and it runs
+beside the installed copy as a second instance with the same bundle identifier, preferences and launch agent,
+both driving the kernel lid-sleep flag. `script/no-leftovers.sh` holds that rule, and `script/release.sh`
+writes `.metadata_never_index` into the directories it builds through so Spotlight cannot offer a bundle even
+while the build is running.
+
+The version comes from `script/version.sh`: **the tree is always one patch ahead of the newest GitHub
+release**, so the installed copy is never offered an update that would replace it with something older.
+Publishing is the only thing that moves it.
+
+`script/install.sh` **refuses unless `koffeelid status` says `mode: off` without `auto-armed`** (`FORCE=1`
+overrides), because quitting an armed app ends the user's session and can sleep a closed Mac. It quits the app
+and its watchdog, installs, and launches. Cycle when the user is armed with the lid open:
+`"$BIN" off && script/install.sh && "$BIN" caffeinate` (restore the mode they had, or nothing if they were
+Off). With a Claude Code session working, a fresh launch auto-arms at once (`launched` then
+`armed (activity, armed)`); a CLI `arm`/`caffeinate` afterwards takes that arm over as a manual one.
+`script/run.sh` installs and tails the log.
+
+**A Debug build is never installed, and never made without the owner asking for one.** It exists only to read
+something a Release build will not show. `script/build.sh Debug` refuses without `DEBUG_OK=1`. A Debug
+instance launched while the installed app runs exits at once (`duplicate-instance exit`), and its bundle is
+deleted when it has served its purpose.
 
 ## Debugging
 
@@ -248,25 +269,29 @@ cp /tmp/AppIcon.iconset/icon_128x128@2x.png docs/assets/icon.png
 
 ## Release checklist
 
-1. `swift test` green, `xcodebuild` warning-free.
-2. Bump the version in `App/Info.plist` (`CFBundleShortVersionString`, `CFBundleVersion`),
-   `KoffeeLidCore.version` and `SmokeTests`; adjust the README test badge if the count changed.
+The release itself is one command, `script/publish.sh`. The list is what to have done before running it.
+
+1. `swift test` green, `xcodebuild` warning-free; adjust the README test badge if the count changed.
+2. The code and the documents describe the same app, and the commit is made and pushed. `script/publish.sh`
+   refuses on a dirty tree, on a tag that already exists, and on a `HEAD` that differs from `origin` — all
+   before it builds anything, because none of those is worth five minutes of notarizing to discover.
 3. `script/install.sh`, approve Login Items and grant Screen Recording if asked, quit and reopen.
 4. Walk `docs/manual-checks.md` with any other lid-sleep utility quit.
-5. `script/release.sh` (sources `script/signing.env`; refuses early without the Developer ID Application
-   certificate for the Wooflab team or the `wooflab-notary` notarytool profile in the keychain) archives,
-   exports with Developer ID, verifies the export, zips and notarizes the app, staples it, calls
-   `script/make-dmg.sh` to build and sign the disk image, notarizes and staples the image, asserts Gatekeeper
-   accepts both, and prints the image's path. It publishes nothing itself. One-time setup, by the Wooflab
-   team's Account Holder: the Developer ID Application certificate in the keychain, then
-   `xcrun notarytool store-credentials wooflab-notary --key <AuthKey_XXXX.p8> --key-id <KEY_ID> --issuer
-   <ISSUER_ID>`.
-6. Commit (`feat|fix|build|docs(scope): …`), `git tag -a vX.Y.Z -m "KoffeeLid X.Y.Z"`,
-   `git push origin main vX.Y.Z`, `gh release create vX.Y.Z <image path> --title "KoffeeLid X.Y.Z" --notes-file
-   …`. The installed copies update themselves from that release, which holds it to a contract: a tag that
-   parses as a version, one asset whose name ends in `.dmg` with `KoffeeLid.app` at the image's root, a
-   `CFBundleShortVersionString` strictly newer than the versions it replaces, and a signature from the same
-   team as theirs.
+5. `script/publish.sh`. It builds the notarized image, tags, pushes, creates the GitHub release with the image
+   attached, installs the same bundle in `/Applications`, and raises the tree to the next patch. **That last
+   change is left uncommitted on purpose**; commit it as `build(version): the tree moves to X.Y.Z`.
+
+The version is not chosen: `script/version.sh` holds the rule that the tree is one patch ahead of the newest
+release, so the tree's version *is* the one being published.
+
+The installed copies update themselves from that release, which holds it to a contract: a tag that parses as a
+version, one asset whose name ends in `.dmg` with `KoffeeLid.app` at the image's root, a
+`CFBundleShortVersionString` strictly newer than the versions it replaces, and a signature from the same team
+as theirs.
+
+One-time setup, by the Wooflab team's Account Holder, which `script/release.sh` refuses without: the Developer
+ID Application certificate in the keychain, and
+`xcrun notarytool store-credentials wooflab-notary --key <AuthKey_XXXX.p8> --key-id <KEY_ID> --issuer <ISSUER_ID>`.
 
 ## Known limitations
 
