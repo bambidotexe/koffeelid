@@ -179,6 +179,11 @@ sensor at 30 Hz and interpolated per frame. See `docs/architecture.md` and `docs
 - `docs/development.md`: build/install/debug loop, adding preferences, strings and controls
 - `docs/manual-checks.md`: hardware verification checklist
 
+## Support
+
+KoffeeLid is free and carries no ads. If it saves you trouble, you can leave a tip on
+[Ko-fi](https://ko-fi.com/bambidotexe).
+
 ## Notes
 
 - Personal build: English and French, no licensing.
