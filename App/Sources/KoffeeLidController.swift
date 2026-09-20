@@ -661,7 +661,10 @@ final class KoffeeLidController {
         if Self.run("/usr/bin/tccutil", ["reset", "ScreenCapture", Bundle.main.bundleIdentifier ?? "dev.rubens.koffeelid"]) == 0 { done.append("screen recording reset") }
         if Self.run("/usr/bin/tccutil", ["reset", "ListenEvent", Bundle.main.bundleIdentifier ?? "dev.rubens.koffeelid"]) == 0 { done.append("input monitoring reset") }
         if Self.resetNotificationGrant() { done.append("notifications reset") }
-        for url in [AppSupport.relaunchHistoryURL, AppSupport.brightnessRecoveryURL] { try? FileManager.default.removeItem(at: url) }
+        // The update's leftovers too: a note or an outcome kept past a reset would speak at the next launch.
+        for url in [AppSupport.relaunchHistoryURL, AppSupport.brightnessRecoveryURL, AppSupport.updateResumeURL, UpdateController.directory] {
+            try? FileManager.default.removeItem(at: url)
+        }
         if (HookInstaller.installedCount() ?? 0) > 0 { done.append(HookInstaller.uninstall().ok ? "claude code hooks removed" : "claude code hooks removal failed") }
         if HookInstaller.zshrcHasSnippet() { done.append(HookInstaller.removeFromZshrc().ok ? "zsh snippet removed" : "zsh snippet removal failed") }
         if let id = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: id); done.append("preferences cleared") }

@@ -18,11 +18,26 @@ final class UpdateInstallScriptTests: XCTestCase {
         try makeBundle(at: destination, marker: "old")
         try makeBundle(at: staged, marker: "new")
         try FileManager.default.createDirectory(at: backup.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try writeTool("open", "echo \"open $*\" >> \"$CALLS\"; exit ${OPEN_EXIT:-0}")
-        try writeTool("ps", "cat \"$PS_OUTPUT\" 2>/dev/null; exit 0")
+        try writeTool("open", """
+            echo "open $*" >> "$CALLS"
+            [ -n "${OPEN_READS_RESULT:-}" ] && /bin/mv "$OPEN_READS_RESULT" "$OPEN_READS_RESULT.read"
+            [ -n "${OPEN_LOCKS:-}" ] && /bin/chmod 555 "$OPEN_LOCKS"
+            exit ${OPEN_EXIT:-0}
+            """)
+        try writeTool("ps", """
+            case "$*" in *stat=*) exec /bin/ps "$@" ;; esac
+            if [ -n "${PS_ANSWERS:-}" ]; then
+                n=$(cat "$PS_ANSWERS.count" 2>/dev/null || echo 0); echo $((n + 1)) > "$PS_ANSWERS.count"
+                [ "$n" -ge "$PS_ANSWERS_LIMIT" ] && exit 0
+            fi
+            cat "$PS_OUTPUT" 2>/dev/null; exit 0
+            """)
         try writeTool("launchctl", "echo \"launchctl $*\" >> \"$CALLS\"; exit ${LAUNCHCTL_EXIT:-0}")
     }
-    override func tearDown() { try? FileManager.default.removeItem(at: root) }
+    override func tearDown() {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: backup.deletingLastPathComponent().path)
+        try? FileManager.default.removeItem(at: root)
+    }
 
     private func makeBundle(at url: URL, marker: String) throws {
         let macOS = url.appendingPathComponent("Contents/MacOS")
@@ -47,15 +62,20 @@ final class UpdateInstallScriptTests: XCTestCase {
         try p.run(); p.waitUntilExit()
         return p.processIdentifier
     }
-    private func plan(pid: Int32, service: String? = nil) -> UpdateInstallPlan {
+    private func plan(pid: Int32, service: String? = nil, settle: Int = 0) -> UpdateInstallPlan {
         UpdateInstallPlan(pid: pid, destination: destination, staged: staged, backup: backup, resultFile: resultFile, logFile: logFile,
-                          executableName: "Probe", version: "1.2.0", launchdService: service, quitWait: 1, launchWait: 1, settle: 0)
+                          executableName: "Probe", version: "1.2.0", launchdService: service, quitWait: 1, launchWait: 1, settle: settle)
     }
-    private func run(_ plan: UpdateInstallPlan, newVersionStarts: Bool, environment extra: [String: String] = [:]) throws {
+    /// The app is listed for the helper's first look and gone at the next: it started, then it was no longer there.
+    private var startsThenGoes: [String: String] {
+        ["PS_ANSWERS": root.appendingPathComponent("ps-answers").path, "PS_ANSWERS_LIMIT": "1"]
+    }
+    private func run(_ plan: UpdateInstallPlan, newVersionStarts: Bool, listedAs listed: String? = nil,
+                     environment extra: [String: String] = [:]) throws {
         let script = root.appendingPathComponent("install.sh")
         try UpdateInstallScript.text.write(to: script, atomically: true, encoding: .utf8)
-        try (newVersionStarts ? plan.destination.appendingPathComponent("Contents/MacOS/Probe").path + "\n" : "")
-            .write(to: processList, atomically: true, encoding: .utf8)
+        let line = listed ?? plan.destination.appendingPathComponent("Contents/MacOS/Probe").path
+        try (newVersionStarts ? line + "\n" : "").write(to: processList, atomically: true, encoding: .utf8)
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/sh")
         p.arguments = [script.path] + plan.arguments
@@ -107,6 +127,48 @@ final class UpdateInstallScriptTests: XCTestCase {
         XCTAssertEqual(result(), .failed(version: "1.2.0", reason: .launch))
     }
 
+    // MARK: A new version that is gone again two seconds later
+
+    func testAVersionThatReadTheOutcomeAndWasThenQuitStaysInstalled() throws {
+        try run(plan(pid: deadPid(), settle: 1), newVersionStarts: true,
+                environment: startsThenGoes.merging(["OPEN_READS_RESULT": resultFile.path]) { $1 })
+        XCTAssertEqual(marker(of: destination), "new", "its quit is the user's business, not a failed update")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: backup.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: resultFile.path + ".read"), "the helper tidies the mark it waited for")
+        XCTAssertEqual(recordedCalls(), ["open \(destination.path)"])
+    }
+    func testAVersionThatWentBeforeReadingTheOutcomeCrashedAndIsRolledBack() throws {
+        try run(plan(pid: deadPid(), settle: 1), newVersionStarts: true, environment: startsThenGoes)
+        XCTAssertEqual(marker(of: destination), "old")
+        XCTAssertEqual(result(), .failed(version: "1.2.0", reason: .launch))
+    }
+
+    // MARK: A roll-back that cannot be completed
+
+    func testAPreviousCopyThatCannotBePutBackIsSaidSoAndStaysWhereItIs() throws {
+        try run(plan(pid: deadPid()), newVersionStarts: false,
+                environment: ["OPEN_LOCKS": backup.deletingLastPathComponent().path])
+        XCTAssertEqual(marker(of: destination), "new", "nothing could move: what is there stays there")
+        XCTAssertEqual(marker(of: backup), "old")
+        XCTAssertEqual(result(), .failed(version: "1.2.0", reason: .stranded))
+    }
+
+    // MARK: A path that is not the one the system knows the app by
+
+    func testAnAppReachedThroughASymbolicLinkIsRecognisedByItsRealPath() throws {
+        let link = root.appendingPathComponent("Shortcut")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: destination.deletingLastPathComponent())
+        var plan = plan(pid: try deadPid())
+        plan.destination = link.appendingPathComponent("Probe.app")
+        // `ps` lists the path the kernel ran, with every link resolved.
+        let resolved = try XCTUnwrap(realpath(destination.path, nil))
+        defer { free(resolved) }
+        let real = String(cString: resolved)
+        try run(plan, newVersionStarts: true, listedAs: real + "/Contents/MacOS/Probe")
+        XCTAssertEqual(marker(of: destination), "new")
+        XCTAssertEqual(result(), .installed(version: "1.2.0"))
+    }
+
     // MARK: An app that runs as a launchd job
 
     func testAJobIsStartedThroughLaunchd() throws {
@@ -124,12 +186,19 @@ final class UpdateInstallScriptTests: XCTestCase {
     // MARK: The result line
 
     func testResultLinesRoundTrip() {
-        for value in [UpdateResult.installed(version: "1.2.0"), .failed(version: "1.2.0", reason: .replace), .failed(version: "1.2.0", reason: .launch)] {
+        for value in [UpdateResult.installed(version: "1.2.0"), .failed(version: "1.2.0", reason: .replace),
+                      .failed(version: "1.2.0", reason: .launch), .failed(version: "1.2.0", reason: .stranded)] {
             XCTAssertEqual(UpdateResult(line: value.line + "\n"), value)
         }
         XCTAssertNil(UpdateResult(line: ""))
         XCTAssertNil(UpdateResult(line: "installed"))
         XCTAssertNil(UpdateResult(line: "failed 1.2.0 weather"))
+    }
+    func testAnOutcomeIsOnlyNewsForTenMinutes() {
+        XCTAssertTrue(UpdateResult.isNews(age: 3))
+        XCTAssertTrue(UpdateResult.isNews(age: UpdateResult.shelfLife))
+        XCTAssertFalse(UpdateResult.isNews(age: UpdateResult.shelfLife + 1), "a line left behind days ago opens no window")
+        XCTAssertFalse(UpdateResult.isNews(age: -5), "a clock set back proves nothing")
     }
 
     // MARK: Paths with spaces

@@ -255,7 +255,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 
 Settings › System › "Reset KoffeeLid…" asks for confirmation, then disarms, removes the sudoers rule, unregisters the
 login items, resets Screen Recording, Input Monitoring and notifications, removes the hooks and the zsh block, clears the
-preferences and reopens onboarding.
+preferences and whatever an update left in Application Support, and reopens onboarding.
 
 ## Updates
 
@@ -313,17 +313,24 @@ fetched.
 lid closed and no external display: "Open the lid first. With the lid closed, the Mac goes to sleep when
 KoffeeLid quits." Otherwise KoffeeLid starts a helper (`UpdateInstallScript`, a shell script in a process group
 of its own) and quits the way the menu's Quit does: it disarms, clears the kernel flag and releases the sleep
-lock. The helper waits up to 20 s for the app to be gone and touches nothing before that; if the app is still
-there 25 s after the click, the window says "KoffeeLid did not quit. Close its open dialogs, then try again."
-and the update is still ready. Then it moves the installed bundle to `updates/previous/`, moves the new one
-into its place (a failed move puts the previous one back), writes the outcome, opens the app, and looks for
-the new executable among the running processes for 15 s, then once more 2 s later. Seen both times, the
-previous copy is deleted. Not seen, or not openable, the new copy is moved out, the previous one moved back and
-opened.
+lock. The helper touches nothing until the app is gone. If the app is still there 20 s after the click, it
+stops the helper, so that a quit that comes later is only ever a quit, and the window says "KoffeeLid did not
+quit. Close its open dialogs, then try again." with the update still ready; the helper's own limit, 30 s, only
+serves an app too hung to do that. Once the app is gone the helper moves the installed bundle to
+`updates/previous/`, moves the new one into its place (a failed move puts the previous one back), writes the
+outcome, opens the app, and looks for the new executable among the running processes for 15 s, by the path it
+was installed at or by the one the system knows that folder by. Seen, it looks once more 2 s later: still
+there, or gone after having read the outcome (the user quit it, which is their business), the previous copy is
+deleted. Never seen, not openable, or gone before it had read the outcome (it crashed on its way up), the new
+copy is moved out, the previous one moved back and opened. Nothing is ever deleted to make room: when the
+previous copy cannot be moved back it stays in `updates/previous/`, and the outcome says so.
 
-The next launch reads the outcome and opens Settings on General: after an install with nothing to add (the
-version row reads the new version), after a failure with the orange mark and its reason, "The new version could
-not be put in place." or "The new version did not start, so the previous one was put back." Quitting
+The next launch reads the outcome, leaves `result.read` in its place for the helper, and opens Settings on
+General: after an install with nothing to add (the version row reads the new version), after a failure with
+the orange mark and its reason, "The new version could not be put in place.", "The new version did not start,
+so the previous one was put back." or "The new version did not start and the previous one could not be put
+back. Download KoffeeLid again." An outcome older than 10 min was left behind by an install nobody is waiting
+on any more: it is logged and opens nothing. Quitting
 disarms, as every quit does, so the quit leaves a note of the manual mode that was on (`UpdateResume`; never a
 one-close gesture arm) and the new version goes back to that mode as it starts, through the same entry point
 and the same rails as an arm from the menu. The note is read once and removed; one older than 2 min (the Mac

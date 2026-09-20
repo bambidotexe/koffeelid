@@ -218,6 +218,27 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 - **What the code does.** The helper writes `installed` before `open` and overwrites it if it rolls back. The
   app never deletes `updates/previous/`: the helper may still need to put it back.
 
+### A new version that is gone two seconds later has crashed, or has been quit
+- **Symptom.** The update is rolled back, and the previous version comes back, because the user quit the new
+  one as soon as it appeared: the relaunch opens Settings, where "Quit KoffeeLid" is two groups down.
+- **What the code does.** The launch that reads the outcome renames it to `result.read`. Gone with that mark in
+  place, the version had started and its quit is the user's; gone without it, it crashed on its way up, and only
+  then is the previous one put back. `UpdateController.start()` runs last in `applicationDidFinishLaunching`,
+  so the mark means the launch got that far.
+
+### A helper that gives up while the app may still quit
+- **Why.** Two clocks, the helper's limit and the app's "did not quit" notice, leave a gap in which the app
+  quits with no helper left: nothing installed, nothing running, nothing said.
+- **What the code does.** One clock decides. After `UpdateInstallPlan.stallNotice` the app stops the helper
+  (`SIGTERM`; while the app runs the helper can only be in its wait, having touched nothing) and then says so.
+  The helper's own, longer limit serves only an app too hung to do that.
+
+### `ps` lists the path the kernel ran, not the one the app was installed at
+- **Why.** An app reached through a symbolic link (`/tmp` is one) runs under its resolved path.
+- **What the code does.** The helper looks for the executable under the installed path and under `pwd -P` of it;
+  missing a running version would roll back a good install. It also treats an exited, unreaped app (state `Z`
+  in `ps`) as gone: `kill -0` still answers for one.
+
 ### `diskutil eject <folder>` names the volume the folder sits on
 - **Why.** A plain folder's path resolves to its volume, which is the Mac's own.
 - **What the code does.** `UpdateStager` only detaches a folder whose device differs from its parent's.

@@ -28,11 +28,17 @@ enum UpdateInstaller {
         return nil
     }
 
-    /// Writes the helper next to the update and starts it on its own: it waits for this process to exit.
-    static func start(_ plan: UpdateInstallPlan, script: URL) throws {
+    /// Writes the helper next to the update and starts it on its own: it waits for this process to exit. The
+    /// helper's pid, for `stop`.
+    static func start(_ plan: UpdateInstallPlan, script: URL) throws -> Int32 {
         try UpdateInstallScript.text.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
-        try DetachedProcess.spawn(executable: "/bin/sh", arguments: [script.path] + plan.arguments,
-                                  environment: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"])
+        return try DetachedProcess.spawn(executable: "/bin/sh", arguments: [script.path] + plan.arguments,
+                                         environment: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"])
     }
+
+    /// Ends a helper that is still waiting for this app to quit. While the app runs the helper can be nowhere
+    /// else than in that wait, where it has touched nothing; and a child's pid is not given to another process
+    /// before its parent has gone.
+    static func stop(_ helper: Int32) { kill(helper, SIGTERM) }
 }

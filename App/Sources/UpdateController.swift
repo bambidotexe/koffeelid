@@ -44,6 +44,8 @@ final class UpdateController: ObservableObject {
     private var generation = 0
     private var diskImage: URL?
     private var stagedApp: URL?
+    /// The install helper, from the click on Install and Relaunch until this app quits or gives up on quitting.
+    private var helper: Int32?
     private var window: UpdateWindowController?
     /// One unpacking at a time: two would share the mount point and the `staged` folder, and a Cancel followed
     /// at once by Update starts a second while the first is still winding down.
@@ -72,11 +74,22 @@ final class UpdateController: ObservableObject {
         }
     }
 
+    /// The helper's one line. It is renamed rather than removed: the helper, which may still be watching this
+    /// launch, reads that mark as "the new version had started" if the app is gone again a moment later. A line
+    /// older than `UpdateResult.shelfLife` was left behind by an install nobody is waiting on any more.
     private func readLastInstall() {
+        let files = FileManager.default
+        let mark = UpdateResult.readMark(for: Self.resultFile)
+        try? files.removeItem(at: mark)
         let line = try? String(contentsOf: Self.resultFile, encoding: .utf8)
-        try? FileManager.default.removeItem(at: Self.resultFile)
+        let written = (try? files.attributesOfItem(atPath: Self.resultFile.path)[.modificationDate]) as? Date
+        try? files.moveItem(at: Self.resultFile, to: mark)
         sweep()
         guard let line else { return }
+        guard let written, UpdateResult.isNews(age: Date().timeIntervalSince(written)) else {
+            log.log("update: an install result left behind is ignored: \(line.trimmingCharacters(in: .whitespacesAndNewlines))")
+            return
+        }
         switch UpdateResult(line: line) {
         case .installed(let version):
             log.log("update: version \(version) installed")
@@ -309,7 +322,7 @@ final class UpdateController: ObservableObject {
                                      resultFile: Self.resultFile, logFile: Self.directory.appendingPathComponent("install.log"),
                                      executableName: Bundle.main.executableURL?.lastPathComponent ?? "KoffeeLid",
                                      version: current.release.version.displayString)
-        do { try UpdateInstaller.start(plan, script: Self.directory.appendingPathComponent("install.sh")) }
+        do { helper = try UpdateInstaller.start(plan, script: Self.directory.appendingPathComponent("install.sh")) }
         catch {
             log.log("update: the install helper could not be started: \(error)")
             session?.failed(Self.words(for: .replace))
@@ -317,12 +330,14 @@ final class UpdateController: ObservableObject {
         }
         _ = session?.install()
         log.log("update: installing \(plan.version); quitting")
-        // The helper gives up on a quit that takes longer than `quitWait`. Past that, the app that is still here
-        // says so itself, and what was prepared is still good.
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(plan.quitWait) + 5) { [weak self] in
+        // An app that is still here after `stallNotice` stops the helper before it says so, so that a quit
+        // that comes later is only ever a quit. What was prepared is still good.
+        DispatchQueue.main.asyncAfter(deadline: .now() + UpdateInstallPlan.stallNotice) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, self.session?.phase == .installing else { return }
-                self.log.log("update: the app did not quit; install abandoned")
+                if let helper = self.helper { UpdateInstaller.stop(helper) }
+                self.helper = nil
+                self.log.log("update: the app did not quit; helper stopped, install abandoned")
                 self.session?.installStalled()
             }
         }
@@ -337,6 +352,7 @@ final class UpdateController: ObservableObject {
         switch reason {
         case .replace: return L("The new version could not be put in place.")
         case .launch: return L("The new version did not start, so the previous one was put back.")
+        case .stranded: return L("The new version did not start and the previous one could not be put back. Download KoffeeLid again.")
         }
     }
 

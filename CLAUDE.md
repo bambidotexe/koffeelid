@@ -110,7 +110,7 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 ## Commands
 
 ```bash
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (337); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (342); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -321,7 +321,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   target, and the automatic update (weekly check, notification, update window, Install and Relaunch).
   `/Applications` runs a build older than this tree, without the automatic update: its first update is still by
   hand (`script/install.sh`, or the next release's DMG).
-- `swift test` is green (337 distinct cases: 315 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (342 distinct cases: 320 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-checks.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-checks.md` § Settings UI; the owner
   approved its look and wording in the running app), the dark-wake hold, the one-close hold, the late-display

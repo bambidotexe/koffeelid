@@ -299,7 +299,9 @@ The order of an install is what keeps a failure harmless. Everything that can re
 the image, the version, the signature, the folder's permissions) runs while the app is up and can say so; the
 helper is started before the quit and only acts once the pid is gone, so the app's own `shutdown()` has
 already disarmed, cleared the kernel flag and released the sleep lock, and the watchdog has seen a clean exit
-and stood down; after the quit there are two renames on one volume and a launch, each with its way back. A
+and stood down; an app that has not quit after `UpdateInstallPlan.stallNotice` stops the helper
+(`UpdateInstaller.stop`) before it says so, so no helper is ever left waiting for a quit that comes later;
+after the quit there are two renames on one volume and a launch, each with its way back. A
 fetch or an unpacking that ends after the session it belonged to is dropped by a generation counter.
 
 ## Persistence
@@ -315,7 +317,7 @@ fetch or an unpacking that ends after the session it belonged to is dropped by a
 | `activity.jsonl`, `activity.1.jsonl` | hook binary; rotated by the app | one JSON event per line, snake_case keys |
 | `diagnostics.log`, `diagnostics.1.log`, `diagnostics.lock` | app and watchdog (`DiagnosticFileWriter`, `flock`) | timestamped lines, rotated at 256 KB |
 | `update-resume` | app, at the quit an Install and Relaunch asked for | `<mode> <seconds since 1970>`; read once and removed at the next launch (`UpdateResume`) |
-| `updates/` | app, and the install helper once the app has quit | `KoffeeLid-<version>.dmg`, `staged/KoffeeLid.app`, `install.sh`, all three removed when a fetch starts, is cancelled, and at launch; `previous/KoffeeLid.app`, the helper's alone, which it deletes once the new version is seen running; `install.log`; `result`, one line, read and deleted at launch |
+| `updates/` | app, and the install helper once the app has quit | `KoffeeLid-<version>.dmg`, `staged/KoffeeLid.app`, `install.sh`, all three removed when a fetch starts, is cancelled, and at launch; `previous/KoffeeLid.app`, the helper's alone, which it deletes once the new version is seen running; `install.log`; `result`, one line (`UpdateResult`), which the launch that reads it renames to `result.read` for the helper to see, the next launch or the helper removing that |
 
 UserDefaults domain `dev.rubens.koffeelid`: the keys and defaults in `docs/functional.md` § Settings and
 defaults, registered in `Preferences.init`. `effectParameters` is a JSON `EffectParameters`; a stored value
