@@ -47,8 +47,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Opening KoffeeLid again (Finder, Spotlight, `open -b`) has nothing else to show: Settings is the window.
     /// A cold launch gets no reopen (and none from the login item either, `docs/macOS.md`), so it stays quiet.
+    /// The one open request that is nobody's is the update helper's, and an open request outlives the process
+    /// it was sent to: while an install's outcome is still unread, this launch is that install's.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        if !hasVisibleWindows { showSettings() }
+        if !hasVisibleWindows, !UpdateController.installOutcomeIsWaiting { showSettings() }
         return true
     }
 

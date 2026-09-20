@@ -31,6 +31,15 @@ final class UpdateController: ObservableObject {
     static let directory = AppSupport.directory.appendingPathComponent("updates", isDirectory: true)
     private static var resultFile: URL { directory.appendingPathComponent("result") }
 
+    /// Whether an install has left an outcome this launch has not read yet. The launch that follows an
+    /// install is the helper's doing, not a person's, so it opens the window that says how it ended and
+    /// nothing else. Read without touching anything: `readLastInstall` is what consumes it.
+    static var installOutcomeIsWaiting: Bool {
+        guard let written = (try? FileManager.default.attributesOfItem(atPath: resultFile.path)[.modificationDate]) as? Date
+        else { return false }
+        return UpdateResult.isNews(age: Date().timeIntervalSince(written))
+    }
+
     private let log = DiagnosticLog.shared
     private let checker = UpdateChecker()
     private var schedule = UpdateSchedule()

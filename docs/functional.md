@@ -175,7 +175,8 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 - **Opening the app.** KoffeeLid has no Dock icon. Opening it again from Finder, Spotlight, the Applications
   folder or `open -b dev.rubens.koffeelid` while it runs opens Settings — the way back in when the menu-bar
   cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,
-  from the CLI) opens nothing.
+  from the CLI) opens nothing, and neither does an open request that arrives while an install's outcome is
+  still unread: that one is the update helper's, not a person's (§ Updates).
 - **Settings.** One window with six pages, picked from a toolbar that draws each page's symbol above its
   title; the window's title is the shown page's. It is 640 pt wide and as tall as the shown page: it resizes
   around its top-left corner, animated, on a page switch and whenever a page gains or loses a line, never past
