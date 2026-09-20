@@ -125,7 +125,13 @@ and offers to set up the Claude Code hooks and the zsh snippet.
 
 After that KoffeeLid keeps itself up to date. It looks for a newer release when it starts and once a week, and
 tells you with a notification. Click Update, there or in Settings › General, and a small window fetches the
-release; Install and Relaunch then swaps the app and reopens it. Nothing is fetched or installed without a click.
+release and checks it while the app runs; Install and Relaunch then swaps the app, reopens it and says how it
+went. Nothing is fetched or installed without a click. An update never leaves a closed Mac armed behind a dead
+app: the install is refused while quitting would put the Mac to sleep, and the new version goes back to the
+mode that was on.
+
+Settings › General › Uninstall takes KoffeeLid off the Mac again: the sleep lock, what starts it at login, what
+it added to Claude Code and to the shell, its settings and its logs, and then the app itself.
 
 Releases are signed with the Wooflab team's Developer ID and notarized, so they open on any Mac without a
 Gatekeeper warning.
