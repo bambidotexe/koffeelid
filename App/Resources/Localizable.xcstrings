@@ -2731,16 +2731,6 @@
         }
       }
     },
-    "The sleep lock could not be released. Run `sudo pmset disablesleep 0` in Terminal.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Le verrou de veille n’a pas pu être relâché. Lancez `sudo pmset disablesleep 0` dans Terminal."
-          }
-        }
-      }
-    },
     "The Claude Code hooks could not be removed: %@": {
       "localizations": {
         "fr": {
@@ -2777,6 +2767,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ces fichiers n’ont pas pu être retirés : %@ (%@)"
+          }
+        }
+      }
+    },
+    "The Mac is still held awake. Run `sudo pmset disablesleep 0` in Terminal.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le Mac est toujours empêché de se mettre en veille. Lancez `sudo pmset disablesleep 0` dans Terminal."
+          }
+        }
+      }
+    },
+    "The Mac is still set not to sleep when the lid shuts. Restart the Mac: that always puts it back.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le Mac est toujours réglé pour ne pas se mettre en veille quand on rabat l’écran. Redémarrez le Mac : cela le remet toujours en place."
           }
         }
       }

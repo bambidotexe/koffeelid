@@ -266,8 +266,12 @@ the Claude Code hooks calling a binary that is not there once per event for ever
 
 "Uninstall KoffeeLid" asks for confirmation, then, in this order:
 
-1. disarms, so the kernel flag is clear before anything else moves;
-2. releases the sleep lock, while the sudoers rule that releases it still exists;
+1. disarms, so the kernel lid-sleep flag is clear, the assertions are released and the brightness is back
+   before anything else moves;
+2. releases the sleep lock, while the sudoers rule that releases it still exists, and whether or not this
+   instance is the one that engaged it: `pmset disablesleep 1` survives the process that set it and a
+   reboot, so a lock left behind by a crashed instance goes here or not at all. A kernel flag that could
+   not be cleared is reported, with the one thing that always puts it back, which is a restart;
 3. resets the Screen Recording, Input Monitoring and notification grants, while the bundle they name is still where
    they name it (`tccutil reset` against a bundle identifier with no bundle behind it fails, and nothing puts that
    right afterwards);

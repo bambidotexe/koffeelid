@@ -696,8 +696,18 @@ final class KoffeeLidController {
 
         // Straight to disarm, not through setMode: Off from the menu is ignored while auto-armed.
         if isArmed { disarm(reason: "uninstall"); done.append("disarmed") }
-        if sleepLock.engaged && !sleepLock.release() { failed.append(L("The sleep lock could not be released. Run `sudo pmset disablesleep 0` in Terminal.")) }
+        // Unconditionally, not only when this instance holds it: `pmset disablesleep 1` outlives the
+        // process that set it and survives a reboot, so a lock an earlier instance died holding has to go
+        // now, while the rule that releases it is still there. Sending 0 at an unlocked Mac does nothing.
+        if sleepLock.isAvailable {
+            if sleepLock.release() { done.append("sleep lock released") }
+            else { failed.append(L("The Mac is still held awake. Run `sudo pmset disablesleep 0` in Terminal.")) }
+        }
         try? FileManager.default.removeItem(at: AppSupport.sleepLockMarkerURL)
+        // The one thing an uninstall can leave genuinely wrong: the kernel's lid-sleep bit still set, so a
+        // closed Mac would not sleep and nothing would be left to clear it. `disarm` retries on a timer
+        // that will not outlive this quit, so the user is told instead.
+        if flagClearPending { failed.append(L("The Mac is still set not to sleep when the lid shuts. Restart the Mac: that always puts it back.")) }
 
         if Self.run("/usr/bin/tccutil", ["reset", "ScreenCapture", bundleID]) == 0 { done.append("screen recording reset") }
         if Self.run("/usr/bin/tccutil", ["reset", "ListenEvent", bundleID]) == 0 { done.append("input monitoring reset") }
