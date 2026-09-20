@@ -1,4 +1,4 @@
 /// Pure logic shared by the KoffeeLid app and its watchdog. No AppKit here.
 public enum KoffeeLidCore {
-    public static let version = "0.0.1"
+    public static let version = "0.1.0"
 }
