@@ -28,7 +28,7 @@ final class UpdateInstallScriptTests: XCTestCase {
             case "$*" in *stat=*) exec /bin/ps "$@" ;; esac
             if [ -n "${PS_ANSWERS:-}" ]; then
                 n=$(cat "$PS_ANSWERS.count" 2>/dev/null || echo 0); echo $((n + 1)) > "$PS_ANSWERS.count"
-                [ "$n" -ge "$PS_ANSWERS_LIMIT" ] && exit 0
+                if [ "$n" -ge "$PS_ANSWERS_LIMIT" ] && { [ -z "${PS_ANSWERS_RESUME:-}" ] || [ "$n" -lt "$PS_ANSWERS_RESUME" ]; }; then exit 0; fi
             fi
             cat "$PS_OUTPUT" 2>/dev/null; exit 0
             """)
@@ -69,6 +69,10 @@ final class UpdateInstallScriptTests: XCTestCase {
     /// The app is listed for the helper's first look and gone at the next: it started, then it was no longer there.
     private var startsThenGoes: [String: String] {
         ["PS_ANSWERS": root.appendingPathComponent("ps-answers").path, "PS_ANSWERS_LIMIT": "1"]
+    }
+    /// The same, but listed again from the `resume`-th look on: it started, went, and came back.
+    private func startsGoesAndComesBack(resume: Int) -> [String: String] {
+        startsThenGoes.merging(["PS_ANSWERS_RESUME": String(resume)]) { $1 }
     }
     private func run(_ plan: UpdateInstallPlan, newVersionStarts: Bool, listedAs listed: String? = nil,
                      environment extra: [String: String] = [:]) throws {
@@ -141,6 +145,14 @@ final class UpdateInstallScriptTests: XCTestCase {
         try run(plan(pid: deadPid(), settle: 1), newVersionStarts: true, environment: startsThenGoes)
         XCTAssertEqual(marker(of: destination), "old")
         XCTAssertEqual(result(), .failed(version: "1.2.0", reason: .launch))
+    }
+    /// An app that bootstraps a launchd job quits so that the job's own copy can take its place, and for that
+    /// moment nothing is running. The second look is what tells that apart from a crash.
+    func testAVersionThatIsGoneWhileItChangesHandsStaysInstalled() throws {
+        try run(plan(pid: deadPid(), settle: 1), newVersionStarts: true, environment: startsGoesAndComesBack(resume: 3))
+        XCTAssertEqual(marker(of: destination), "new")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: backup.path))
+        XCTAssertEqual(result(), .installed(version: "1.2.0"))
     }
 
     // MARK: A roll-back that cannot be completed

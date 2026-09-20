@@ -74,37 +74,74 @@ struct UpdateView: View {
 
     var body: some View {
         if let session = controller.session {
-            HStack(alignment: .top, spacing: 16) {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .interpolation(.high)
-                    .frame(width: 64, height: 64)
-                VStack(alignment: .leading, spacing: 10) {
-                    // The app's name and version are not localized.
-                    Text("KoffeeLid \(session.release.version.displayString)")
-                        .font(.headline)
-                    Text(status(of: session))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if showsBar(session) { bar(session) }
-                    if let warning = warning(session) {
-                        HStack(alignment: .firstTextBaseline, spacing: 5) {
-                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                            Text(warning).fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    HStack(spacing: 8) {
-                        Spacer()
-                        secondaryButton(session)
-                        primaryButton(session)
-                    }
-                    .padding(.top, 4)
-                }
+            // The app's name and version are not localized.
+            shell(title: "KoffeeLid \(session.release.version.displayString)", status: status(of: session),
+                  fraction: session.fraction, showsBar: showsBar(session), warning: warning(session)) {
+                secondaryButton(session)
+                primaryButton(session)
             }
-            .padding(20)
-            .frame(width: UpdateWindowController.width, alignment: .leading)
+        } else if let outcome = controller.outcome {
+            shell(title: title(of: outcome), status: status(of: outcome), fraction: nil, showsBar: false, warning: nil) {
+                Button(button(for: outcome)) { controller.dismissOutcome() }.prominent()
+            }
         } else {
             Color.clear.frame(width: UpdateWindowController.width, height: 1)
+        }
+    }
+
+    /// The window's one shape, whether it is fetching a release or saying how the last install ended.
+    private func shell(title: String, status: String, fraction: Double?, showsBar: Bool, warning: String?,
+                       @ViewBuilder buttons: () -> some View) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 64, height: 64)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(title).font(.headline)
+                Text(status)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if showsBar { bar(fraction) }
+                if let warning {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Text(warning).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                HStack(spacing: 8) {
+                    Spacer()
+                    buttons()
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding(20)
+        .frame(width: UpdateWindowController.width, alignment: .leading)
+    }
+
+    // MARK: How the last install ended
+
+    /// The version that now runs: the new one when it was installed, the one that was kept when it was not.
+    private func title(of outcome: UpdateResult) -> String {
+        switch outcome {
+        case .installed(let version): "KoffeeLid \(version)"
+        case .failed: "KoffeeLid \(KoffeeLidCore.version)"
+        }
+    }
+
+    private func status(of outcome: UpdateResult) -> String {
+        switch outcome {
+        case .installed: L("The update is installed. KoffeeLid is running the new version.")
+        case .failed(let version, let reason):
+            String(format: L("Version %@ was not installed. %@"), version, UpdateController.words(for: reason))
+        }
+    }
+
+    private func button(for outcome: UpdateResult) -> String {
+        switch outcome {
+        case .installed: L("Done")
+        case .failed: L("Close")
         }
     }
 
@@ -135,8 +172,8 @@ struct UpdateView: View {
         }
     }
 
-    @ViewBuilder private func bar(_ session: UpdateSession) -> some View {
-        if let fraction = session.fraction {
+    @ViewBuilder private func bar(_ fraction: Double?) -> some View {
+        if let fraction {
             ProgressView(value: fraction)
         } else {
             ProgressView().progressViewStyle(.linear)

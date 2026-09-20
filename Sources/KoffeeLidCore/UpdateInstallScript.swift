@@ -190,8 +190,16 @@ public enum UpdateInstallScript {
         if [ "$seen" -eq 1 ] && [ "$settle" -gt 0 ]; then
             /bin/sleep "$settle"
             # Gone again already. A version that had read the outcome had started: its quit is the user's
-            # business. One that had not has crashed on its way up.
-            if ! running && [ ! -e "$read_mark" ]; then seen=0; fi
+            # business. One that had not is either on its way back — an app that bootstraps a launchd job
+            # quits so that the job's own copy can take its place, and nothing runs in between — or it
+            # crashed on its way up. The second look lasts as long as the first before it is believed.
+            if ! running && [ ! -e "$read_mark" ]; then
+                seen=0; n=0
+                while [ "$n" -lt "$ticks" ]; do
+                    if running || [ -e "$read_mark" ]; then seen=1; break; fi
+                    n=$((n + 1)); /bin/sleep 0.2
+                done
+            fi
         fi
     fi
     if [ "$seen" -eq 1 ]; then

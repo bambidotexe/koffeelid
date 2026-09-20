@@ -25,8 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         startUpdates()
     }
 
-    /// After the coordinator: a launch that follows an Install and Relaunch opens Settings, and the install is
-    /// refused while quitting would put the Mac to sleep.
+    /// After the coordinator: a launch that follows an Install and Relaunch says in the update window how it
+    /// ended, and the install is refused while quitting would put the Mac to sleep.
     @MainActor private func startUpdates() {
         let updates = UpdateController.shared
         updates.onShowSettings = { [weak self] in self?.showSettings() }

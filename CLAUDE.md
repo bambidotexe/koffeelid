@@ -113,10 +113,10 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 ```bash
 # ---- the two actions. A build of this app reaches a Mac by one of these and by nothing else. ----
 script/install.sh                                     # skill: install-locally. Production build → /Applications; leaves no .app or .dmg behind
-script/publish.sh                                     # skill: publish-release. The same, plus tag, push, GitHub release, and the tree moves on
+script/publish.sh [--no-install]                      # skill: publish-release. The same, plus tag, push, GitHub release, and the tree moves on
 # -------------------------------------------------------------------------------------------------
 
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (353); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (354); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -348,15 +348,15 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   version, with the sudoers rule, the watchdog agent, the Claude Code hooks and the zsh snippet in place.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
-- `swift test` is green (353 distinct cases: 331 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (354 distinct cases: 332 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-checks.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-checks.md` § Settings UI; the owner
   approved its look and wording in the running app), the dark-wake hold, the one-close hold, the late-display
   reopen lock, the arrow-key check, the built-in-keyboard Fn rule, and most of the auto-arm section. The update
   feature has been run through its unit tests, through a real install and a real roll-back of a stand-in app by
   the real helper, and end to end against a published GitHub release (check, fetch with its digest, unpacking,
-  signature rule); KoffeeLid installing over itself, the notification and the update window have not been seen
-  (`docs/manual-checks.md` § Updates). Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
+  signature rule); KoffeeLid installing over itself, the notification, the update window and the window that says how an
+  install ended have not been seen (`docs/manual-checks.md` § Updates). Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
 - There is no `/usr/local/bin/koffeelid` wrapper: `/usr/local/bin` is root-owned here, so `script/install.sh`
   prints the `sudo` one-liner instead of writing it. Call the bundle binary meanwhile. The sudoers rule for the
   sleep lock **is** in place.

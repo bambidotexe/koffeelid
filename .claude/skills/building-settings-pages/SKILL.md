@@ -157,6 +157,15 @@ tall as what it says and keeps its top-left corner when that changes. Closing it
 | installing | "Installing" | indeterminate | both disabled, and the window does not close |
 | failed | "Update failed: <reason>" | none | Close · **Try Again** |
 
+The same window is also the last word. The launch that follows an Install and Relaunch opens it on the outcome
+the install left behind, and **nothing else opens**: a launch the user did not ask for shows no Settings window.
+The heading is the version that is now running.
+
+| The launch after an install | The status line | The buttons |
+|---|---|---|
+| it worked | "The update is installed. AppName is running the new version." | **Done** |
+| it did not | "Version 1.2.0 was not installed. <reason>", and Settings › Updates carries the same reason | **Close** |
+
 The words follow the ten rules below. Its numbers (460 wide, the icon at 64, 16 from icon to text, 10 between
 lines, 8 between buttons, 20 around) were chosen by the agent that built it, not fitted by the owner: they are
 the owner's to refit, in one app first and then in the other two.

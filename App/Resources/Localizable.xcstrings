@@ -541,6 +541,36 @@
         }
       }
     },
+    "Done": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminé"
+          }
+        }
+      }
+    },
+    "The update is installed. KoffeeLid is running the new version.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La mise à jour est installée. KoffeeLid utilise la nouvelle version."
+          }
+        }
+      }
+    },
+    "Version %@ was not installed. %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La version %@ n’a pas été installée. %@"
+          }
+        }
+      }
+    },
     "Close the MacBook and walk away: Claude Code, builds, servers and downloads keep running on a dark, silent display. Open the lid and your Mac locks.": {
       "localizations": {
         "fr": {

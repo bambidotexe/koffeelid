@@ -17,6 +17,8 @@ final class UpdateController: ObservableObject {
     @Published private(set) var session: UpdateSession?
     /// Why the last click on Install and Relaunch was refused, shown in the window until the next click.
     @Published private(set) var refusal: String?
+    /// How the last Install and Relaunch ended, from this launch until the user closes the window that says so.
+    @Published private(set) var outcome: UpdateResult?
 
     var onShowSettings: (() -> Void)?
     /// Whether another window still needs the app active once the update window goes away.
@@ -93,11 +95,11 @@ final class UpdateController: ObservableObject {
         switch UpdateResult(line: line) {
         case .installed(let version):
             log.log("update: version \(version) installed")
-            onShowSettings?()
+            present(.installed(version: version))
         case .failed(let version, let reason):
             log.log("update: version \(version) NOT installed (\(reason.rawValue)); still \(KoffeeLidCore.version)")
             panel.installFailed(Self.words(for: reason))
-            onShowSettings?()
+            present(.failed(version: version, reason: reason))
         case nil:
             log.log("update: unreadable install result: \(line.trimmingCharacters(in: .whitespacesAndNewlines))")
         }
@@ -170,6 +172,7 @@ final class UpdateController: ObservableObject {
         if session == nil {
             session = UpdateSession(release: release)
             refusal = nil
+            outcome = nil
             startDownload(release)
         }
         showWindow()
@@ -178,6 +181,19 @@ final class UpdateController: ObservableObject {
     private func showWindow() {
         if window == nil { window = UpdateWindowController(controller: self) }
         window?.show()
+    }
+
+    /// The window that asked for the update says how it ended, at the launch that follows it. It is the whole
+    /// news: no other window opens behind it, and the app is otherwise back exactly as it was.
+    private func present(_ outcome: UpdateResult) {
+        self.outcome = outcome
+        showWindow()
+    }
+
+    /// The button on that window.
+    func dismissOutcome() {
+        outcome = nil
+        window?.close()
     }
 
     private func startDownload(_ release: LatestRelease) {
@@ -268,6 +284,7 @@ final class UpdateController: ObservableObject {
             endSession(sweeping: true)
             log.log("update: cancelled")
         }
+        outcome = nil
         if !othersNeedUsActive() { NSApp.deactivate() }
     }
 

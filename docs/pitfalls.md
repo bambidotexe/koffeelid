@@ -220,10 +220,12 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 
 ### A new version that is gone two seconds later has crashed, or has been quit
 - **Symptom.** The update is rolled back, and the previous version comes back, because the user quit the new
-  one as soon as it appeared: the relaunch opens Settings, where "Quit KoffeeLid" is two groups down.
+  one as soon as it appeared: the relaunch shows the update window saying the install worked, with a Done
+  button and the menu bar a click away.
 - **What the code does.** The launch that reads the outcome renames it to `result.read`. Gone with that mark in
-  place, the version had started and its quit is the user's; gone without it, it crashed on its way up, and only
-  then is the previous one put back. `UpdateController.start()` runs last in `applicationDidFinishLaunching`,
+  place, the version had started and its quit is the user's; gone without it, the helper looks again for as long
+  as it first looked (an app changing hands with launchd is gone for that moment), and only if it is still
+  nowhere is the previous one put back. `UpdateController.start()` runs last in `applicationDidFinishLaunching`,
   so the mark means the launch got that far.
 
 ### A helper that gives up while the app may still quit

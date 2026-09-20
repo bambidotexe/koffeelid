@@ -359,16 +359,21 @@ serves an app too hung to do that. Once the app is gone the helper moves the ins
 outcome, opens the app, and looks for the new executable among the running processes for 15 s, by the path it
 was installed at or by the one the system knows that folder by. Seen, it looks once more 2 s later: still
 there, or gone after having read the outcome (the user quit it, which is their business), the previous copy is
-deleted. Never seen, not openable, or gone before it had read the outcome (it crashed on its way up), the new
+deleted. Gone without that mark it is looked for again, for as long as the first look lasted, because an app
+that hands itself to launchd quits so that the job's own copy can take its place and nothing runs in between.
+Never seen, not openable, or still gone at the end of that second look (it crashed on its way up), the new
 copy is moved out, the previous one moved back and opened. Nothing is ever deleted to make room: when the
 previous copy cannot be moved back it stays in `updates/previous/`, and the outcome says so.
 
-The next launch reads the outcome, leaves `result.read` in its place for the helper, and opens Settings on
-General: after an install with nothing to add (the version row reads the new version), after a failure with
-the orange mark and its reason, "The new version could not be put in place.", "The new version did not start,
-so the previous one was put back." or "The new version did not start and the previous one could not be put
-back. Download KoffeeLid again." An outcome older than 10 min was left behind by an install nobody is waiting
-on any more: it is logged and opens nothing. Quitting
+The next launch reads the outcome, leaves `result.read` in its place for the helper, and says how it ended in
+the update window, which is the whole news: after an install, "KoffeeLid 1.0.0" and "The update is installed.
+KoffeeLid is running the new version." with one button, Done; after a failure, the version that is still
+running and "Version 1.0.0 was not installed." followed by the reason, with one button, Close, and the Updates
+group of Settings carries the same reason as its orange mark. **Nothing else opens**: Settings is not shown
+behind it, and the launch is otherwise the launch it would have been. The three reasons are "The new version
+could not be put in place.", "The new version did not start, so the previous one was put back." and "The new
+version did not start and the previous one could not be put back. Download KoffeeLid again." An outcome older
+than 10 min was left behind by an install nobody is waiting on any more: it is logged and opens nothing. Quitting
 disarms, as every quit does, so the quit leaves a note of the manual mode that was on (`UpdateResume`; never a
 one-close gesture arm) and the new version goes back to that mode as it starts, through the same entry point
 and the same rails as an arm from the menu. The note is read once and removed; one older than 2 min (the Mac
