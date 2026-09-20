@@ -110,7 +110,7 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 ## Commands
 
 ```bash
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (330); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (337); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -156,7 +156,7 @@ Five targets, dependency direction strictly downward. Full version in `docs/arch
 
 | Target | Kind | Depends on | Contents |
 |---|---|---|---|
-| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `FnKeyReading`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `GestureArmHold`, `EffectParameters`, `VolumeOverridePolicy`, `SleepInterruptionPolicy`/`SleepOverrideGuard`/`SleepLockSetup`, `CrashLoopGuard`, `PidFileRecord`/`AppSupport`, `DiagnosticFileWriter`, `DeepLink`, the update feature's `ReleaseVersion`/`LatestRelease`/`UpdateCheck`/`UpdateSchedule`/`UpdatePanel`/`UpdateSession`/`StagedUpdateCheck`/`UpdateInstallScript`/`DetachedProcess`, `SettingsStatus`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`. **All logic tests live against it.** |
+| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `FnKeyReading`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `GestureArmHold`, `EffectParameters`, `VolumeOverridePolicy`, `SleepInterruptionPolicy`/`SleepOverrideGuard`/`SleepLockSetup`, `CrashLoopGuard`, `PidFileRecord`/`AppSupport`, `DiagnosticFileWriter`, `DeepLink`, the update feature's `ReleaseVersion`/`LatestRelease`/`UpdateCheck`/`UpdateSchedule`/`UpdatePanel`/`UpdateSession`/`StagedUpdateCheck`/`UpdateInstallScript`/`DetachedProcess`/`UpdateResume`, `SettingsStatus`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`. **All logic tests live against it.** |
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library | Core | The lid-close effect: `EffectController` turns lid angles into a fold (`FoldTracker`, closing only, threshold-gated) and runs a capture session only while folded: `DesktopCapture` (ScreenCaptureKit) → `PlaneRenderer` (Metal, shader in `PlaneShader.swift`; `PlaneRemap.swift` is the same maths in Swift, the tested reference) inside `EffectOverlayPanel`. |
 | `KoffeeLid` (`App/Sources`) | Xcode app target | Core, LidPlaneKit | `KoffeeLidController` is the **only** object that mutates arming state (`setMode(_:source:)` is the entry point; `perform(_:source:)` runs CLI/URL verbs); every other file is a collaborator that reports events to it via closures. `HookInstaller` is a stateless helper used by the CLI client and the Settings window; `UpdateController` owns the update feature (the checks, the notification, the update window, Install and Relaunch) and never touches arming state: it quits the app through `NSApp.terminate`. UI under `App/Sources/UI`: the Settings window is an AppKit toolbar window (`SettingsWindow`) hosting six SwiftUI pages built only from the kit in `SettingsKit.swift`, sharing one `SettingsModel`; the four-page onboarding is programmatic AppKit; `PermissionCatalog` and `HookCatalog` are the single lists of grants and hooks, read by both. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | Xcode tool, embedded in the app | Core | LaunchAgent that relaunches the app after an unclean exit (pid file present) and stands down otherwise. |
@@ -267,7 +267,9 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
     check only announces; the fetch and the install each need a click. Everything that can refuse an update runs
     while the app is up. The install leaves through `NSApp.terminate`, so `shutdown()` clears the flag and the
     sleep lock (invariant 1): never `exit()` or a kill for an update. The helper touches nothing until the pid is
-    gone, and the previous bundle is kept until the new version is seen running. Install and Relaunch is refused
+    gone, and the previous bundle is kept until the new version is seen running. The quit leaves the manual mode
+    in `update-resume`, and the new version goes back to it through `setMode` if it starts within 2 min
+    (`UpdateResume`); nothing else may arm at launch. Install and Relaunch is refused
     while quitting would sleep the Mac (`quitWouldSleepTheMac`: armed, lid closed, no external display).
     `script/install.sh` stays the way to install a build from this tree.
 
@@ -319,7 +321,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   target, and the automatic update (weekly check, notification, update window, Install and Relaunch).
   `/Applications` runs a build older than this tree, without the automatic update: its first update is still by
   hand (`script/install.sh`, or the next release's DMG).
-- `swift test` is green (330 distinct cases: 308 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (337 distinct cases: 315 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-checks.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-checks.md` § Settings UI; the owner
   approved its look and wording in the running app), the dark-wake hold, the one-close hold, the late-display

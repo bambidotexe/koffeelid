@@ -23,6 +23,8 @@ final class UpdateController: ObservableObject {
     var othersNeedUsActive: () -> Bool = { false }
     /// A reason this is not the moment to quit the app, or nil. Asked at every click on Install and Relaunch.
     var installRefusal: (() -> String?)?
+    /// Called once the helper is started, just before the app is asked to quit.
+    var willQuitForInstall: (() -> Void)?
 
     static let directory = AppSupport.directory.appendingPathComponent("updates", isDirectory: true)
     private static var resultFile: URL { directory.appendingPathComponent("result") }
@@ -322,6 +324,7 @@ final class UpdateController: ObservableObject {
                 self.session?.installStalled()
             }
         }
+        willQuitForInstall?()
         // The menu's Quit: `applicationShouldTerminate` runs the coordinator's `shutdown()`.
         DispatchQueue.main.async { NSApp.terminate(nil) }
     }

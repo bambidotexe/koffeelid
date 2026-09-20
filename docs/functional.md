@@ -34,6 +34,7 @@ the auto level holds it.** Neither changes the other.
 | `koffeelid arm \| off \| caffeinate \| toggle-armed \| toggle-caffeinate`, `koffeelid://<verb>`, App Intents | same transitions; `disarm` and `toggle` are accepted as aliases of `off` and `toggle-armed` |
 | Fn (Globe) + close the lid | arms **one close** (below); Option can replace Fn |
 | Claude Code hooks / zsh snippet | raise the auto level (below) |
+| An update's Install and Relaunch | the new version goes back to the manual mode that was on at the click (§ Updates) |
 
 Every manual source stays in its mode until changed. Switching Armed ↔ Armed + screen on happens in place;
 the kernel flag is not touched. Choosing a manual mode over an auto-only arm makes the arm manual as well.
@@ -322,9 +323,12 @@ opened.
 
 The next launch reads the outcome and opens Settings on General: after an install with nothing to add (the
 version row reads the new version), after a failure with the orange mark and its reason, "The new version could
-not be put in place." or "The new version did not start, so the previous one was put back." The relaunched app
-starts like any launch: the manual mode is Off, and the auto level arms again by its own rule if work is
-running.
+not be put in place." or "The new version did not start, so the previous one was put back." Quitting
+disarms, as every quit does, so the quit leaves a note of the manual mode that was on (`UpdateResume`; never a
+one-close gesture arm) and the new version goes back to that mode as it starts, through the same entry point
+and the same rails as an arm from the menu. The note is read once and removed; one older than 2 min (the Mac
+slept in between, the helper was held up) arms nothing. The auto level needs no note: it arms again by its own
+rule if work is running.
 
 ## What KoffeeLid does not do
 

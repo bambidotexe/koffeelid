@@ -3,7 +3,7 @@ import ServiceManagement
 import KoffeeLidCore
 import LidPlaneKit
 
-enum ArmSource: String { case menu, rightClick, shortcut, gesture, intent, url, cli, activity }
+enum ArmSource: String { case menu, rightClick, shortcut, gesture, intent, url, cli, activity, update }
 enum ArmState: Equatable { case idle, armedWaitingClose, armedClosed }
 
 @MainActor
@@ -77,6 +77,11 @@ final class KoffeeLidController {
     private var flagRetryTimer: Timer?
     private var flagClearPending = false { didSet { refreshStatusItem() } }
     private var isStarted = false
+    /// When the update's Install and Relaunch asked the app to quit. A quit that follows within
+    /// `updateQuitWindow` leaves the manual mode for the version the helper starts (`UpdateResume`); any other
+    /// quit leaves nothing, and neither does a one-close gesture arm, which is no manual mode.
+    var updateInstallRequestedAt: Date?
+    private static let updateQuitWindow: TimeInterval = 30
 
     private init() {
         soundPlayer = LidCloseSoundPlayer(prefs: prefs, volume: volume)
@@ -196,9 +201,29 @@ final class KoffeeLidController {
         activity.onLog = { [log] in log.log($0) }
         activity.onChange = { [weak self] snapshot in self?.handleActivity(snapshot) }
         activity.start()
+        restoreModeAfterUpdate()
+    }
+
+    /// Install and Relaunch quits an armed app like any quit, and the user who clicked it expects the app back
+    /// the way it was. The note is read once and removed, whatever it says; the mode goes through `setMode`, so
+    /// every rail that would refuse an arm from the menu refuses this one.
+    private func restoreModeAfterUpdate() {
+        guard let text = try? String(contentsOf: AppSupport.updateResumeURL, encoding: .utf8) else { return }
+        try? FileManager.default.removeItem(at: AppSupport.updateResumeURL)
+        guard let resume = UpdateResume(contents: text) else { log.log("update: unreadable mode note; starting off"); return }
+        guard let target = resume.modeToRestore(now: Date()) else {
+            log.log("update: mode \(resume.mode.rawValue) not restored (the relaunch came more than \(Int(UpdateResume.window)) s after the quit)")
+            return
+        }
+        log.log("update: back to \(target.rawValue), the mode before the install")
+        setMode(target, source: .update)
     }
 
     func shutdown() {
+        if let asked = updateInstallRequestedAt, Date().timeIntervalSince(asked) < Self.updateQuitWindow, mode != .off, armSource != .gesture {
+            try? UpdateResume(mode: mode, writtenAt: Date()).contents.write(to: AppSupport.updateResumeURL, atomically: true, encoding: .utf8)
+            log.log("update: mode \(mode.rawValue) noted for the new version")
+        }
         activity.stop(); activityTimer?.invalidate(); inputTimer?.invalidate()
         screenLock.stop(); builtInFn.stop()
         fnReaderObservers.forEach { NotificationCenter.default.removeObserver($0); NSWorkspace.shared.notificationCenter.removeObserver($0) }; fnReaderObservers = []

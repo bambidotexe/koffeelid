@@ -314,6 +314,7 @@ fetch or an unpacking that ends after the session it belonged to is dropped by a
 | `sleep-lock` | app | pid of the instance that engaged `pmset disablesleep 1` |
 | `activity.jsonl`, `activity.1.jsonl` | hook binary; rotated by the app | one JSON event per line, snake_case keys |
 | `diagnostics.log`, `diagnostics.1.log`, `diagnostics.lock` | app and watchdog (`DiagnosticFileWriter`, `flock`) | timestamped lines, rotated at 256 KB |
+| `update-resume` | app, at the quit an Install and Relaunch asked for | `<mode> <seconds since 1970>`; read once and removed at the next launch (`UpdateResume`) |
 | `updates/` | app, and the install helper once the app has quit | `KoffeeLid-<version>.dmg`, `staged/KoffeeLid.app`, `install.sh`, all three removed when a fetch starts, is cancelled, and at launch; `previous/KoffeeLid.app`, the helper's alone, which it deletes once the new version is seen running; `install.log`; `result`, one line, read and deleted at launch |
 
 UserDefaults domain `dev.rubens.koffeelid`: the keys and defaults in `docs/functional.md` § Settings and

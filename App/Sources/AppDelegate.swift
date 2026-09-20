@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             KoffeeLidController.shared.quitWouldSleepTheMac
                 ? L("Open the lid first. With the lid closed, the Mac goes to sleep when KoffeeLid quits.") : nil
         }
+        updates.willQuitForInstall = { KoffeeLidController.shared.updateInstallRequestedAt = Date() }
         updates.start()
     }
 

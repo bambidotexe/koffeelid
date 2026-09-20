@@ -29,6 +29,7 @@ public enum AppSupport {
     public static var brightnessRecoveryURL: URL { directory.appendingPathComponent("display-brightness-recovery.json") }
     /// Present while the root-backed sleep lock (`pmset disablesleep 1`) is engaged by this app; a stale one at launch means a crashed instance left the Mac unable to sleep.
     public static var sleepLockMarkerURL: URL { directory.appendingPathComponent("sleep-lock") }
+    public static var updateResumeURL: URL { directory.appendingPathComponent("update-resume") }
     public static var activityJournalURL: URL { directory.appendingPathComponent("activity.jsonl") }
     public static var activityJournalRotatedURL: URL { directory.appendingPathComponent("activity.1.jsonl") }
 }
