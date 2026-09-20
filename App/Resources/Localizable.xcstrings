@@ -2830,6 +2830,36 @@
           }
         }
       }
+    },
+    "Support": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soutien"
+          }
+        }
+      }
+    },
+    "KoffeeLid is free. If it saves you trouble, you can leave a tip on Ko-fi.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid est gratuit. S’il vous rend service, vous pouvez laisser un pourboire sur Ko-fi."
+          }
+        }
+      }
+    },
+    "Buy Me a Coffee": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offrir un café"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

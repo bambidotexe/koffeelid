@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftUI
 import KoffeeLidCore
 
-/// The app's own icon, then starting up, updates, and the way out.
+/// The app's own icon, then starting up, updates, the tip jar, and the way out.
 struct SettingsGeneralPage: View {
     @ObservedObject var model: SettingsModel
     /// The app's, not the page's: what a check found while this window was closed is here when it opens.
@@ -37,6 +37,14 @@ struct SettingsGeneralPage: View {
                         Button(L("Check for Updates")) { updates.press() }
                             .disabled(updates.panel.isBusy)
                     }
+                }
+            }
+            // One row, so the hint carries the whole group: the button alone does not say that the app is
+            // free, and it opens a web page rather than doing something in the app.
+            SettingsGroup(title: L("Support"),
+                          hint: L("KoffeeLid is free. If it saves you trouble, you can leave a tip on Ko-fi.")) {
+                ButtonRow {
+                    Button(L("Buy Me a Coffee")) { NSWorkspace.shared.open(SupportLink.koFi) }
                 }
             }
             SettingsGroup(title: L("Quit")) {
