@@ -1,11 +1,14 @@
 #!/bin/zsh
 # **Release to GitHub.** The other of the two ways a build of this app ever reaches a Mac.
 #
-#   script/publish.sh
+#   script/publish.sh [--no-install]
 #
 # Tags this commit, pushes it, attaches the signed and notarized disk image to a GitHub release, installs the
 # same bundle in /Applications, and raises the tree to the next patch so that it is once again one ahead of
 # what is published. It leaves nothing behind: no .app and no .dmg anywhere under the repository.
+#
+# `--no-install` publishes the release and leaves /Applications alone. It is how the update the users get is
+# tested: the Mac stays on the version it runs, and that version finds the release and installs it itself.
 #
 # The other way is script/install.sh, which does everything but the publishing.
 set -euo pipefail
@@ -13,6 +16,14 @@ ROOT="${0:A:h:h}"
 source "$ROOT/script/signing.env"
 source "$ROOT/script/version.sh"
 source "$ROOT/script/no-leftovers.sh"
+
+INSTALL=1
+for arg in "$@"; do
+  case "$arg" in
+    --no-install) INSTALL=0 ;;
+    *) echo "unknown argument: $arg (only --no-install)" >&2; exit 1 ;;
+  esac
+done
 
 # Whatever happens — a refused release, a failed build, an interrupt — the repository is left with nothing
 # launchable in it. The named paths keep the build tree tidy; the sweep is what enforces the rule.
@@ -47,19 +58,24 @@ git -C "$ROOT" push -q origin "$TAG"
 gh release create "$TAG" "$DMG" -R "$GITHUB_REPO" --title "$APP_NAME $VERSION" \
   --notes "Signed with the Wooflab team's Developer ID and notarized by Apple." >&2
 
-# What was just published is what this Mac runs, by the same path as any other install.
-MOUNT="$(mktemp -d)"
-/usr/bin/hdiutil attach "$DMG" -nobrowse -readonly -noautoopen -mountpoint "$MOUNT" >/dev/null
-DEST="/Applications/$APP_NAME.app"
-osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
-sleep 1
-pkill -f "$DEST/Contents/MacOS/${APP_NAME}Watchdog" 2>/dev/null || true
-rm -rf "$DEST"
-/usr/bin/ditto "$MOUNT/$APP_NAME.app" "$DEST"
-/usr/bin/hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true
-codesign --verify --deep --strict "$DEST" 2>/dev/null || { echo "the installed bundle does not verify" >&2; rm -rf "$DEST"; exit 1; }
-open "$DEST"
-echo "installed $DEST ($VERSION)" >&2
+# What was just published is what this Mac runs, by the same path as any other install — unless the release
+# was made to be installed by the app itself, from the version already on the Mac.
+if [ "$INSTALL" -eq 1 ]; then
+  MOUNT="$(mktemp -d)"
+  /usr/bin/hdiutil attach "$DMG" -nobrowse -readonly -noautoopen -mountpoint "$MOUNT" >/dev/null
+  DEST="/Applications/$APP_NAME.app"
+  osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
+  sleep 1
+  pkill -f "$DEST/Contents/MacOS/${APP_NAME}Watchdog" 2>/dev/null || true
+  rm -rf "$DEST"
+  /usr/bin/ditto "$MOUNT/$APP_NAME.app" "$DEST"
+  /usr/bin/hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true
+  codesign --verify --deep --strict "$DEST" 2>/dev/null || { echo "the installed bundle does not verify" >&2; rm -rf "$DEST"; exit 1; }
+  open "$DEST"
+  echo "installed $DEST ($VERSION)" >&2
+else
+  echo "/Applications is untouched: the copy running there is what this release is offered to." >&2
+fi
 
 # The tree goes one ahead of what is now published, which is the rule every later build is held to.
 NEXT="$(version_next "$VERSION")"

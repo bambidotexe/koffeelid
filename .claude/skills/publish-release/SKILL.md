@@ -32,6 +32,17 @@ when the owner has asked for a release.
    uncommitted — commit it.**
 7. **Leaves nothing behind**: no `.app`, no `.dmg` under the repository, on every exit path.
 
+## Publishing without installing
+
+`--no-install` skips the install step: the release is published and `/Applications` keeps the version it is
+running, which is then the version that finds the release, fetches it and installs it itself. It is the only
+way to walk the path a user walks, so it is how an update is tested before anyone relies on it. Everything
+else, the version rule and the raise of the tree included, is unchanged.
+
+```bash
+script/publish.sh --no-install
+```
+
 ## Afterwards
 
 The version bump in step 6 is left in the working tree on purpose, so the owner sees it. Commit it:
