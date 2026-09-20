@@ -673,6 +673,70 @@ final class KoffeeLidController {
         return done
     }
 
+    /// Everything KoffeeLid put on this Mac outside its own bundle, taken off, and then the bundle itself
+    /// moved to the Trash. Returns what was done, and then what could not be, so the caller can say so.
+    ///
+    /// **Dragging the bundle to the Trash is not an uninstall.** It removes the app and nothing else: the
+    /// sudoers rule stays, the wrapper on the PATH stays, the login items stay, and the Claude Code hooks
+    /// and the zsh snippet go on calling a binary that is no longer there, once per event, for ever.
+    ///
+    /// The order is the whole of it:
+    /// 1. the arm ends first, so the kernel flag is clear before anything else moves (invariant 1);
+    /// 2. the sleep lock is released while the sudoers rule that releases it still exists;
+    /// 3. the TCC grants are reset while the bundle they name is still where they name it (`tccutil reset`
+    ///    on a bundle identifier with no bundle behind it fails, and there is no putting it right after);
+    /// 4. nothing that could start the app again is left registered, and nothing is registered back;
+    /// 5. the two root-owned files go in one administrator dialog, and only if one of them is there;
+    /// 6. the support folder goes last, once the log that writes into it has been silenced.
+    @discardableResult
+    func uninstallEverything() -> (done: [String], failed: [String]) {
+        var done: [String] = []
+        var failed: [String] = []
+        let bundleID = Bundle.main.bundleIdentifier ?? "dev.rubens.koffeelid"
+
+        // Straight to disarm, not through setMode: Off from the menu is ignored while auto-armed.
+        if isArmed { disarm(reason: "uninstall"); done.append("disarmed") }
+        if sleepLock.engaged && !sleepLock.release() { failed.append(L("The sleep lock could not be released. Run `sudo pmset disablesleep 0` in Terminal.")) }
+        try? FileManager.default.removeItem(at: AppSupport.sleepLockMarkerURL)
+
+        if Self.run("/usr/bin/tccutil", ["reset", "ScreenCapture", bundleID]) == 0 { done.append("screen recording reset") }
+        if Self.run("/usr/bin/tccutil", ["reset", "ListenEvent", bundleID]) == 0 { done.append("input monitoring reset") }
+        if Self.resetNotificationGrant() { done.append("notifications reset") }
+
+        // No re-register here, unlike a reset: after this there is no app for them to point at.
+        try? agent.unregister(); try? SMAppService.mainApp.unregister()
+        done.append("login items unregistered")
+
+        if (HookInstaller.installedCount() ?? 0) > 0 {
+            let r = HookInstaller.uninstall()
+            if r.ok { done.append("claude code hooks removed") } else { failed.append(String(format: L("The Claude Code hooks could not be removed: %@"), r.message)) }
+        }
+        if HookInstaller.zshrcHasSnippet() {
+            let r = HookInstaller.removeFromZshrc()
+            if r.ok { done.append("zsh snippet removed") } else { failed.append(String(format: L("The line in .zshrc could not be removed: %@"), r.message)) }
+        }
+        try? FileManager.default.removeItem(at: HookInstaller.backupURL)
+
+        if UninstallPlan.needsPrivilege(present: { FileManager.default.fileExists(atPath: $0) }) {
+            switch SleepLock.runPrivilegedScript(UninstallPlan.privilegedScript) {
+            case .done: done.append("sudoers rule and command line removed")
+            case .cancelled: failed.append(String(format: L("These files need an administrator password and are still there: %@"), UninstallPlan.privilegedPaths.joined(separator: ", ")))
+            case .failed(let m): failed.append(String(format: L("These files could not be removed: %@ (%@)"), UninstallPlan.privilegedPaths.joined(separator: ", "), m))
+            }
+        }
+
+        UserDefaults.standard.removePersistentDomain(forName: bundleID)
+        UserDefaults.standard.synchronize()
+        done.append("preferences cleared")
+
+        log.log("uninstall: " + done.joined(separator: ", "))
+        // Nothing may write into the folder after this, or it comes back with the line that created it.
+        DiagnosticLog.shared.silence()
+        try? FileManager.default.removeItem(at: AppSupport.directory)
+        done.append("support folder removed")
+        return (done, failed)
+    }
+
     /// Notification authorization lives in usernoted's group preferences; dropping the app's entry and
     /// restarting the daemon puts it back to "not determined" (no public API does this).
     private static func resetNotificationGrant() -> Bool {

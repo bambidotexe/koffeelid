@@ -2630,6 +2630,156 @@
           }
         }
       }
+    },
+    "Uninstall": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désinstaller"
+          }
+        }
+      }
+    },
+    "Uninstall KoffeeLid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désinstaller KoffeeLid"
+          }
+        }
+      }
+    },
+    "Uninstall KoffeeLid?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désinstaller KoffeeLid ?"
+          }
+        }
+      }
+    },
+    "Removes everything KoffeeLid set up outside its own folder: what starts it at login, what lets it hold the Mac awake, what it added to Claude Code and to the shell, and its settings and logs. KoffeeLid then moves itself to the Trash and quits.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retire tout ce que KoffeeLid a installé hors de son propre dossier : ce qui le lance à l’ouverture de session, ce qui lui permet de garder le Mac allumé, ce qu’il a ajouté à Claude Code et au shell, ainsi que ses réglages et ses journaux. KoffeeLid se met ensuite à la corbeille et quitte."
+          }
+        }
+      }
+    },
+    "Do not drag KoffeeLid to the Trash. All of that stays behind, goes on running against an app that is gone, and can make the Mac misbehave.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne mettez pas KoffeeLid à la corbeille vous-même. Tout cela resterait en place, continuerait de s’exécuter pour une app qui n’existe plus, et peut dérégler le Mac."
+          }
+        }
+      }
+    },
+    "KoffeeLid stops holding the Mac awake, gives back the permissions it was granted, removes what starts it at login, what it added to Claude Code and to the shell, and its settings and logs. It then moves itself to the Trash and quits. Removing the sleep lock asks for an administrator password.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid cesse de garder le Mac allumé, rend les autorisations qui lui ont été accordées, retire ce qui le lance à l’ouverture de session, ce qu’il a ajouté à Claude Code et au shell, ainsi que ses réglages et ses journaux. Il se met ensuite à la corbeille et quitte. Le retrait du verrou de veille demande un mot de passe administrateur."
+          }
+        }
+      }
+    },
+    "KoffeeLid could not move itself to the Trash: %@. Drag it there from the Applications folder; that is all that is left of it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid n’a pas pu se mettre à la corbeille : %@. Faites-le depuis le dossier Applications ; c’est tout ce qu’il en reste."
+          }
+        }
+      }
+    },
+    "KoffeeLid has been removed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid a été désinstallé"
+          }
+        }
+      }
+    },
+    "KoffeeLid has been removed, except for this": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid a été désinstallé, sauf ceci"
+          }
+        }
+      }
+    },
+    "KoffeeLid is in the Trash, and nothing it set up is left on the Mac.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid est dans la corbeille, et rien de ce qu’il avait installé ne reste sur le Mac."
+          }
+        }
+      }
+    },
+    "The sleep lock could not be released. Run `sudo pmset disablesleep 0` in Terminal.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le verrou de veille n’a pas pu être relâché. Lancez `sudo pmset disablesleep 0` dans Terminal."
+          }
+        }
+      }
+    },
+    "The Claude Code hooks could not be removed: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les hooks Claude Code n’ont pas pu être retirés : %@"
+          }
+        }
+      }
+    },
+    "The line in .zshrc could not be removed: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La ligne ajoutée à .zshrc n’a pas pu être retirée : %@"
+          }
+        }
+      }
+    },
+    "These files need an administrator password and are still there: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ces fichiers demandent un mot de passe administrateur et sont toujours là : %@"
+          }
+        }
+      }
+    },
+    "These files could not be removed: %@ (%@)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ces fichiers n’ont pas pu être retirés : %@ (%@)"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

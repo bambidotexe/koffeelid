@@ -184,7 +184,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 
   | Page | Groups |
   |---|---|
-  | General | the app icon; Startup (launch at login, show in menu bar, and a note naming the way back to this window once the icon is hidden); Updates; Quit ("Quit KoffeeLid" is the menu's Quit: disarms, clears the kernel flag, releases the sleep lock, then exits) |
+  | General | the app icon; Startup (launch at login, show in menu bar, and a note naming the way back to this window once the icon is hidden); Updates; Quit ("Quit KoffeeLid" is the menu's Quit: disarms, clears the kernel flag, releases the sleep lock, then exits); Uninstall (see below) |
   | Arming | Lid gesture (the switch, the key to hold, the two travels); Menu bar and shortcuts (right-click, the two shortcuts); Low battery (the switch and its level) |
   | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
   | Lid Effect | Effect (the switch, and the Screen Recording grant while it is on); Lid angle (the live angle, the angle in the menu bar); When it starts; Look; Preview (reset to defaults, simulate a fold) |
@@ -256,6 +256,32 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 Settings › System › "Reset KoffeeLid…" asks for confirmation, then disarms, removes the sudoers rule, unregisters the
 login items, resets Screen Recording, Input Monitoring and notifications, removes the hooks and the zsh block, clears the
 preferences and whatever an update left in Application Support, and reopens onboarding.
+
+## Uninstall
+
+Settings › General › Uninstall takes KoffeeLid off the Mac. The group always shows a warning, because what it warns
+about is not a state that can be put right but the hazard of the other way out: **dragging the bundle to the Trash is
+not an uninstall.** It removes the app and nothing else, and what is left goes on running against an app that is gone,
+the Claude Code hooks calling a binary that is not there once per event for ever.
+
+"Uninstall KoffeeLid" asks for confirmation, then, in this order:
+
+1. disarms, so the kernel flag is clear before anything else moves;
+2. releases the sleep lock, while the sudoers rule that releases it still exists;
+3. resets the Screen Recording, Input Monitoring and notification grants, while the bundle they name is still where
+   they name it (`tccutil reset` against a bundle identifier with no bundle behind it fails, and nothing puts that
+   right afterwards);
+4. unregisters the watchdog agent and launch at login, and registers neither back;
+5. removes the Claude Code hooks, the zsh block and the settings backup the hooks left;
+6. removes `/etc/sudoers.d/koffeelid` and `/usr/local/bin/koffeelid` in one administrator-password dialog, and only
+   if one of them is there (`UninstallPlan`);
+7. clears the preferences;
+8. removes `~/Library/Application Support/KoffeeLid/`, once the diagnostics log has been silenced so that nothing
+   writes the folder back;
+9. moves the bundle to the Trash, not to a delete: what was just removed is still there to put back.
+
+It then says what it could not remove, if anything, and quits. Reset, in Settings › System, is the other thing:
+it puts the app back to a first launch and keeps it installed.
 
 ## Updates
 

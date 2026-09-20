@@ -63,6 +63,10 @@ final class SleepLock {
     }
     static func removeRule() -> RuleChange { runPrivileged(SleepLockSetup.privilegedRemoveScript) }
 
+    /// One administrator dialog for a shell line written in `KoffeeLidCore` and nowhere else. The uninstall
+    /// uses it for the two root-owned files it has to take with it (`UninstallPlan`).
+    static func runPrivilegedScript(_ shell: String) -> RuleChange { runPrivileged(shell) }
+
     private static func runPrivileged(_ shell: String) -> RuleChange {
         let source = "do shell script \(SleepLockSetup.appleScriptLiteral(shell)) with administrator privileges"
         var error: NSDictionary?

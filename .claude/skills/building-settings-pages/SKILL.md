@@ -64,7 +64,7 @@ reproduce them.
 | A fact about the system or a result | `StatusRow` | In the card. See *Statuses*. |
 | An action | `ButtonRow` | In the card, button at the trailing edge, on a row of its own. Never beside a status. |
 | What the group does, what a switch costs | **hint** | Under the card, grey. One to three short sentences, or none. |
-| Something the user must fix | **warning** | Under the hint, orange triangle. **Only while it is wrong.** Says exactly what to flip and where. |
+| Something the user must fix | **warning** | Under the hint, orange triangle. **Only while it is wrong**, with one exception: the hazard of a way round the button the card offers stands there always, because it is not a state that can be put right (KoffeeLid's Uninstall group). Says exactly what to flip and where. |
 | The one thing the user must not miss | **note** | Under the warnings, blue info mark. A hidden gesture, the way back from a switch that hides something, a dependency, a limit, a reassurance. One per group, rarely two. |
 | A detail only a bug report needs (an identifier, a symbol name) | tooltip | `.help(...)` on the row. Never on the row itself. |
 | Something tall (an editor, a list, an example) | inside a card | Height 240, its own background hidden so the card shows through. |
