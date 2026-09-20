@@ -262,8 +262,8 @@ preferences and reopens onboarding.
 KoffeeLid looks for a newer release on GitHub on its own: once 10 s after launch, then a week after the last
 check that got an answer, whoever asked (`UpdateSchedule`). The question is put on a 30-minute tick and at every
 wake rather than on one week-long timer, so a Mac asleep on the date is asked as soon as it is awake. A check
-that could not reach GitHub is silent and tried again an hour later. Nothing is fetched or installed without a
-click.
+that could not reach GitHub is silent and tried again at the first tick an hour or more later, so 60 to 90
+minutes on. Nothing is fetched or installed without a click.
 
 An automatic check that finds a strictly newer release shows it in Settings and posts one notification,
 "Version `<version>` is available", with an **Update** button; a later check's notification replaces it. The

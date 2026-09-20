@@ -285,7 +285,7 @@ coordinator has started. The decisions are Core's and tested; the app layer runs
 
 | Piece | Where | What it is |
 |---|---|---|
-| `UpdateSchedule` | Core | when an unasked check is due: fresh at launch, a week after an answer, an hour after a failure. The controller asks it 10 s after launch, on a 30-minute timer and at `NSWorkspace.didWakeNotification` |
+| `UpdateSchedule` | Core | when an unasked check is due: fresh at launch, a week after an answer, an hour or more after a failure. The controller asks it 10 s after launch, on a 30-minute timer and at `NSWorkspace.didWakeNotification` |
 | `UpdatePanel` | Core | the Updates group: `press()` is `.check` or `.update(release)`; `checked` answers a press, `autoChecked` a check nobody asked for, `installFailed` what the last install ended with |
 | `UpdateSession` | Core | the update window: downloading → preparing → ready or manual → installing, failed from anywhere, `retry`, `installStalled` |
 | `UpdateChecker`, `UpdateDownload` | app | the latest-release request (`KOFFEELID_UPDATE_FEED` replaces its URL, `docs/development.md`) and one fetch with progress, held against the asset's stated length and SHA-256 before it is reported |

@@ -45,6 +45,9 @@ final class UpdateController: ObservableObject {
     private var diskImage: URL?
     private var stagedApp: URL?
     private var window: UpdateWindowController?
+    /// One unpacking at a time: two would share the mount point and the `staged` folder, and a Cancel followed
+    /// at once by Update starts a second while the first is still winding down.
+    private static let stagingQueue = DispatchQueue(label: "dev.rubens.koffeelid.update.staging", qos: .userInitiated)
 
     var windowIsUp: Bool { window?.isUp == true }
 
@@ -210,14 +213,13 @@ final class UpdateController: ObservableObject {
         let directory = Self.directory
         let stager = UpdateStager(bundleIdentifier: Bundle.main.bundleIdentifier ?? "", runningVersion: KoffeeLidCore.version,
                                   log: { line in DispatchQueue.main.async { DiagnosticLog.shared.log(line) } })
-        DispatchQueue.global(qos: .userInitiated).async {
+        Self.stagingQueue.async {
             let outcome = Result { try stager.stage(diskImage: image, in: directory) }
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    guard self.generation == current else {
-                        if case .success(let staged) = outcome { try? FileManager.default.removeItem(at: staged.deletingLastPathComponent()) }
-                        return
-                    }
+                    // Cancelled meanwhile: what it unpacked is swept when the next fetch starts, never here, where
+                    // a later unpacking may already be filling the same folder.
+                    guard self.generation == current else { return }
                     switch outcome {
                     case .success(let staged):
                         self.stagedApp = staged
