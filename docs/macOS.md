@@ -166,7 +166,7 @@ the desktop at fold 0.
   `digest: "sha256:<hex>"`, and `browser_download_url` answers 302 to a 200 that carries `content-length`. A
   repository that is private, or has no release, answers 404.
 - A file this app fetches itself is not quarantined (the bundle does not set `LSFileQuarantineEnabled`), so the
-  copy taken out of its disk image opens without a Gatekeeper prompt although no release is notarized.
+  copy taken out of its disk image opens without a Gatekeeper prompt regardless of notarization.
 - `hdiutil attach <dmg> -nobrowse -readonly -noautoopen -mountpoint <folder>` mounts a release's one volume on a
   folder of our choosing, so nothing of its output is parsed. On macOS 27 it still works and prints a deprecation
   notice naming `diskutil image attach --readOnly --nobrowse --mountPoint <folder>`, which the stager falls back
@@ -202,10 +202,21 @@ the desktop at fold 0.
 | Notifications | usernoted's group preferences, `apps[]` entry with `bundle-id` | drop the entry, `killall usernoted` and `killall NotificationCenter` |
 | Preferences | UserDefaults domain `dev.rubens.koffeelid` | `defaults delete dev.rubens.koffeelid` |
 
-Apple Development-signed builds are rejected by Gatekeeper on other Macs; distribution needs a Developer ID
-Application signature, Hardened Runtime and notarization (`script/release.sh`). The Apple Development identity
-injects `com.apple.security.get-task-allow`; `project.yml` sets `CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO` for
-Release so the installed build is not debuggable.
+The app signs with the Wooflab team's Developer ID Application identity (`85F6AC5QZF`, `project.yml`'s
+`DEVELOPMENT_TEAM` with `CODE_SIGN_STYLE: Automatic`; `script/signing.env` looks the identity up in the
+keychain by team id). `script/release.sh` notarizes and staples both the app and the disk image, so a release
+passes Gatekeeper on any Mac without a warning. `CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO` keeps
+`com.apple.security.get-task-allow` out of the build so it stays debuggable only through Xcode's own attach,
+not through a blanket entitlement.
+
+Finder does not scale a disk image's background image to the window: it draws the image at its natural size
+from the top-left corner of the icon view's content area, and Finder's own chrome (the title bar, an open tab
+bar, the status/path bar) can cover up to about 120 points at the bottom of that window. A background meant to
+fill a 660×480 DMG window therefore has to keep every mark inside the top 340 points and leave the rest a
+plain field; `script/dmg-background.swift` renders to that constraint and refuses to render a layout that
+reaches below the line. The Finder/AppleScript way of setting a disk image's icon layout needs an Automation
+grant and fails silently without one, which is why `script/make-dmg.sh` writes the layout straight into the
+image's `.DS_Store` with `dmgbuild` instead.
 
 ## Claude Code
 

@@ -8,7 +8,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    DEVELOPMENT_TEAM: 75MADVD27T   # Wooflab (paid team: Developer ID + notarization; script/release.sh)
+    DEVELOPMENT_TEAM: 85F6AC5QZF   # Wooflab (Developer ID + notarization; script/signing.env, script/release.sh)
     CODE_SIGN_STYLE: Automatic
     ENABLE_HARDENED_RUNTIME: YES
     MACOSX_DEPLOYMENT_TARGET: "15.0"

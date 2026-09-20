@@ -127,8 +127,8 @@ After that KoffeeLid keeps itself up to date. It looks for a newer release when 
 tells you with a notification. Click Update, there or in Settings › General, and a small window fetches the
 release; Install and Relaunch then swaps the app and reopens it. Nothing is fetched or installed without a click.
 
-The current build is signed with a development certificate and is not notarized. On another Mac, macOS will
-warn; control-click the app and choose Open, or build from source.
+Releases are signed with the Wooflab team's Developer ID and notarized, so they open on any Mac without a
+Gatekeeper warning.
 
 ## Requirements
 

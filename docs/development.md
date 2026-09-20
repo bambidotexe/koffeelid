@@ -7,8 +7,10 @@
   installs it if missing and generates. Run it again after adding, removing or moving a file under
   `App/Sources`, `App/Resources`, `Watchdog/Sources` or `Hook/Sources` (directories are included whole).
   `KoffeeLid.xcodeproj`, `DerivedData/` and `.build/` are generated and git-ignored: edit `project.yml`.
-- Signing is automatic with the Apple Development identity of the Wooflab team (`75MADVD27T` in
-  `project.yml`). Hardened Runtime on, no App Sandbox.
+- Signing is automatic with the Wooflab team's Developer ID (`85F6AC5QZF` in `project.yml`). Hardened Runtime
+  on, no App Sandbox. `script/signing.env` holds the team id, the `wooflab-notary` notarytool profile and the
+  other constants every signing/build/publish script sources; the signing identity itself,
+  `Developer ID Application: Wooflab (85F6AC5QZF)`, is looked up in the keychain by team id, not written out.
 - The Metal shader is a Swift string compiled at runtime; a syntax error only shows as
   `PlaneRenderer: pipeline failed` in Console and `effect: no built-in display or Metal unavailable` in the
   log at the next arm. Check it after every edit (needs the Metal Toolchain:
@@ -251,16 +253,20 @@ cp /tmp/AppIcon.iconset/icon_128x128@2x.png docs/assets/icon.png
    `KoffeeLidCore.version` and `SmokeTests`; adjust the README test badge if the count changed.
 3. `script/install.sh`, approve Login Items and grant Screen Recording if asked, quit and reopen.
 4. Walk `docs/manual-checks.md` with any other lid-sleep utility quit.
-5. Commit (`feat|fix|build|docs(scope): …`), `git tag -a vX.Y.Z -m "KoffeeLid X.Y.Z"`,
-   `git push origin main vX.Y.Z`, `gh release create` with the DMG from `dist/`. The installed copies update
-   themselves from that release, which holds it to a contract: a tag that parses as a version, one asset whose
-   name ends in `.dmg` with `KoffeeLid.app` at the image's root, a `CFBundleShortVersionString` strictly newer
-   than the versions it replaces, and a signature from the same team as theirs.
-6. For other people: `script/release.sh` (archive → Developer ID export → notarize → staple →
-   `dist/KoffeeLid-<version>.zip`). It needs a Developer ID Application certificate for the Wooflab team and a
-   `notarytool` keychain profile:
-   `xcrun notarytool store-credentials koffeelid-notary --apple-id <apple id> --team-id 75MADVD27T`.
-   Development-signed builds run only on this Mac.
+5. `script/release.sh` (sources `script/signing.env`; refuses early without the Developer ID Application
+   certificate for the Wooflab team or the `wooflab-notary` notarytool profile in the keychain) archives,
+   exports with Developer ID, verifies the export, zips and notarizes the app, staples it, calls
+   `script/make-dmg.sh` to build and sign the disk image, notarizes and staples the image, asserts Gatekeeper
+   accepts both, and prints the image's path. It publishes nothing itself. One-time setup, by the Wooflab
+   team's Account Holder: the Developer ID Application certificate in the keychain, then
+   `xcrun notarytool store-credentials wooflab-notary --key <AuthKey_XXXX.p8> --key-id <KEY_ID> --issuer
+   <ISSUER_ID>`.
+6. Commit (`feat|fix|build|docs(scope): …`), `git tag -a vX.Y.Z -m "KoffeeLid X.Y.Z"`,
+   `git push origin main vX.Y.Z`, `gh release create vX.Y.Z <image path> --title "KoffeeLid X.Y.Z" --notes-file
+   …`. The installed copies update themselves from that release, which holds it to a contract: a tag that
+   parses as a version, one asset whose name ends in `.dmg` with `KoffeeLid.app` at the image's root, a
+   `CFBundleShortVersionString` strictly newer than the versions it replaces, and a signature from the same
+   team as theirs.
 
 ## Known limitations
 

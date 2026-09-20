@@ -23,8 +23,8 @@ it. Everything else in the coordinator exists to guarantee that flag is cleared 
 Swift 5 language mode. Two SwiftPM libraries plus an XcodeGen-generated Xcode project for the app and its two
 helper tools. Deployment target macOS 15; built and run on macOS 27.0 (26A428) with Xcode 27.0, on one MacBook
 Pro. A personal app by and for one user: English and French, no licensing, updates from GitHub releases (the
-check is automatic, the fetch and the install each need a click). Releases are Apple-Development-signed DMGs
-that run on this Mac only.
+check is automatic, the fetch and the install each need a click). Releases are Developer ID-signed, notarized
+DMGs (`script/release.sh`, the Wooflab team, `85F6AC5QZF`) that run on any Mac.
 
 Repo `~/Projects/koffeelid`, GitHub `git@github.com:bambidotexe/koffeelid.git` (`origin`, branch `main`, SSH
 as `bambidotexe`, `gh` logged in). **The installed copy `/Applications/KoffeeLid.app` is the owner's daily
@@ -144,11 +144,13 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
 - XCTest's summary line undercounts here; count the per-case `passed` lines
   (`swift test 2>&1 | grep -E "^Test Case '.*' passed" | sort -u | wc -l`).
 - A release: bump the three version locations, commit `build: release X.Y.Z`, `git tag -a vX.Y.Z -m "KoffeeLid
-  X.Y.Z"`, `script/build.sh Release`, a UDZO DMG holding `KoffeeLid.app` and an `Applications` symlink in
-  `dist/KoffeeLid-X.Y.Z.dmg`, `git push origin main vX.Y.Z`, `gh release create vX.Y.Z dist/… --title
-  "KoffeeLid X.Y.Z" --notes-file …`. The notes end with the sentence that the build is Apple-Development-signed
-  and not notarized. `script/release.sh` (Developer ID + notarization) needs a certificate and a `notarytool`
-  profile this Mac does not have.
+  X.Y.Z"`, `script/release.sh` (sources `script/signing.env`; refuses early if the Developer ID Application
+  certificate or the `wooflab-notary` notarytool profile is missing; archives, exports with Developer ID,
+  verifies the export, zips and notarizes the app, staples it, calls `script/make-dmg.sh` to build the disk
+  image, signs and notarizes the image, staples it, asserts Gatekeeper accepts both, and prints the image's
+  path — it publishes nothing), `git push origin main vX.Y.Z`, `gh release create vX.Y.Z <image path> --title
+  "KoffeeLid X.Y.Z" --notes-file …`. The DMG is signed with the Wooflab team's Developer ID (`85F6AC5QZF`) and
+  notarized; it runs on any Mac.
 
 ## Architecture in one screen
 
@@ -314,24 +316,30 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 ## Status
 
-- Version 1.0.5 is tagged and released on GitHub with its DMG: the manual update check (Settings › Updates), the
-  built-in-keyboard Fn rule with its Input Monitoring row and the physical-key requirement (1.0.4), the arrow-key
-  fix, the dead-code cleanup and the rewritten docs. The tree is ahead of it and unreleased: the "Show in menu
-  bar" switch, "Quit KoffeeLid", the Icon Composer icon, and the six-page Settings window with its macOS 15
-  target, and the automatic update (weekly check, notification, update window, Install and Relaunch).
-  `/Applications` runs a build older than this tree, without the automatic update: its first update is still by
-  hand (`script/install.sh`, or the next release's DMG).
+- Version 0.0.1 everywhere it must agree (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`). Every tag
+  and release has been deleted from GitHub: there is no published release, and the update check finds nothing
+  to offer. The tree carries the manual update check (Settings › Updates), the built-in-keyboard Fn rule with
+  its Input Monitoring row and the physical-key requirement, the arrow-key fix, the "Show in menu bar" switch,
+  "Quit KoffeeLid", the Icon Composer icon, the six-page Settings window with its macOS 15 target, and the
+  automatic update (weekly check, notification, update window, Install and Relaunch). Nothing is installed:
+  `/Applications/KoffeeLid.app`, the preferences, the caches, the Application Support folder, the launch agent,
+  the sudoers rule, the `/usr/local/bin` wrapper, the Claude Code hooks and the zsh snippet have all been
+  removed, and the TCC grants reset, so the next install meets the Mac a new user's would.
+  `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
+  looked up by `script/signing.env`); it publishes nothing by itself.
 - `swift test` is green (342 distinct cases: 320 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-checks.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-checks.md` § Settings UI; the owner
   approved its look and wording in the running app), the dark-wake hold, the one-close hold, the late-display
   reopen lock, the arrow-key check, the built-in-keyboard Fn rule, and most of the auto-arm section. The update
   feature has been run through its unit tests, through a real install and a real roll-back of a stand-in app by
-  the real helper, and through the real 1.0.5 release (check, fetch with its digest, unpacking, signature
-  rule); KoffeeLid installing over itself, the notification and the update window have not been seen
+  the real helper, and end to end against a published GitHub release (check, fetch with its digest, unpacking,
+  signature rule); KoffeeLid installing over itself, the notification and the update window have not been seen
   (`docs/manual-checks.md` § Updates). Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
-- The `/usr/local/bin/koffeelid` wrapper may be missing (`/usr/local/bin` is root-owned); call the bundle binary.
-- Auto-arm on activity is set up on this Mac (both hooks, the switch on): a fresh launch of the app while a
-  Claude Code session works auto-arms at once.
+- There is no `/usr/local/bin/koffeelid` wrapper and no sudoers rule for the sleep lock: `script/install.sh`
+  writes the first when `/usr/local/bin` is writable and prints the one-liner for the second. Until the rule is
+  back, a charger or display change can sleep a closed armed Mac. Call the bundle binary meanwhile.
+- Auto-arm on activity is not set up on this Mac: the hooks and the zsh snippet were removed with the app, and
+  Settings › Hooks installs them again.
 - A Claude turn that dies when the Thunderbolt dock is unplugged is the dock's Ethernet going away, not a failed
   arm (`docs/pitfalls.md` § Working on this Mac).

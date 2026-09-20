@@ -371,8 +371,11 @@ start so a live watchdog observes the current pid.
 - `script/bootstrap.sh` runs XcodeGen; `KoffeeLid.xcodeproj` is generated and git-ignored. Sources are
   included by directory, so adding or removing a file means regenerating.
 - Swift 5 language mode, `SWIFT_STRICT_CONCURRENCY: minimal`, macOS 15 deployment target, Hardened Runtime,
-  automatic signing with the Wooflab team (`75MADVD27T`), Apple Development identity for development builds.
-  `CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO` for Release keeps `get-task-allow` out of the installed build.
+  automatic signing with the Wooflab team, Developer ID (`DEVELOPMENT_TEAM: 85F6AC5QZF`,
+  `CODE_SIGN_STYLE: Automatic` in `project.yml`). `CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO` keeps
+  `get-task-allow` out of every build. The signing identity, `Developer ID Application: Wooflab
+  (85F6AC5QZF)`, is not written into any script: `script/signing.env` looks it up in the keychain by team
+  identifier.
 - Entitlements: `com.apple.security.app-sandbox = false`, nothing else.
 - `Info.plist`: `LSUIElement`, the `koffeelid` URL scheme, automatic and sudden termination disabled (a quit
   must run `shutdown()`), `en` + `fr`.
@@ -380,7 +383,11 @@ start so a live watchdog observes the current pid.
   `Contents/Library/LaunchAgents/`; the two tools are embedded in `Contents/MacOS`.
 - The version lives in `App/Info.plist`, `KoffeeLidCore.version` and its assertion in `SmokeTests`.
 - `script/build.sh`, `install.sh` (refuses while the installed app is armed unless `FORCE=1`), `run.sh`,
-  `release.sh` (Developer ID export, notarization, staple).
+  `release.sh` (archive → Developer ID export → verify → notarize and staple the app → `script/make-dmg.sh`
+  builds the signed disk image → notarize and staple the image → assert Gatekeeper accepts both → print the
+  image's path; it publishes nothing). `script/signing.env` holds the team id, the `wooflab-notary` notarytool
+  profile name, the app name, bundle id, GitHub repo and DMG accent colour that every signing/build/publish
+  script sources.
 - The app icon is `App/Resources/AppIcon.icon`, an Icon Composer document compiled by `actool`. `project.yml`
   adds it as a single `type: file` source and excludes it from the recursive `App/Resources` entry, so Xcode
   receives the document whole rather than its four layer files.
