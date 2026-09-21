@@ -382,7 +382,8 @@ start so a live watchdog observes the current pid.
 - A post-build script copies `App/LaunchAgents/dev.rubens.koffeelid.agent.plist` to
   `Contents/Library/LaunchAgents/`; the two tools are embedded in `Contents/MacOS`.
 - The version lives in `App/Info.plist`, `KoffeeLidCore.version` and its assertion in `SmokeTests`.
-- `script/build.sh`, `install.sh` (refuses while the installed app is armed unless `FORCE=1`), `run.sh`,
+- `script/build.sh`, `install.sh` (refuses only while quitting would sleep the Mac at once — armed, lid shut,
+  no external display; `KoffeeLidController.quitWouldSleepTheMac`, no override), `run.sh`,
   `release.sh` (archive → Developer ID export → verify → notarize and staple the app → `script/make-dmg.sh`
   builds the signed disk image → notarize and staple the image → assert Gatekeeper accepts both → print the
   image's path; it publishes nothing). `script/signing.env` holds the team id, the `wooflab-notary` notarytool

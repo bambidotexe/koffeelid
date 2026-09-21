@@ -319,8 +319,10 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 ## Working on this Mac
 
 - **The installed app is the daily driver.** `AppleClamshellCausesSleep = No` is usually its arm. Run
-  `koffeelid status` before quitting, reinstalling or sending `off`; never send `off` while the lid is closed.
-  `script/install.sh` refuses while it is armed.
+  `koffeelid status` before quitting, reinstalling or sending `off`; never send `off` while the lid is closed
+  with no external display. `script/install.sh` refuses only while quitting would sleep the Mac at once
+  (`status` carries the warning `quitting would sleep the Mac`: armed, lid shut, no external display) — an
+  armed Mac with the lid open, or an external display connected, is installed over and the mode put back.
 - **Process commands** are scoped to `KoffeeLid.app/Contents/MacOS/` or to the pid file; never by bare name.
 - **Claude Code's sandbox** breaks `swift test`, `xcodebuild` and system image/video decoders; run them with
   the sandbox off. `$TMPDIR` differs inside and outside it.

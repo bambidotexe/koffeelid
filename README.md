@@ -155,8 +155,9 @@ script/install.sh       # Release build → /Applications/KoffeeLid.app (+ /usr/
 open -a KoffeeLid
 ```
 
-`install.sh` refuses to replace the app while it is running and armed (`FORCE=1` overrides). If `/usr/local/bin` is not
-writable it prints the one `sudo` line that creates the `koffeelid` wrapper.
+`install.sh` refuses only while quitting would sleep the Mac at once (armed, lid shut, no external display);
+no override. If `/usr/local/bin` is not writable it prints the one `sudo` line that creates the `koffeelid`
+wrapper.
 
 ## How it works
 

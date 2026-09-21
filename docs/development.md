@@ -73,13 +73,13 @@ The version comes from `script/version.sh`: **a local install always builds and 
 own version**, the same version production runs until the tree is next bumped. Publishing is the only thing
 that moves it, and it raises the tree to the next patch once it has, so that version is never built again.
 
-`script/install.sh` **refuses unless `koffeelid status` says `mode: off` without `auto-armed`** (`FORCE=1`
-overrides), because quitting an armed app ends the user's session and can sleep a closed Mac. It quits the app
-and its watchdog, installs, and launches. Cycle when the user is armed with the lid open:
-`"$BIN" off && script/install.sh && "$BIN" caffeinate` (restore the mode they had, or nothing if they were
-Off). With a Claude Code session working, a fresh launch auto-arms at once (`launched` then
-`armed (activity, armed)`); a CLI `arm`/`caffeinate` afterwards takes that arm over as a manual one.
-`script/run.sh` installs and tails the log.
+`script/install.sh` **refuses only while quitting would sleep the Mac at once** — armed, the lid shut, and no
+external display keeping the desktop up (`status` carries the warning `quitting would sleep the Mac`,
+`KoffeeLidController.quitWouldSleepTheMac`); no override. An open lid, an external display, or an unarmed app
+are all safe to quit over: the script quits the app and its watchdog, installs, relaunches, and puts the
+manual mode back itself (`caffeinate` / `arm`), so the Mac is unarmed only for the seconds between the quit
+and the relaunch. With a Claude Code session working, a fresh launch auto-arms at once (`launched` then
+`armed (activity, armed)`) regardless. `script/run.sh` installs and tails the log.
 
 **A Debug build is never installed, and never made without the owner asking for one.** It exists only to read
 something a Release build will not show. `script/build.sh Debug` refuses without `DEBUG_OK=1`. A Debug

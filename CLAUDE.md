@@ -340,15 +340,19 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 ## Status
 
-- Version 1.1.0 everywhere it must agree (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), matching
-  the published **1.1.0**: a local install now always builds the tree's own version rather than one ahead of
-  production. The tree carries the manual update
+- Version 1.1.1 committed and published (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`): a local
+  install always builds exactly the tree's own version now, never one ahead of production. The tree carries a
+  further, uncommitted bump to 1.1.2 from `script/publish.sh`'s own post-release step, left for the owner to
+  commit. `/Applications/KoffeeLid.app` is installed at **1.1.0** on purpose: `script/publish.sh --no-install`
+  published 1.1.1 and left the Mac on the older copy, so that the update a user gets is the one walked here,
+  through Settings › Updates. The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
   requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
   Icon Composer icon, the seven-page Settings window with its macOS 15 target, and the automatic update (weekly
-  check, notification, update window, Install and Relaunch). `/Applications/KoffeeLid.app` is installed at
-  **1.1.0**, the same version that is published. The sudoers rule, the watchdog agent, the Claude Code hooks
-  and the zsh snippet are all in place.
+  check, notification, update window, Install and Relaunch). `script/install.sh` refuses only while quitting
+  would sleep the Mac at once (armed, lid shut, no external display) — verified with a real closed-lid,
+  external-display install (`docs/manual-checks.md` § Safety rails). The sudoers rule, the watchdog agent, the
+  Claude Code hooks and the zsh snippet are all in place.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
 - `swift test` is green (354 distinct cases: 332 Core, 22 LidPlaneKit) and the Debug build warning-free at this

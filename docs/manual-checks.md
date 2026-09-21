@@ -65,6 +65,9 @@
 - [ ] Same setup but unplug **only the monitor** while the lid is open and the Mac has been at the desk a while → no lock (the grace window is long past); reopening later at the desk with the monitor still attached → still no lock
 - [ ] Armed + screen on with an external display → the display assertion is still held (`pmset -g assertions`) while the rest stands by
 - [ ] Fn + close with an external display connected does nothing (gesture detector off; `gesture:` lines absent)
+- [x] Armed, lid genuinely closed, an external display connected: `script/install.sh` does not refuse (`status`
+  carries no `quitting would sleep the Mac` warning); it quits, installs, relaunches and restores the mode.
+  Verified 2026-09-21. With no external display connected, the same closed lid does refuse, with no override.
 
 ## One-close hold (Fn + close ends at login)
 - [ ] Fn + close, lid shut, then open the lid → the screen locks and the log says `one-close session held on lid open; waiting for the screen to lock` then `one-close arm held; it ends when you log back in`; `koffeelid status` still says `mode: armed`
