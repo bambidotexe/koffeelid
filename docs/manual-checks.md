@@ -115,7 +115,7 @@
 - [ ] Closing the wizard on page 1 gives the frontmost app back to whoever had it (keystrokes go to that app, not nowhere); closing it while Settings is open leaves Settings active
 - [ ] Page 3 "Arm while you work": the two hooks, one "Set up…" button each (details under Auto-arm on activity)
 - [ ] Page 4 "Tout est prêt" mentions the mug; Finish sets `onboardingCompleted`
-- [ ] Notifications are not requested at launch before onboarding: the system prompt appears only from the Notifications row
+- [ ] No prompt appears by itself, ever: reach the last onboarding page having granted nothing, finish, then quit and launch twice more. No notification prompt at launch, none while a window sits open. The only prompts in the whole walk followed a click on a row's button or on Settings > System
 
 ## Settings UI
 - [ ] Launch with `--open-settings`: `"/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLid" --open-settings &` (or `open -a "KoffeeLid" --args --open-settings`) → one window, centred with no jump, a toolbar of seven pages with each symbol above its title (Général, Activation, Activation auto, Effet d’écran, Son, Don, Système), the window's title is the shown page's; not resizable

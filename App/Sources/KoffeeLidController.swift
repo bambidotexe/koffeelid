@@ -130,8 +130,10 @@ final class KoffeeLidController {
             do { try SMAppService.mainApp.register(); log.log("launch at login registered (default)") }
             catch { log.log("launch at login default registration failed: \(error.localizedDescription)") }
         }
-        // Onboarding asks for notifications itself, on its permissions page, with the reason next to it.
-        if prefs.onboardingCompleted { NotificationsController.shared.requestAuthorization() }
+        // Nothing here asks for notifications. A permission prompt only ever follows a click: the onboarding's
+        // Notifications row and Settings > System are the two places that ask, each with the reason beside it.
+        // This launch used to ask once onboarding was done, which prompted out of nowhere at the next launch
+        // of anyone who had skipped that row.
 
         lidObserver = LidObserver(power: power)
         lidObserver.onLog = { [log] in log.log($0) }

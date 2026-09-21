@@ -257,6 +257,17 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
   binary for a bare key name does not settle it: `LISTEN_EVENT` does not appear that way either, and Input
   Monitoring is plainly a section of its own.
 
+### A permission asked without a click
+- **Symptom.** The notification prompt appears at launch, with nothing on screen to explain it.
+- **Why.** The start-up path asked for authorization once onboarding was done. Anyone who reached the end of
+  onboarding without granting that row still had the grant at `notDetermined`, so the next launch prompted
+  them out of nowhere. A refusal there is remembered by macOS for good.
+- **What the code does.** Nothing asks but a button: the onboarding's rows and Settings > System, each with
+  the reason beside it. A state is read with the preflight or check call
+  (`CGPreflightScreenCaptureAccess`, `IOHIDCheckAccess`, `getNotificationSettings`, `SMAppService...status`).
+- **Do not** read a grant with the API that requests it. It returns the current state, which makes it look
+  like a reader, and it also prompts; both windows re-read every 2 s, so that is a prompt every 2 s.
+
 ### A grant request and a System Settings pane, both at once
 - **Symptom.** One press of "Allow…" and the user gets the system permission dialog *and* System Settings, one
   over the other.

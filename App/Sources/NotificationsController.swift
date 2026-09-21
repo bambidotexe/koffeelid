@@ -19,7 +19,6 @@ final class NotificationsController: NSObject, UNUserNotificationCenterDelegate 
         center.setNotificationCategories([UNNotificationCategory(identifier: Self.updateCategory, actions: [update], intentIdentifiers: [])])
     }
 
-    func requestAuthorization() { center.requestAuthorization(options: [.alert, .sound]) { _, _ in } }
 
     func post(id: String, title: String, body: String) {
         let content = UNMutableNotificationContent(); content.title = title; content.body = body

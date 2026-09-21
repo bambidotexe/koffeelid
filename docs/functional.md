@@ -277,6 +277,11 @@ App Activity, Screen Recording, Input Monitoring, Notifications. The names are q
 system's own tables (`macOS.md` § Permissions), never invented and never a remembered older name. The sleep
 lock is the one row with a name of its own, having no system switch behind it.
 
+**No permission prompt ever appears unless the user clicked for it.** Nothing asks at launch, when a window
+opens, or when a feature that needs a grant is switched on: the onboarding's rows and Settings > System are
+the only two places that ask, each with the reason beside it. A state is read with the preflight or check
+call, never with the one that requests, because the windows re-read every 2 s while they are open.
+
 **A grant button asks macOS, and does nothing else.** Screen Recording, Input Monitoring and Notifications each
 show the system's own dialog, which carries its own button to the right pane of System Settings; the app never
 opens a pane beside that dialog, and never instead of it once the grant has been refused. Login Items is the
