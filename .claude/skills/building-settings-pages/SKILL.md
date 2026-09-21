@@ -21,7 +21,7 @@ reproduce them.
 | You are in | Do this |
 |---|---|
 | **KoffeeLid** | The kit exists. Build from `App/Sources/UI/SettingsKit.swift`. Never write a `Form`, a `Section`, a `GroupBox` or a hand-made row. Go to *Evolving the window*. |
-| **A new app** | Copy `reference/SettingsKit.swift` and `reference/SettingsWindow.swift` beside this file as they are (both type-check alone, Swift 6, macOS 26), edit the three places marked `EDIT`, then build pages from the kit. |
+| **A new app** | Copy `reference/SettingsKit.swift` and `reference/SettingsWindow.swift` beside this file as they are (both type-check alone, Swift 6, macOS 26), edit the three places marked `EDIT`, then build pages from the kit. The tip jar comes with them: copy `reference/KoFiMark.swift` and `reference/SettingsTipPage.swift` too, and add the `tip` case. |
 
 ## The window
 
@@ -39,13 +39,22 @@ reproduce them.
 
 - **A page is a subject the user thinks in** (in SnappySnap: Snapping, Snap Bar, Handles), never a kind of control and
   never a layer of the code. Title Case, one or two words, one outline SF Symbol that pictures the subject.
-- Order: **General** first, then the features in the order a user meets them, then **System** last.
+- Order: **General** first, then the features in the order a user meets them, then **Tip**, then
+  **System** last.
 - **General** is, in this order: the app icon alone (`SettingsAppIcon`, 144 pt, centred); **Startup**
   (Launch at login, Show in menu bar, no hint, and one **note** naming the way back to this window when
   the icon is hidden); **Updates** (its contract is below); **Quit** (one destructive `ButtonRow`, no
   hint, no note).
 - **System** is what the app needs from the OS: permissions, conflicts with the OS's own features,
   compatibility.
+- **Tip** is the tip jar, and it is the same page in every app of this author. Two cards, no controls:
+  first a card with **no title**, the app's icon at `tipAppIconSide` beside one sentence saying every
+  feature is free to everyone and always will be, and that a coffee is how the project is supported;
+  then **One-time tip**, holding the Ko-fi cup (`KoFiMark`, `tipMarkSide` inside a `tipTileSide` tile
+  filled with its own red at 0.12, radius `cardRadius`), the offer's name, one grey line saying what it
+  is, and a `.bordered` `.tint(.blue)` button naming the smallest tip the page takes
+  (`SupportLink.smallestTip`). Under the card, one hint: the browser opens, and any larger amount is
+  typed on the page itself. The button opens `SupportLink.koFi` and nothing else moves.
 - **A setting lives with the one feature it affects**, whatever its type suggests. SnappySnap's
   Animation sits under Snap Assist because that is the only thing it paces.
 - **A group is what the user thinks of together**: usually 2 to 4 rows under one explanation. A
@@ -69,8 +78,10 @@ reproduce them.
 | A detail only a bug report needs (an identifier, a symbol name) | tooltip | `.help(...)` on the row. Never on the row itself. |
 | Something tall (an editor, a list, an example) | inside a card | Height 240, its own background hidden so the card shows through. |
 
-**Nothing explanatory is ever inside a card.** An orange sentence between two rows is a warning in the
-wrong place.
+**Nothing explanatory is ever inside a card, with one exception the owner asked for: the Tip page.** An
+orange sentence between two rows is a warning in the wrong place. The Tip page's two cards hold pictures
+and sentences instead of controls, and its first has no title at all (`SettingsGroup(title:)` takes nil
+for that and for nothing else). Every other page keeps the rule.
 
 In SnappySnap:
 
@@ -218,6 +229,8 @@ All in `SettingsMetrics`. Change one only on the owner's word, and then in the k
 | callout: symbol to text | 5 | tall content inside a card | 240 |
 | title, hint, callout inset | 10 | app icon (2 above it) | 144 |
 | card radius | 10 | screen height left alone | 140 |
+| Tip: app icon | 44 | Tip: picture to words | 14 |
+| Tip: Ko-fi tile | 88 | Tip: the cup inside it | 52 |
 
 Card: fill `Color.primary.opacity(0.05)`, stroke `Color.primary.opacity(0.08)` at 0.5. Switch:
 `.toggleStyle(.switch)`, `.controlSize(.mini)`, label hidden but set. Segmented: `.labelsHidden()`,

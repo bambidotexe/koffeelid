@@ -177,7 +177,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,
   from the CLI) opens nothing, and neither does an open request that arrives while an install's outcome is
   still unread: that one is the update helper's, not a person's (§ Updates).
-- **Settings.** One window with six pages, picked from a toolbar that draws each page's symbol above its
+- **Settings.** One window with seven pages, picked from a toolbar that draws each page's symbol above its
   title; the window's title is the shown page's. It is 640 pt wide and as tall as the shown page: it resizes
   around its top-left corner, animated, on a page switch and whenever a page gains or loses a line, never past
   the display's visible height less 140 pt (beyond that the page scrolls). It opens on General, sized then
@@ -185,15 +185,19 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 
   | Page | Groups |
   |---|---|
-  | General | the app icon; Startup (launch at login, show in menu bar, and a note naming the way back to this window once the icon is hidden); Updates; Support (one button, "Buy Me a Coffee", opening https://ko-fi.com/bambidotexe in the browser; the app sets nothing and reads nothing back); Quit ("Quit KoffeeLid" is the menu's Quit: disarms, clears the kernel flag, releases the sleep lock, then exits); Uninstall (see below) |
+  | General | the app icon; Startup (launch at login, show in menu bar, and a note naming the way back to this window once the icon is hidden); Updates; Quit ("Quit KoffeeLid" is the menu's Quit: disarms, clears the kernel flag, releases the sleep lock, then exits); Uninstall (see below) |
   | Arming | Lid gesture (the switch, the key to hold, the two travels); Menu bar and shortcuts (right-click, the two shortcuts); Low battery (the switch and its level) |
   | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
   | Lid Effect | Effect (the switch, and the Screen Recording grant while it is on); Lid angle (the live angle, the angle in the menu bar); When it starts; Look; Preview (reset to defaults, simulate a fold) |
   | Sound | Lid-close sound (the switch, and the clip as a pop-up menu: picking one plays it); Volume (the forced volume and its level) |
+  | Tip | a card with no title: the app icon beside the sentence saying every feature is free and stays free, and that a coffee is how the project is supported; One-time tip (the Ko-fi cup on its own red wash, "A cup of coffee" and what it is, and a button naming the smallest tip the page takes, `SupportLink.smallestTip`, 5 €). The button opens https://ko-fi.com/bambidotexe in the browser; the app sets nothing and reads nothing back, and nothing is paid inside it |
   | System | Staying awake safely (sleep lock, Login Items approval); Permissions (Screen Recording, Input Monitoring, Notifications); Compatibility (lid-angle sensor); Diagnostics (the log's switch, open the log); Start over (show the onboarding again, reset everything) |
 
   A group is a title, a card of rows, and under the card a grey hint, then orange warnings, present only while
-  something is to be fixed, then blue notes. A row is a control and its label and nothing else. A control that
+  something is to be fixed, then blue notes. A row is a control and its label and nothing else, and nothing
+  explanatory goes inside a card. **The Tip page is the one exception, and the owner asked for it**: its first
+  card has no title and holds a picture and a sentence, and its second holds a picture, two sentences and a
+  button. A control that
   depends on a switch that is off is disabled and its label dims with it: the gesture's key and travels under the
   gesture switch, the battery level under its switch, the three auto-arm waits under the auto-arm switch, the
   effect's start and look under the effect switch, the clip and the volume under the sound switch. The gesture

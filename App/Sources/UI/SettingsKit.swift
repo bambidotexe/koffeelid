@@ -34,6 +34,13 @@ enum SettingsMetrics {
     static let appIconTop: CGFloat = 2
     /// The height of anything tall that lives inside a card: a text editor, a list.
     static let embeddedHeight: CGFloat = 240
+    /// The Tip page: the app icon beside the sentence that heads it, the tile the Ko-fi cup sits in, the
+    /// cup inside that tile, and the air between a picture and the words beside it. Chosen by the agent
+    /// that built the page rather than fitted by the owner, like the update window's numbers.
+    static let tipAppIconSide: CGFloat = 44
+    static let tipTileSide: CGFloat = 88
+    static let tipMarkSide: CGFloat = 52
+    static let tipPictureGap: CGFloat = 14
     /// A slider's track. Every slider on every page is this wide, so their handles share one column.
     static let sliderWidth: CGFloat = 220
     /// The value beside a slider. Fixed and trailing aligned, so a changing number never moves the track.
@@ -69,18 +76,20 @@ struct SettingsAppIcon: View {
 }
 
 /// One group, always the same parts in the same order: a title, a card of rows, and below and OUTSIDE
-/// the card a hint, then warnings, then notes. Nothing explanatory goes inside a card.
+/// the card a hint, then warnings, then notes. Nothing explanatory goes inside a card, with one
+/// exception the owner asked for: the two cards of the Tip page, which are pictures and words.
 ///
 /// hint: what the group does, grey. warning: something the user must fix, orange, present only while
 /// it is wrong. note: the one thing the user must not miss, blue. A group with nothing to say has none.
+/// A group with no title is a card on its own, which only the Tip page's first card is.
 struct SettingsGroup<Rows: View>: View {
-    private let title: String
+    private let title: String?
     private let hint: String?
     private let warnings: [String]
     private let notes: [String]
     private let rows: Rows
 
-    init(title: String, hint: String? = nil, warnings: [String] = [], notes: [String] = [],
+    init(title: String? = nil, hint: String? = nil, warnings: [String] = [], notes: [String] = [],
          @ViewBuilder rows: () -> Rows) {
         self.title = title
         self.hint = hint
@@ -91,10 +100,12 @@ struct SettingsGroup<Rows: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(.headline)
-                .padding(.leading, SettingsMetrics.inset)
-                .padding(.bottom, SettingsMetrics.cardGap)
+            if let title {
+                Text(title)
+                    .font(.headline)
+                    .padding(.leading, SettingsMetrics.inset)
+                    .padding(.bottom, SettingsMetrics.cardGap)
+            }
             card
             if let hint {
                 Text(hint)

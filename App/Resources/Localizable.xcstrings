@@ -51,6 +51,26 @@
         }
       }
     },
+    "A cup of coffee": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une tasse de café"
+          }
+        }
+      }
+    },
+    "A good coffee to keep this project going": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un bon café pour faire avancer ce projet"
+          }
+        }
+      }
+    },
     "A session waiting for your answer does not count as running.": {
       "localizations": {
         "fr": {
@@ -551,12 +571,62 @@
         }
       }
     },
+    "Ko-fi opens in your browser. €%d is the smallest tip, and you can type any amount there.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ko-fi s’ouvre dans votre navigateur. %d € est le plus petit don, et vous pouvez y saisir le montant que vous voulez."
+          }
+        }
+      }
+    },
+    "KoffeeLid offers all its features free to everyone, and always will. You can support this project by offering me a coffee.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid offre toutes ses fonctionnalités gratuitement à tout le monde, et ce sera toujours le cas. Vous pouvez soutenir ce projet en m’offrant un café."
+          }
+        }
+      }
+    },
+    "One-time tip": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don ponctuel"
+          }
+        }
+      }
+    },
     "The update is installed. KoffeeLid is running the new version.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "La mise à jour est installée. KoffeeLid utilise la nouvelle version."
+          }
+        }
+      }
+    },
+    "Tip": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don"
+          }
+        }
+      }
+    },
+    "Tip €%d": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offrir %d €"
           }
         }
       }
@@ -2827,36 +2897,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "La dernière étape n’a pas pu démarrer : %@. Les réglages et le dossier KoffeeLid dans Application Support sont toujours là ; retirez-les à la main."
-          }
-        }
-      }
-    },
-    "Support": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Soutien"
-          }
-        }
-      }
-    },
-    "KoffeeLid is free. If it saves you trouble, you can leave a tip on Ko-fi.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "KoffeeLid est gratuit. S’il vous rend service, vous pouvez laisser un pourboire sur Ko-fi."
-          }
-        }
-      }
-    },
-    "Buy Me a Coffee": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Offrir un café"
           }
         }
       }

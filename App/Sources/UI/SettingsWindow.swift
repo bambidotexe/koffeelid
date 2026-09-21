@@ -7,9 +7,10 @@ import SwiftUI
 /// selection cannot disagree about which page a click means.
 ///
 /// One case per page. A page is a subject the user thinks in, never a kind of control: General first,
-/// then the features in the order a user meets them, then what the app needs from the system, last.
+/// then the features in the order a user meets them, then the tip jar, then what the app needs from the
+/// system, last.
 enum SettingsPageID: String, CaseIterable, Sendable {
-    case general, arming, autoArm, lidEffect, sound, system
+    case general, arming, autoArm, lidEffect, sound, tip, system
 
     /// The toolbar item's label, and the window's title while the page is shown. Title Case.
     var title: String {
@@ -19,6 +20,7 @@ enum SettingsPageID: String, CaseIterable, Sendable {
         case .autoArm: L("Auto-Arm")
         case .lidEffect: L("Lid Effect")
         case .sound: L("Sound")
+        case .tip: L("Tip")
         case .system: L("System")
         }
     }
@@ -32,6 +34,7 @@ enum SettingsPageID: String, CaseIterable, Sendable {
         case .autoArm: "terminal"
         case .lidEffect: "perspective"
         case .sound: "speaker.wave.2"
+        case .tip: "mug"
         case .system: "checkmark.shield"
         }
     }
@@ -88,6 +91,7 @@ struct SettingsRootView: View {
         case .autoArm: SettingsAutoArmPage(model: model)
         case .lidEffect: SettingsLidEffectPage(model: model)
         case .sound: SettingsSoundPage(model: model)
+        case .tip: SettingsTipPage()
         case .system: SettingsSystemPage(model: model)
         }
     }

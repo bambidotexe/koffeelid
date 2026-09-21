@@ -95,6 +95,7 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 | the app icon | `App/Resources/AppIcon.icon` (Icon Composer document), its `type: file` source entry in `project.yml` | `development.md` § Icons; `architecture.md` § Build, signing, entitlements |
 | Settings (start with the `building-settings-pages` skill) | `App/UI/SettingsWindow.swift` (pages, toolbar, height), `SettingsKit.swift` (the kit and every number), `SettingsModel.swift` (bindings, polled states), `Settings…Page.swift` (one per page); `Core/SettingsStatus.swift` (a state's colour) | `functional.md` § User interface, § Settings and defaults; `development.md` § How to add things (a settings control); the skill, if a rule of the window changes |
 | onboarding | `App/UI/OnboardingWindowController.swift`, `ControlActionHandler.swift` | `functional.md` § User interface |
+| the Tip page, the Ko-fi link | `App/UI/SettingsTipPage.swift`, `KoFiMark.swift`; `Core/SupportLink.swift` (the page and the smallest tip it takes) | `functional.md` § User interface; `manual-checks.md` § Settings UI |
 | a preference and its default | `App/Preferences.swift`; `KoffeeLidController.preferenceChanged(_:)` | `functional.md` § Settings and defaults |
 | a user-visible string | `App/Resources/Localizable.xcstrings`, edited in place, with its `fr` entry | `development.md` § How to add things (a user-visible string) |
 | a permission row, the sudoers setup, Reset | `App/UI/Permissions.swift` (`PermissionCatalog`), `Core/SettingsStatus.swift` (`SettingsGrant`), `App/UI/SettingsSystemPage.swift`, `App/UI/SleepLockSetupAction.swift`; `KoffeeLidController.resetEverything` | `functional.md` § Permissions and what breaks without them; `macOS.md` § Permissions and how each is reset |
@@ -342,7 +343,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   above the published **1.1.0**, which is the rule. The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
   requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
-  Icon Composer icon, the six-page Settings window with its macOS 15 target, and the automatic update (weekly
+  Icon Composer icon, the seven-page Settings window with its macOS 15 target, and the automatic update (weekly
   check, notification, update window, Install and Relaunch). `/Applications/KoffeeLid.app` is installed at
   **0.1.3**, the version 1.1.0 is offered to: `script/publish.sh --no-install` published the release and left
   the Mac on the older copy on purpose, so that the update a user gets is the one that is walked here. The

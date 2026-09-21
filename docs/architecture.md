@@ -27,7 +27,7 @@ from `applicationShouldTerminate`.
 
 The Settings window (`App/Sources/UI/Settings*.swift`) is one `SettingsWindow`: an `NSWindow` with a
 `.preference` `NSToolbar` over a single `NSHostingController`, built once by `AppDelegate.showSettings()` and
-re-shown. Its six pages are SwiftUI views built only from the kit in `SettingsKit.swift`; the window's height
+re-shown. Its seven pages are SwiftUI views built only from the kit in `SettingsKit.swift`; the window's height
 follows the shown page. `SettingsModel` is what the pages share: bindings onto `Preferences.shared` that
 announce their own changes to SwiftUI (the coordinator stays the one subscriber of `Preferences.onChange`), and
 the states a page reports, polled on the main thread and started and stopped by the window (open, close,
