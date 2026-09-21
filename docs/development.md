@@ -195,11 +195,23 @@ subject and the group by what the control governs; a control that depends on a s
 are `UpdatePanel` (Core, tested). How it looks or reads is judged by the owner in the running app, never by
 the agent.
 
-**A permission or a hook row.** Add a case to `SettingsGrant` (Core) with its colour rule and test in
-`SettingsStatus`, then a `PermissionItem` to `PermissionCatalog.items` or `HookCatalog.items`: its `id`, title,
-why, `required`, a synchronous `granted` closure (cache asynchronous state the way notifications do), button
-title and an action that calls `done` when the state may have changed. The onboarding lists it from the catalog;
-the Settings page that owns it adds its `StatusRow`, and its `ButtonRow` shown only while it is missing.
+**A permission or a hook row.** Start with the `building-onboarding` skill: it holds the rules below and the
+traps behind them. Add a case to `SettingsGrant` (Core) with its colour rule and test in `SettingsStatus`, then
+a `PermissionItem` to `PermissionCatalog.items` or `HookCatalog.items`: its `id`, title, why, `required`, a
+synchronous `granted` closure (cache asynchronous state the way notifications do), button title and an action
+that calls `done` when the state may have changed. The onboarding lists it from the catalog; the Settings page
+that owns it adds its `StatusRow`, and its `ButtonRow` shown only while it is missing. Four rules the row has
+to keep, each of which was once broken:
+
+- **The title is what System Settings calls the switch**, quoted from the system's own tables, not the pane it
+  sits in and not the API (`macOS.md` § Permissions has the mapping and where each name comes from).
+- **`granted` reads and never asks**: the preflight or check call, never the paired request call, which also
+  prompts and would do so on every 2 s tick of both windows.
+- **The action asks macOS and nothing else.** No System Settings pane beside the dialog, and never branching on
+  a request call's result, which is the state before the user has answered.
+- **Set `mayOpen` to System Settings** for any macOS grant, and `returnsFocus` only for a flow that puts up its
+  own dialog and waits for it. Those two decide who is in front afterwards; `pitfalls.md` § Windows and
+  permission grants says what goes wrong with either.
 
 **A block reason.** Add the case to `ArmBlockReason` (Core, with tests), handle it in
 `KoffeeLidController.notifyBlocked(_:)` and `describe(_:)` (exhaustive switches), add the notification text.

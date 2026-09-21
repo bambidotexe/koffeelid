@@ -12,7 +12,8 @@ document answers which question.
    driver and is usually armed; nothing in the loop may quit, reinstall or disarm it without that check.
 3. Run `git status --short`. Another agent may be working in this tree; stage by path.
 4. For the area you touch, read the section of `functional.md` (the behaviour), then the matching section of
-   `pitfalls.md` (what already went wrong there), then `architecture.md` for where it lives.
+   `pitfalls.md` (what already went wrong there), then `architecture.md` for where it lives. If `CLAUDE.md`
+   names a skill for that area, that skill comes first: it holds rules the documents only summarise.
 5. If the request contradicts a rule you just read, ask the owner whether the rule is overruled before writing
    code. When the owner confirms, the rule is replaced in `functional.md` in the same commit as the code.
 
@@ -27,6 +28,9 @@ document answers which question.
 | How do I build, install, debug, add a preference, a string, a control, a permission row, a verb, an effect tunable, a collaborator? How do I change the menu-bar glyph or the app icon? How is a release made? | `development.md` |
 | How is a hardware-only behaviour verified? Which log line proves it? | `manual-checks.md` |
 | What was read, verified and decided in the September 2026 audits? | `_audit.md` (the findings and decisions) and `_coverage.md` (the file manifest); records, not rules |
+| How is the Settings window built, and how are its words written? | the `building-settings-pages` skill |
+| How is the onboarding built? How is a permission named, asked for, and kept from covering what it opens? | the `building-onboarding` skill |
+| How does a build reach this Mac, or a release reach GitHub? | the `install-locally` and `publish-release` skills |
 
 ## Keeping the documents true
 

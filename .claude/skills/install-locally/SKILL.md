@@ -70,6 +70,24 @@ DEBUG_OK=1 script/build.sh Debug
 
 and delete the bundle when you are done with it.
 
+## When it fails
+
+**Run it again before you diagnose anything.** The first thing `script/release.sh` does is check the notary
+credential with `xcrun notarytool history --keychain-profile "$NOTARY_PROFILE"`, and that check has failed
+spuriously between two installs ten minutes apart, with
+
+```
+no notarytool keychain profile 'wooflab-notary'
+```
+
+and then succeeded on the next run with nothing changed. Notarizing itself talks to Apple over the network and
+can fail the same way. A step that worked minutes ago is far likelier to be flaky than broken, and going
+looking costs the owner's patience and leads into parts of his machine that have nothing to do with this app.
+Only a second failure is worth investigating, and then stay inside this project's own files and credentials:
+the profile and the Developer ID identity are the owner's to restore, not yours to recreate.
+
+A failed install leaves nothing behind and does not touch `/Applications`, so a retry is free.
+
 ## Checking it worked
 
 ```bash

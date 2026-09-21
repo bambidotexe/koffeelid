@@ -326,7 +326,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 ## Traps
 
-`docs/pitfalls.md` is the full list. The five that cost the most time:
+`docs/pitfalls.md` is the full list. The six that cost the most time:
 
 1. **powerd rewrites the kernel flag under you.** Selector 12 sets the same bit powerd owns; a charger plug, a
    display hot-plug or leaving desktop mode can bring the mask to 0 and start a clamshell sleep inside the same
@@ -340,7 +340,12 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 4. **A display that vanishes behind a closed lid is reported late**, about 130 ms after the lid-open
    notification, so a reopen decision on a cached topology unlocks the session. The list is re-read at lid
    open and a skipped lock stays pending for 2 s.
-5. **Hooks are not a complete signal.** Esc and Ctrl-C fire no hook, `SubagentStop` is often missing,
+5. **A permission row is a pointer into a list the user has to scan.** Name it anything but what System
+   Settings prints beside the switch and the user cannot act on it; ask for a grant without a click and macOS
+   remembers the refusal for good; take activation when a flow reports back and the window lands on top of the
+   pane it just opened, while never taking it leaves the window behind the user's terminal. Start from the
+   `building-onboarding` skill, not from instinct.
+6. **Hooks are not a complete signal.** Esc and Ctrl-C fire no hook, `SubagentStop` is often missing,
    `idle_prompt` is a timer, a dialog can be answered without any hook, and hooks fire while the app is down.
    The activity feature reads the registry and the process tree as well; do not tighten it against one
    recording.
@@ -350,9 +355,9 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 - Version 1.1.1 committed and published (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), and the
   tree sits at exactly that: a local install always builds exactly the tree's own version, never one ahead of
   production, and nothing bumps the tree again until the next `script/publish.sh <patch|minor|major>`.
-  `/Applications/KoffeeLid.app` is installed at **1.1.0** on purpose: `script/publish.sh patch --no-install`
-  published 1.1.1 and left the Mac on the older copy, so that the update a user gets is the one walked here,
-  through Settings › Updates. The tree carries the manual update
+  `/Applications/KoffeeLid.app` is installed at **1.1.1** as well: the onboarding round below was walked on
+  real installs, which replaced the 1.1.0 copy that had been kept back to walk an update through
+  Settings › Updates. Keeping a copy back for that is done by publishing with `--no-install`. The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
   requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
   Icon Composer icon, the seven-page Settings window with its macOS 15 target, and the automatic update (weekly
@@ -362,11 +367,20 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   Claude Code hooks and the zsh snippet are all in place.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
+- The onboarding is an ordinary window, and everything about that was walked on this Mac: the normal level and
+  default collection behaviour (it stays behind what the user raises, and keeps its place across a Space
+  switch), per-row redraw with a spinner beside the pressed button instead of a page rebuild, the grant buttons
+  showing only the system dialog, the administrator dialog handing the front back, and System Settings handing
+  it back when it quits. Every grant row is titled what System Settings titles the switch, quoted from the
+  system's tables, and **nothing in the app asks for a permission without a click**. The rules and the traps
+  are in the `building-onboarding` skill; read it before touching that window or any permission row.
 - `swift test` is green (354 distinct cases: 332 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-checks.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-checks.md` § Settings UI; the owner
   approved its look and wording in the running app), the dark-wake hold, the one-close hold, the late-display
-  reopen lock, the arrow-key check, the built-in-keyboard Fn rule, and most of the auto-arm section. The update
+  reopen lock, the arrow-key check, the built-in-keyboard Fn rule, and most of the auto-arm section. On the
+  onboarding, what has not been seen is the last page's Finish and the Notifications row's own prompt on a Mac
+  where that grant has never been asked for. The update
   feature has been run through its unit tests, through a real install and a real roll-back of a stand-in app by
   the real helper, and end to end against a published GitHub release (check, fetch with its digest, unpacking,
   signature rule); KoffeeLid installing over itself, the notification, the update window and the window that says how an
