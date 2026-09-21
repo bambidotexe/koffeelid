@@ -202,6 +202,14 @@ the desktop at fold 0.
 | Notifications | usernoted's group preferences, `apps[]` entry with `bundle-id` | drop the entry, `killall usernoted` and `killall NotificationCenter` |
 | Preferences | UserDefaults domain `dev.rubens.koffeelid` | `defaults delete dev.rubens.koffeelid` |
 
+Asking for a grant and pointing at System Settings are two different things, and the app only ever does the
+first. `CGRequestScreenCaptureAccess()` (Screen Recording) and `IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)`
+(Input Monitoring) show the system's dialog, whose own button opens the right pane; both return **the state at
+the moment of the call**, which is still not-granted while the user is looking at the dialog, so their result
+says nothing about an answer. `UNUserNotificationCenter.requestAuthorization` is the same for notifications, and
+once a grant is explicitly denied macOS shows no dialog at all and the call returns the denial. Login Items has
+no dialog: `SMAppService.openSystemSettingsLoginItems()` is the only flow there is.
+
 The app signs with the Wooflab team's Developer ID Application identity (`85F6AC5QZF`, `project.yml`'s
 `DEVELOPMENT_TEAM` with `CODE_SIGN_STYLE: Automatic`; `script/signing.env` looks the identity up in the
 keychain by team id). `script/release.sh` notarizes and staples both the app and the disk image, so a release

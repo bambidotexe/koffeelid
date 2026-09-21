@@ -186,6 +186,17 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 ### `NSScreen.main` is nil with no key window
 - **What the code does.** Window sizing falls back to the first screen.
 
+### A grant request and a System Settings pane, both at once
+- **Symptom.** One press of "Allow…" and the user gets the system permission dialog *and* System Settings, one
+  over the other.
+- **Why.** `CGRequestScreenCaptureAccess()` shows the dialog and returns the state as it is *now*, which is
+  still not-granted, so a `if !request() { openSystemSettings() }` opens the pane every single time.
+- **What the code does.** Each grant action calls the request API and stops there (`PermissionCatalog`); the
+  dialog's own button is the way to System Settings. The pane openers were deleted so the branch cannot come
+  back.
+- **Do not** read a request API's return value as "the user refused": it is the state before the user has
+  answered.
+
 ## Watchdog and launch
 
 ### `argv[0]` is useless under launchd

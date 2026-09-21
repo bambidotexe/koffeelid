@@ -1,17 +1,13 @@
 import Foundation
 import ScreenCaptureKit
 import CoreGraphics
-import AppKit
 
 public enum ScreenCapturePermission {
     public static var isGranted: Bool { CGPreflightScreenCaptureAccess() }
-    /// Shows the system prompt the first time; returns the current state.
+    /// Shows the system prompt; returns the state as it is now, which is still not-granted while the user is
+    /// looking at the dialog — never read it as a refusal. The dialog is the whole flow, so nothing here opens
+    /// System Settings beside it.
     @discardableResult public static func request() -> Bool { CGRequestScreenCaptureAccess() }
-    public static func openSystemSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            NSWorkspace.shared.open(url)
-        }
-    }
 }
 
 /// BGRA capture of one display, excluding our own overlay window.

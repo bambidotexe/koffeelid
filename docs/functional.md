@@ -265,6 +265,12 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Notifications | every message above | silent failures; the log still has them |
 | Lid-angle sensor (hardware) | the gesture and the effect | both unavailable; other arming paths work |
 
+**A grant button asks macOS, and does nothing else.** Screen Recording, Input Monitoring and Notifications each
+show the system's own dialog, which carries its own button to the right pane of System Settings; the app never
+opens a pane beside that dialog, and never instead of it once the grant has been refused. Login Items is the
+one exception, and the button says so ("Open Login Items"): macOS offers no dialog for it, so the pane is that
+grant's whole flow. The sleep lock's button shows the administrator-password dialog.
+
 Settings › System › "Reset KoffeeLid…" asks for confirmation, then disarms, removes the sudoers rule, unregisters the
 login items, resets Screen Recording, Input Monitoring and notifications, removes the hooks and the zsh block, clears the
 preferences and whatever an update left in Application Support, and reopens onboarding.

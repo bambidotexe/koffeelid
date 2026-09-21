@@ -25,6 +25,10 @@ struct PermissionItem {
 
 /// The five grants, in the order they matter. Notification authorization is asynchronous, so callers
 /// refresh it with `refreshNotifications` and read the cached value through `notificationsGranted`.
+///
+/// A grant's action asks macOS and nothing else: the system dialog carries its own way to System Settings, so
+/// the app never opens a pane beside it, nor instead of it once a grant has been refused. Login Items is the
+/// one exception, because macOS offers no dialog for it — the pane *is* that grant's flow.
 @MainActor
 enum PermissionCatalog {
     private(set) static var notificationsGranted = false
@@ -50,7 +54,7 @@ enum PermissionCatalog {
                        required: false,
                        granted: { ScreenCapturePermission.isGranted },
                        buttonTitle: L("Allow…"),
-                       action: { _, done in if !ScreenCapturePermission.request() { ScreenCapturePermission.openSystemSettings() }; done() }),
+                       action: { _, done in ScreenCapturePermission.request(); done() }),
         PermissionItem(id: .inputMonitoring,
                        title: L("Input Monitoring"),
                        why: L("Lets KoffeeLid read the built-in keyboard's Fn key directly, so only that key arms the lid gesture and an external keyboard's Fn key does not."),
@@ -58,7 +62,7 @@ enum PermissionCatalog {
                        granted: { BuiltInFnKeyReader.isGranted },
                        buttonTitle: L("Allow…"),
                        action: { _, done in
-                           if BuiltInFnKeyReader.isDenied { BuiltInFnKeyReader.openSystemSettings() } else { BuiltInFnKeyReader.requestAccess() }
+                           BuiltInFnKeyReader.requestAccess()
                            KoffeeLidController.shared.inputMonitoringChanged(); done()
                        }),
         PermissionItem(id: .notifications,
@@ -77,14 +81,8 @@ enum PermissionCatalog {
     }
 
     private static func requestNotifications(_ done: @escaping () -> Void) {
-        UNUserNotificationCenter.current().getNotificationSettings { s in
-            DispatchQueue.main.async {
-                if s.authorizationStatus == .denied, let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
-                    NSWorkspace.shared.open(url); done()
-                } else {
-                    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in Task { @MainActor in refreshNotifications(done) } }
-                }
-            }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
+            Task { @MainActor in refreshNotifications(done) }
         }
     }
 }

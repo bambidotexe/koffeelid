@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 import IOKit.hid
 
 /// Reads the built-in keyboard's own Fn (Globe) key through IOKit HID, so that an external keyboard's Fn key
@@ -24,14 +24,9 @@ final class BuiltInFnKeyReader {
     var onLog: ((String) -> Void)?
 
     static var isGranted: Bool { IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted }
-    static var isDenied: Bool { IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeDenied }
-    /// Shows the system prompt the first time; returns the current state.
+    /// Shows the system prompt; returns the current state. The dialog is the whole flow, so nothing here
+    /// opens System Settings beside it.
     @discardableResult static func requestAccess() -> Bool { IOHIDRequestAccess(kIOHIDRequestTypeListenEvent) }
-    static func openSystemSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
-            NSWorkspace.shared.open(url)
-        }
-    }
 
     private static let keyboardMatching: [String: Any] = [kIOHIDDeviceUsagePageKey: kHIDPage_GenericDesktop, kIOHIDDeviceUsageKey: kHIDUsage_GD_Keyboard]
     /// The Fn key: Apple's vendor top-case page / KeyboardFn, or the vendor keyboard page / Function.
