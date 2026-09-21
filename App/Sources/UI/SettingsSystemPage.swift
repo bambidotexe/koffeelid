@@ -32,9 +32,9 @@ struct SettingsSystemPage: View {
                 }
             }
             SettingsGroup(title: L("Permissions"),
-                          hint: L("Screen & System Audio Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off."),
-                          notes: [L("After allowing Screen & System Audio Recording, quit and reopen KoffeeLid.")]) {
-                permission(.screenRecording, L("Screen & System Audio Recording permission"), allow: L("Allow Screen & System Audio Recording"))
+                          hint: L("Screen Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off."),
+                          notes: [L("After allowing Screen Recording, quit and reopen KoffeeLid.")]) {
+                permission(.screenRecording, L("Screen Recording permission"), allow: L("Allow Screen Recording"))
                 permission(.inputMonitoring, L("Input Monitoring permission"), allow: L("Allow Input Monitoring"))
                 permission(.notifications, L("Notifications permission"), allow: L("Allow Notifications"))
             }
@@ -95,7 +95,7 @@ struct SettingsSystemPage: View {
     private func confirmReset() {
         let alert = NSAlert()
         alert.messageText = L("Reset KoffeeLid?")
-        alert.informativeText = L("This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen & System Audio Recording and notification permissions, and clears every setting. The onboarding then starts again.")
+        alert.informativeText = L("This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen Recording and notification permissions, and clears every setting. The onboarding then starts again.")
         alert.alertStyle = .warning
         alert.addButton(withTitle: L("Reset"))
         alert.addButton(withTitle: L("Cancel"))

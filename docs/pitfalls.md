@@ -220,10 +220,13 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
   is a pointer into a list the user has to scan, so the only name that works is the one printed beside the
   switch.
 - **What the code does.** Every row is titled with the system's own string, quoted from the system's tables
-  (`macOS.md` § Permissions): Background App Activity, Screen & System Audio Recording, Input Monitoring.
-- **Do not** name a grant from memory, and do not trust the first matching key in a system loctable: the
-  privacy pane still ships `SCREEN_CAPTURE` reading "Screen Recording" beside the `SCREENANDAUDIOCAPTURE` it
-  actually displays. Check which key the pane's own binary references.
+  (`macOS.md` § Permissions): Background App Activity, Screen Recording, Input Monitoring.
+- **Do not** name a grant from memory, and do not pick between two candidate keys in a system loctable by
+  guessing which one is live. Privacy & Security lists `SCREEN_CAPTURE` ("Screen Recording") and
+  `SCREENANDAUDIOCAPTURE` ("Screen & System Audio Recording") as two separate grants; the app requests the
+  first and never the second, so the API it calls is what decides the name, not the pane. Grepping the pane's
+  binary for a bare key name does not settle it: `LISTEN_EVENT` does not appear that way either, and Input
+  Monitoring is plainly a section of its own.
 
 ### A grant request and a System Settings pane, both at once
 - **Symptom.** One press of "Allow…" and the user gets the system permission dialog *and* System Settings, one

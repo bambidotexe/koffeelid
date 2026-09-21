@@ -111,12 +111,12 @@
         }
       }
     },
-    "After allowing Screen & System Audio Recording, quit and reopen KoffeeLid.": {
+    "After allowing Screen Recording, quit and reopen KoffeeLid.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Après avoir autorisé l’enregistrement de l’écran et des sons du système, quittez puis rouvrez KoffeeLid."
+            "value": "Après avoir autorisé l’enregistrement de l’écran, quittez puis rouvrez KoffeeLid."
           }
         }
       }
@@ -151,22 +151,22 @@
         }
       }
     },
-    "Allow Screen & System Audio Recording": {
+    "Allow Screen Recording": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autoriser l’enregistrement de l’écran et des sons du système"
+            "value": "Autoriser l’enregistrement de l’écran"
           }
         }
       }
     },
-    "Allow Screen & System Audio Recording for KoffeeLid, then quit and reopen it. Without it, the effect cannot show your desktop.": {
+    "Allow Screen Recording for KoffeeLid, then quit and reopen it. Without it, the effect cannot show your desktop.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autorisez l’enregistrement de l’écran et des sons du système pour KoffeeLid, puis quittez et rouvrez-le. Sans cela, l’effet ne peut pas montrer votre bureau."
+            "value": "Autorisez l’enregistrement de l’écran pour KoffeeLid, puis quittez et rouvrez-le. Sans cela, l’effet ne peut pas montrer votre bureau."
           }
         }
       }
@@ -1801,32 +1801,32 @@
         }
       }
     },
-    "Screen & System Audio Recording": {
+    "Screen Recording": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enregistrement de l’écran et des sons du système"
+            "value": "Enregistrement de l’écran"
           }
         }
       }
     },
-    "Screen & System Audio Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off.": {
+    "Screen Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "L’enregistrement de l’écran et des sons du système permet à l’effet d’écran de montrer votre bureau. La surveillance de l’entrée permet au geste de l’écran de distinguer la touche 🌐 Fn de ce Mac de celle d’un clavier externe. Les notifications vous préviennent quand KoffeeLid se désactive de lui-même."
+            "value": "L’enregistrement de l’écran permet à l’effet d’écran de montrer votre bureau. La surveillance de l’entrée permet au geste de l’écran de distinguer la touche 🌐 Fn de ce Mac de celle d’un clavier externe. Les notifications vous préviennent quand KoffeeLid se désactive de lui-même."
           }
         }
       }
     },
-    "Screen & System Audio Recording permission": {
+    "Screen Recording permission": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autorisation d’enregistrement de l’écran et des sons du système"
+            "value": "Autorisation d’enregistrement de l’écran"
           }
         }
       }
@@ -2371,12 +2371,12 @@
         }
       }
     },
-    "This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen & System Audio Recording and notification permissions, and clears every setting. The onboarding then starts again.": {
+    "This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen Recording and notification permissions, and clears every setting. The onboarding then starts again.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Désactive KoffeeLid, retire le verrou de veille et sa règle sudoers (mot de passe administrateur), désinscrit les éléments d’ouverture, réinitialise les autorisations Enregistrement de l’écran et des sons du système et Notifications, et efface tous les réglages. L’introduction recommence ensuite."
+            "value": "Désactive KoffeeLid, retire le verrou de veille et sa règle sudoers (mot de passe administrateur), désinscrit les éléments d’ouverture, réinitialise les autorisations Enregistrement de l’écran et Notifications, et efface tous les réglages. L’introduction recommence ensuite."
           }
         }
       }

@@ -49,7 +49,7 @@ enum PermissionCatalog {
                        buttonTitle: L("Open Login Items Settings"),
                        action: { _, done in SMAppService.openSystemSettingsLoginItems(); done() }),
         PermissionItem(id: .screenRecording,
-                       title: L("Screen & System Audio Recording"),
+                       title: L("Screen Recording"),
                        why: L("Lets the lid effect show your desktop folding as the lid closes."),
                        required: false,
                        granted: { ScreenCapturePermission.isGranted },
