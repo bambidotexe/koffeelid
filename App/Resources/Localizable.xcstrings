@@ -111,12 +111,12 @@
         }
       }
     },
-    "After allowing Screen Recording, quit and reopen KoffeeLid.": {
+    "After allowing Screen & System Audio Recording, quit and reopen KoffeeLid.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Après avoir autorisé l’enregistrement de l’écran, quittez puis rouvrez KoffeeLid."
+            "value": "Après avoir autorisé l’enregistrement de l’écran et des sons du système, quittez puis rouvrez KoffeeLid."
           }
         }
       }
@@ -151,22 +151,22 @@
         }
       }
     },
-    "Allow Screen Recording": {
+    "Allow Screen & System Audio Recording": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autoriser l’enregistrement de l’écran"
+            "value": "Autoriser l’enregistrement de l’écran et des sons du système"
           }
         }
       }
     },
-    "Allow Screen Recording for KoffeeLid, then quit and reopen it. Without it, the effect cannot show your desktop.": {
+    "Allow Screen & System Audio Recording for KoffeeLid, then quit and reopen it. Without it, the effect cannot show your desktop.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autorisez l’enregistrement de l’écran pour KoffeeLid, puis quittez et rouvrez-le. Sans cela, l’effet ne peut pas montrer votre bureau."
+            "value": "Autorisez l’enregistrement de l’écran et des sons du système pour KoffeeLid, puis quittez et rouvrez-le. Sans cela, l’effet ne peut pas montrer votre bureau."
           }
         }
       }
@@ -387,6 +387,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Disponible"
+          }
+        }
+      }
+    },
+    "Background App Activity": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activité des apps en arrière-plan"
           }
         }
       }
@@ -896,7 +906,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Surveillance de l'entrée"
+            "value": "Surveillance de l’entrée"
           }
         }
       }
@@ -1141,12 +1151,12 @@
         }
       }
     },
-    "KoffeeLid in Login Items": {
+    "KoffeeLid in “Background App Activity”": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "KoffeeLid dans Ouverture"
+            "value": "KoffeeLid dans « Activité des apps en arrière-plan »"
           }
         }
       }
@@ -1201,12 +1211,12 @@
         }
       }
     },
-    "Lets KoffeeLid come back by itself after a crash and give your Mac its normal sleep back. In System Settings › General › Login Items, turn KoffeeLid on under “Background App Activity”.": {
+    "Lets KoffeeLid come back by itself after a crash and give your Mac its normal sleep back. Turn KoffeeLid on in System Settings › General › Login Items.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Permet à KoffeeLid de revenir tout seul après un plantage et de rendre à votre Mac sa veille normale. Dans Réglages Système › Général › Ouverture, activez KoffeeLid sous « Activité des apps en arrière-plan »."
+            "value": "Permet à KoffeeLid de revenir tout seul après un plantage et de rendre à votre Mac sa veille normale. Activez KoffeeLid dans Réglages Système › Général › Ouverture."
           }
         }
       }
@@ -1317,16 +1327,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verrouillez-le maintenant avec Contrôle-Commande-Q, puis vérifiez Réglages > Général."
-          }
-        }
-      }
-    },
-    "Login Items": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Éléments d’ouverture"
           }
         }
       }
@@ -1497,16 +1497,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ouvrir l’image disque"
-          }
-        }
-      }
-    },
-    "Open Login Items": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ouvrir Ouverture"
           }
         }
       }
@@ -1811,32 +1801,32 @@
         }
       }
     },
-    "Screen Recording": {
+    "Screen & System Audio Recording": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enregistrement de l'écran"
+            "value": "Enregistrement de l’écran et des sons du système"
           }
         }
       }
     },
-    "Screen Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off.": {
+    "Screen & System Audio Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "L’enregistrement de l’écran permet à l’effet d’écran de montrer votre bureau. La surveillance de l’entrée permet au geste de l’écran de distinguer la touche 🌐 Fn de ce Mac de celle d’un clavier externe. Les notifications vous préviennent quand KoffeeLid se désactive de lui-même."
+            "value": "L’enregistrement de l’écran et des sons du système permet à l’effet d’écran de montrer votre bureau. La surveillance de l’entrée permet au geste de l’écran de distinguer la touche 🌐 Fn de ce Mac de celle d’un clavier externe. Les notifications vous préviennent quand KoffeeLid se désactive de lui-même."
           }
         }
       }
     },
-    "Screen Recording permission": {
+    "Screen & System Audio Recording permission": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autorisation d’enregistrement de l’écran"
+            "value": "Autorisation d’enregistrement de l’écran et des sons du système"
           }
         }
       }
@@ -2331,12 +2321,12 @@
         }
       }
     },
-    "The sleep lock stops macOS from sleeping your closed Mac when you plug in the charger or a display changes. Login Items lets KoffeeLid come back after a crash and give your Mac its normal sleep back.": {
+    "The sleep lock stops macOS from sleeping your closed Mac when you plug in the charger or a display changes. Background App Activity lets KoffeeLid come back after a crash and give your Mac its normal sleep back.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le verrou de veille empêche macOS de mettre en veille votre Mac fermé quand vous branchez le chargeur ou qu’un écran change. Ouverture permet à KoffeeLid de revenir après un plantage et de rendre à votre Mac sa veille normale."
+            "value": "Le verrou de veille empêche macOS de mettre en veille votre Mac fermé quand vous branchez le chargeur ou qu’un écran change. « Activité des apps en arrière-plan » permet à KoffeeLid de revenir après un plantage et de rendre à votre Mac sa veille normale."
           }
         }
       }
@@ -2381,12 +2371,12 @@
         }
       }
     },
-    "This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen Recording and notification permissions, and clears every setting. The onboarding then starts again.": {
+    "This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen & System Audio Recording and notification permissions, and clears every setting. The onboarding then starts again.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Désactive KoffeeLid, retire le verrou de veille et sa règle sudoers (mot de passe administrateur), désinscrit les éléments d’ouverture, réinitialise les autorisations Enregistrement de l’écran et Notifications, et efface tous les réglages. L’introduction recommence ensuite."
+            "value": "Désactive KoffeeLid, retire le verrou de veille et sa règle sudoers (mot de passe administrateur), désinscrit les éléments d’ouverture, réinitialise les autorisations Enregistrement de l’écran et des sons du système et Notifications, et efface tous les réglages. L’introduction recommence ensuite."
           }
         }
       }

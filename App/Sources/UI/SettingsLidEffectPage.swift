@@ -18,7 +18,7 @@ struct SettingsLidEffectPage: View {
             SettingsGroup(title: L("Effect"),
                           hint: L("While KoffeeLid is armed, your desktop stays upright behind the screen as it folds down. The effect only plays while the lid closes, and nothing is captured while the lid rests."),
                           warnings: recordingMissing
-                            ? [L("Allow Screen Recording for KoffeeLid, then quit and reopen it. Without it, the effect cannot show your desktop.")]
+                            ? [L("Allow Screen & System Audio Recording for KoffeeLid, then quit and reopen it. Without it, the effect cannot show your desktop.")]
                             : [],
                           notes: sensor ? [] : [L("This Mac has no lid angle sensor, so the lid effect is not available.")]) {
                 ToggleRow(L("Show the desktop folding away as the lid closes"), isOn: model.effect(\.enabled),
@@ -26,12 +26,12 @@ struct SettingsLidEffectPage: View {
                 // The one grant the effect needs, reported where the effect is switched on. The row stays
                 // once it is green, so the link between the two can always be seen.
                 if effectOn {
-                    StatusRow(L("Screen Recording permission"),
+                    StatusRow(L("Screen & System Audio Recording permission"),
                               mark: model.mark(.screenRecording, yes: L("Granted"), no: L("Denied")))
                 }
                 if recordingMissing {
                     ButtonRow {
-                        Button(L("Allow Screen Recording")) { model.grant(.screenRecording) }
+                        Button(L("Allow Screen & System Audio Recording")) { model.grant(.screenRecording) }
                     }
                 }
             }

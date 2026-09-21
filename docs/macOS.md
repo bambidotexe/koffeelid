@@ -202,6 +202,22 @@ the desktop at fold 0.
 | Notifications | usernoted's group preferences, `apps[]` entry with `bundle-id` | drop the entry, `killall usernoted` and `killall NotificationCenter` |
 | Preferences | UserDefaults domain `dev.rubens.koffeelid` | `defaults delete dev.rubens.koffeelid` |
 
+**A grant is called, in the app, exactly what System Settings calls it.** The user has to find the switch in a
+list, so a name of our own is a dead end however accurate it reads. macOS 27 shows these, and the app quotes
+them from the system's own tables rather than from memory:
+
+| The app asks for | System Settings shows | French | Quoted from |
+|---|---|---|---|
+| the login item / watchdog agent | Background App Activity, in General › Login Items | Activité des apps en arrière-plan | `LoginItems.appex/Contents/Resources/Localizable.loctable` |
+| `CGRequestScreenCaptureAccess` | Screen & System Audio Recording | Enregistrement de l’écran et des sons du système | `SecurityPrivacyExtension.appex`, key `SCREENANDAUDIOCAPTURE` |
+| `IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)` | Input Monitoring | Surveillance de l’entrée | the same, key `LISTEN_EVENT` |
+
+Two traps in that table. The Login Items **pane** is not the name of the switch: the pane lists "Open at Login"
+above and "Background App Activity" below, KoffeeLid appears in both, and only the second is the one to turn
+on. And `SecurityPrivacyExtension` still carries a `SCREEN_CAPTURE` key reading "Screen Recording", the name
+macOS used before; only `SCREENANDAUDIOCAPTURE` is referenced by the pane's binary, so that is what is on
+screen. The sleep lock has no system name at all, being a sudoers rule of ours, and keeps its own.
+
 Asking for a grant and pointing at System Settings are two different things, and the app only ever does the
 first. `CGRequestScreenCaptureAccess()` (Screen Recording) and `IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)`
 (Input Monitoring) show the system's dialog, whose own button opens the right pane; both return **the state at

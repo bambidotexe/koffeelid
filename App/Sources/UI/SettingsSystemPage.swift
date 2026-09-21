@@ -13,7 +13,7 @@ struct SettingsSystemPage: View {
     var body: some View {
         SettingsPage {
             SettingsGroup(title: L("Staying awake safely"),
-                          hint: L("The sleep lock stops macOS from sleeping your closed Mac when you plug in the charger or a display changes. Login Items lets KoffeeLid come back after a crash and give your Mac its normal sleep back."),
+                          hint: L("The sleep lock stops macOS from sleeping your closed Mac when you plug in the charger or a display changes. Background App Activity lets KoffeeLid come back after a crash and give your Mac its normal sleep back."),
                           warnings: safetyWarnings) {
                 StatusRow(L("Sleep lock"), mark: model.mark(.sleepLock, yes: L("Available"), no: L("Missing")))
                     // What the lock is made of: for a bug report, and for nobody else.
@@ -23,7 +23,7 @@ struct SettingsSystemPage: View {
                         Button(L("Set Up Sleep Lock…")) { model.grant(.sleepLock) }
                     }
                 }
-                StatusRow(L("KoffeeLid in Login Items"), mark: model.mark(.loginItems, yes: L("Enabled"), no: L("Disabled")))
+                StatusRow(L("KoffeeLid in “Background App Activity”"), mark: model.mark(.loginItems, yes: L("Enabled"), no: L("Disabled")))
                     .help(RelaunchAgentController.plistName)
                 if !model.holds(.loginItems) {
                     ButtonRow {
@@ -32,9 +32,9 @@ struct SettingsSystemPage: View {
                 }
             }
             SettingsGroup(title: L("Permissions"),
-                          hint: L("Screen Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off."),
-                          notes: [L("After allowing Screen Recording, quit and reopen KoffeeLid.")]) {
-                permission(.screenRecording, L("Screen Recording permission"), allow: L("Allow Screen Recording"))
+                          hint: L("Screen & System Audio Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off."),
+                          notes: [L("After allowing Screen & System Audio Recording, quit and reopen KoffeeLid.")]) {
+                permission(.screenRecording, L("Screen & System Audio Recording permission"), allow: L("Allow Screen & System Audio Recording"))
                 permission(.inputMonitoring, L("Input Monitoring permission"), allow: L("Allow Input Monitoring"))
                 permission(.notifications, L("Notifications permission"), allow: L("Allow Notifications"))
             }
@@ -95,7 +95,7 @@ struct SettingsSystemPage: View {
     private func confirmReset() {
         let alert = NSAlert()
         alert.messageText = L("Reset KoffeeLid?")
-        alert.informativeText = L("This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen Recording and notification permissions, and clears every setting. The onboarding then starts again.")
+        alert.informativeText = L("This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen & System Audio Recording and notification permissions, and clears every setting. The onboarding then starts again.")
         alert.alertStyle = .warning
         alert.addButton(withTitle: L("Reset"))
         alert.addButton(withTitle: L("Cancel"))

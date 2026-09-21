@@ -212,6 +212,19 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
   needs a loading state of its own: a row whose flow is still running must survive the next tick, or the
   spinner is taken away from under it.
 
+### A grant named anything but what System Settings calls it
+- **Symptom.** The row says "Éléments d’ouverture", the user presses its button, and the pane that opens has no
+  such heading: it has "Ouvrir avec la session" and "Activité des apps en arrière-plan". Nothing tells them
+  which of the two to touch, and KoffeeLid is listed under both.
+- **Why.** The row had been named after the **pane**, and after the pane's older name at that. A permission row
+  is a pointer into a list the user has to scan, so the only name that works is the one printed beside the
+  switch.
+- **What the code does.** Every row is titled with the system's own string, quoted from the system's tables
+  (`macOS.md` § Permissions): Background App Activity, Screen & System Audio Recording, Input Monitoring.
+- **Do not** name a grant from memory, and do not trust the first matching key in a system loctable: the
+  privacy pane still ships `SCREEN_CAPTURE` reading "Screen Recording" beside the `SCREENANDAUDIOCAPTURE` it
+  actually displays. Check which key the pane's own binary references.
+
 ### A grant request and a System Settings pane, both at once
 - **Symptom.** One press of "Allow…" and the user gets the system permission dialog *and* System Settings, one
   over the other.
