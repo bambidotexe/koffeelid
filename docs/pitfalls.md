@@ -196,6 +196,20 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 - **Do not** reach for a collection behaviour to make a window easier to find, for the same reason as the
   window level above: it buys reachability with the user's own window order.
 
+### A modal dialog of our own still leaves an accessory app deactivated
+- **Symptom.** "Configurer…" for the sleep lock, the administrator dialog, the password accepted, and the
+  wizard is now behind the terminal.
+- **Why.** The dialog is drawn by SecurityAgent, not by us: `NSAppleScript` running
+  `do shell script … with administrator privileges` blocks the main thread while another process owns the
+  screen. When it closes macOS hands activation back to an ordinary app, but not to an `LSUIElement` one, so
+  the window it belonged to is left wherever it had fallen in the order.
+- **What the code does.** `PermissionItem.returnsFocus` marks a flow that puts up its own dialog and waits
+  for it, and such a flow alone calls `reclaimFocusIfNeeded` when it ends. The sleep lock is the only one
+  today, and both surfaces that run these flows honour it.
+- **Do not** give that flag to a flow that hands over to System Settings or to a system prompt. Those report
+  back at once, while the thing they opened is still coming up, and taking activation then is exactly what put
+  the wizard on top of the pane it had just opened.
+
 ### `NSScreen.main` is nil with no key window
 - **What the code does.** Window sizing falls back to the first screen.
 

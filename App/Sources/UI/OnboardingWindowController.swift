@@ -372,6 +372,7 @@ private final class GrantRow {
             self.busy = false
             self.refresh()
             self.didFinish()
+            self.item.reclaimFocusIfNeeded(self.window())
         }
     }
 

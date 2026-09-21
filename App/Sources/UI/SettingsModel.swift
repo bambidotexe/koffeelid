@@ -82,7 +82,12 @@ final class SettingsModel: ObservableObject {
     /// Runs a grant's own flow (the permission dialog, the pane in System Settings, the hook installer),
     /// then re-reads everything: the flow may also have switched auto-arm on.
     func grant(_ grant: SettingsGrant) {
-        item(grant)?.action(NSApp.keyWindow) { [weak self] in self?.refresh() }
+        guard let item = item(grant) else { return }
+        let host = NSApp.keyWindow
+        item.action(host) { [weak self] in
+            self?.refresh()
+            item.reclaimFocusIfNeeded(host)
+        }
     }
 
     /// Undoes a grant the app can undo itself: the two hooks.

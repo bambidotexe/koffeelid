@@ -16,11 +16,25 @@ struct PermissionItem {
     let buttonTitle: String
     /// Runs the grant flow; calls `done` (main thread) when the state may have changed.
     let action: (_ window: NSWindow?, _ done: @escaping () -> Void) -> Void
+    /// Whether the flow puts up its own dialog and blocks until it is answered. macOS does not reactivate an
+    /// accessory app when such a dialog closes, so a flow that owned one takes activation back when it ends.
+    /// A flow that hands over to System Settings or to a system prompt leaves it false: taking activation
+    /// there is what used to drop the window on top of what it had just opened.
+    var returnsFocus: Bool = false
     /// What the onboarding shows once `granted()` is true. "Granted" for a macOS grant; a hook says "Set up".
     var doneTitle: String = L("Granted")
     /// A grant that can be undone from the app (the hooks): the button shown once `granted()` is true.
     var removeTitle: String? = nil
     var remove: ((_ window: NSWindow?, _ done: @escaping () -> Void) -> Void)? = nil
+}
+
+extension PermissionItem {
+    /// Activation back to `window` once a flow that owned a modal dialog has ended, and only then.
+    @MainActor func reclaimFocusIfNeeded(_ window: NSWindow?) {
+        guard returnsFocus, let window, window.isVisible else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
 }
 
 /// The five grants, in the order they matter. Notification authorization is asynchronous, so callers
@@ -40,7 +54,8 @@ enum PermissionCatalog {
                        required: true,
                        granted: { KoffeeLidController.shared.sleepLockAvailable },
                        buttonTitle: L("Set up…"),
-                       action: { window, done in SleepLockSetupAction.run(from: window); done() }),
+                       action: { window, done in SleepLockSetupAction.run(from: window); done() },
+                       returnsFocus: true),
         PermissionItem(id: .loginItems,
                        title: L("Background App Activity"),
                        why: L("Lets KoffeeLid come back by itself after a crash and give your Mac its normal sleep back. Turn KoffeeLid on in System Settings › General › Login Items."),
