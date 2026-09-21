@@ -366,17 +366,18 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 - Version 1.1.2 committed and published (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), and the
   tree sits at exactly that: a local install always builds exactly the tree's own version, never one ahead of
   production, and nothing bumps the tree again until the next `script/publish.sh <patch|minor|major>`.
-  `/Applications/KoffeeLid.app` is installed at **1.1.1** on purpose: `script/publish.sh patch --no-install`
-  published 1.1.2 and left the Mac on the older copy, so that the update a user gets is the one walked here,
-  through Settings › Updates. **Do not install over it** until that walk is done, or the copy that is meant to
-  find the update is gone. The tree carries the manual update
+  `/Applications/KoffeeLid.app` is installed at **1.1.2**, built from this tree: the uninstall walk took the
+  1.1.1 copy off this Mac, so nothing is left here to find 1.1.2 through Settings › Updates. Walking an update
+  end to end again needs a version published ahead of the installed one. The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
   requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
   Icon Composer icon, the seven-page Settings window with its macOS 15 target, and the automatic update (weekly
   check, notification, update window, Install and Relaunch). `script/install.sh` refuses only while quitting
   would sleep the Mac at once (armed, lid shut, no external display) — verified with a real closed-lid,
-  external-display install (`docs/manual-test-checklist.md` § Safety rails). The sudoers rule, the watchdog agent, the
-  Claude Code hooks and the zsh snippet are all in place.
+  external-display install (`docs/manual-test-checklist.md` § Safety rails). The sudoers rule and the watchdog
+  agent are in place; the Claude Code hooks and the zsh snippet are not. The uninstall took them, and an
+  install puts them back no more than it puts back a TCC grant: Settings, the onboarding and `install-hooks`
+  do.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
 - The onboarding is an ordinary window, and everything about that was walked on this Mac: the normal level and
