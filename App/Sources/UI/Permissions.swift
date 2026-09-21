@@ -11,7 +11,6 @@ struct PermissionItem {
     let id: SettingsGrant
     let title: String
     let why: String
-    let required: Bool
     let granted: () -> Bool
     let buttonTitle: String
     /// Runs the grant flow; calls `done` (main thread) when the state may have changed.
@@ -31,6 +30,10 @@ struct PermissionItem {
     /// A grant that can be undone from the app (the hooks): the button shown once `granted()` is true.
     var removeTitle: String? = nil
     var remove: ((_ window: NSWindow?, _ done: @escaping () -> Void) -> Void)? = nil
+
+    /// Whether the onboarding marks the row required. Core decides it (`SettingsGrant.isRequired`), so the
+    /// wizard's mark and the colour a missing grant takes on every page cannot disagree.
+    var required: Bool { id.isRequired }
 }
 
 /// Gives the front back after the user has been sent to another app, the way macOS does for an ordinary
@@ -101,7 +104,6 @@ enum PermissionCatalog {
         PermissionItem(id: .sleepLock,
                        title: L("Sleep lock"),
                        why: L("Stops macOS from sleeping the closed Mac when the charger is plugged in or a display changes. Asks for your administrator password once."),
-                       required: true,
                        granted: { KoffeeLidController.shared.sleepLockAvailable },
                        buttonTitle: L("Set up…"),
                        action: { window, done in SleepLockSetupAction.run(from: window); done() },
@@ -109,7 +111,6 @@ enum PermissionCatalog {
         PermissionItem(id: .loginItems,
                        title: L("Background App Activity"),
                        why: L("Lets KoffeeLid come back by itself after a crash and give your Mac its normal sleep back. Turn KoffeeLid on in System Settings › General › Login Items."),
-                       required: true,
                        granted: { SMAppService.agent(plistName: RelaunchAgentController.plistName).status == .enabled },
                        buttonTitle: L("Open Login Items Settings"),
                        action: { _, done in SMAppService.openSystemSettingsLoginItems(); done() },
@@ -117,7 +118,6 @@ enum PermissionCatalog {
         PermissionItem(id: .screenRecording,
                        title: L("Screen Recording"),
                        why: L("Lets the lid effect show your desktop folding as the lid closes."),
-                       required: false,
                        granted: { ScreenCapturePermission.isGranted },
                        buttonTitle: L("Allow…"),
                        action: { _, done in ScreenCapturePermission.request(); done() },
@@ -125,7 +125,6 @@ enum PermissionCatalog {
         PermissionItem(id: .inputMonitoring,
                        title: L("Input Monitoring"),
                        why: L("Lets KoffeeLid read the built-in keyboard's Fn key directly, so only that key arms the lid gesture and an external keyboard's Fn key does not."),
-                       required: false,
                        granted: { BuiltInFnKeyReader.isGranted },
                        buttonTitle: L("Allow…"),
                        action: { _, done in
@@ -136,7 +135,6 @@ enum PermissionCatalog {
         PermissionItem(id: .notifications,
                        title: L("Notifications"),
                        why: L("Tells you when KoffeeLid disarms itself (low battery, thermal pressure) or cannot lock the screen."),
-                       required: false,
                        granted: { notificationsGranted },
                        buttonTitle: L("Allow…"),
                        action: { _, done in requestNotifications(done) },

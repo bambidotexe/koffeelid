@@ -4,55 +4,45 @@ import Foundation
 /// as it should be, worth knowing, to be fixed, refused, still happening.
 public enum StatusSeverity: Equatable {
     case good, info, warning, failure, busy
+
+    /// The mark of one of the Health page's four levels, so a state reads the same on every page.
+    public init(_ level: HealthLevel) {
+        switch level {
+        case .info: self = .info
+        case .good: self = .good
+        case .warning: self = .warning
+        case .failure: self = .failure
+        }
+    }
 }
 
 /// Everything the Settings window reports as granted or not: the two things a closed Mac needs to stay
 /// awake safely, the three macOS permissions, the two hooks that feed auto-arm.
 public enum SettingsGrant: String, CaseIterable {
     case sleepLock, loginItems, screenRecording, inputMonitoring, notifications, claudeHooks, zshHook
-}
 
-/// The settings a state's colour depends on.
-public struct SettingsContext: Equatable {
-    public var effectEnabled: Bool
-    public var gestureEnabled: Bool
-    /// The gesture watches Fn rather than Option: the one key an external keyboard has too.
-    public var gestureUsesFn: Bool
-    public var autoArmEnabled: Bool
-
-    public init(effectEnabled: Bool, gestureEnabled: Bool, gestureUsesFn: Bool, autoArmEnabled: Bool) {
-        self.effectEnabled = effectEnabled
-        self.gestureEnabled = gestureEnabled
-        self.gestureUsesFn = gestureUsesFn
-        self.autoArmEnabled = autoArmEnabled
+    /// Whether KoffeeLid cannot keep a closed Mac awake safely without it: the sleep lock, which stops macOS
+    /// from sleeping it behind the arm, and Background App Activity, which brings KoffeeLid back after a
+    /// crash and the Mac's normal sleep with it. The onboarding marks these rows required; every other grant
+    /// serves one feature.
+    public var isRequired: Bool {
+        switch self {
+        case .sleepLock, .loginItems: true
+        case .screenRecording, .inputMonitoring, .notifications, .claudeHooks, .zshHook: false
+        }
     }
 }
 
 /// The colour of a state follows whether it is what it should be, not whether it is on.
 public enum SettingsStatus {
-    /// - The sleep lock and the Login Items approval are to be fixed whenever they are missing.
-    /// - A permission that is missing is refused (red) only while something that is switched on needs it:
-    ///   Screen Recording while the effect is on, Input Monitoring while the gesture watches Fn,
-    ///   notifications always. Otherwise it is only worth knowing.
-    /// - A hook that is missing is to be fixed only while auto-arm is on with no hook at all to listen to.
-    public static func severity(of grant: SettingsGrant, held: Set<SettingsGrant>, context: SettingsContext) -> StatusSeverity {
-        if held.contains(grant) { return .good }
-        switch grant {
-        case .sleepLock, .loginItems:
-            return .warning
-        case .screenRecording:
-            return context.effectEnabled ? .failure : .info
-        case .inputMonitoring:
-            return context.gestureEnabled && context.gestureUsesFn ? .failure : .info
-        case .notifications:
-            return .failure
-        case .claudeHooks, .zshHook:
-            return autoArmIsDeaf(held: held, context: context) ? .warning : .info
-        }
+    /// A grant that is there is green. A missing one is red when it is required and orange otherwise, on
+    /// every page that shows it, whatever the settings: `HealthRules.grant(held:required:)`.
+    public static func severity(of grant: SettingsGrant, held: Set<SettingsGrant>) -> StatusSeverity {
+        StatusSeverity(HealthRules.grant(held: held.contains(grant), required: grant.isRequired))
     }
 
     /// Auto-arm is on and neither hook is set up: nothing can tell the app that work is running.
-    public static func autoArmIsDeaf(held: Set<SettingsGrant>, context: SettingsContext) -> Bool {
-        context.autoArmEnabled && !held.contains(.claudeHooks) && !held.contains(.zshHook)
+    public static func autoArmIsDeaf(held: Set<SettingsGrant>, autoArmEnabled: Bool) -> Bool {
+        autoArmEnabled && !held.contains(.claudeHooks) && !held.contains(.zshHook)
     }
 }

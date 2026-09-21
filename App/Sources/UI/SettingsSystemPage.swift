@@ -2,11 +2,13 @@ import AppKit
 import SwiftUI
 import KoffeeLidCore
 
-/// What KoffeeLid needs from macOS and from this Mac, its log, and the two ways to start over.
+/// What KoffeeLid needs from macOS and the controls that give it, its log, and the two ways to start over.
+/// A state with nothing to press beside it is not here: it is on the Health page.
 ///
 /// Every state here follows the system while the window is open, so granting a permission in System
 /// Settings shows up without closing it. A state the user can fix is its row, and while it is wrong a
-/// button to the place it is fixed and a warning; once it is right both go and the row stays.
+/// button to the place it is fixed and a warning; once it is right both go and the row stays. A missing
+/// grant is red when the onboarding marks it required and orange otherwise (`SettingsStatus`).
 struct SettingsSystemPage: View {
     @ObservedObject var model: SettingsModel
 
@@ -33,15 +35,11 @@ struct SettingsSystemPage: View {
             }
             SettingsGroup(title: L("Permissions"),
                           hint: L("Screen Recording lets the lid effect show your desktop. Input Monitoring lets the lid gesture tell this Mac's 🌐 Fn key from an external keyboard's. Notifications tell you when KoffeeLid turns itself off."),
+                          warnings: permissionWarnings,
                           notes: [L("After allowing Screen Recording, quit and reopen KoffeeLid.")]) {
                 permission(.screenRecording, L("Screen Recording permission"), allow: L("Allow Screen Recording"))
                 permission(.inputMonitoring, L("Input Monitoring permission"), allow: L("Allow Input Monitoring"))
                 permission(.notifications, L("Notifications permission"), allow: L("Allow Notifications"))
-            }
-            SettingsGroup(title: L("Compatibility"),
-                          hint: L("The lid gesture and the lid effect need it. Everything else works without it.")) {
-                StatusRow(L("Lid angle sensor"),
-                          mark: model.sensorPresent ? .good(L("Available")) : .warning(L("Missing")))
             }
             SettingsGroup(title: L("Diagnostics"),
                           hint: L("Off, KoffeeLid writes nothing to its log. Turn it back on before you report a problem.")) {
@@ -73,7 +71,18 @@ struct SettingsSystemPage: View {
         }
     }
 
-    /// One instruction for each row that is orange, and none for a row that is green.
+    /// Where each permission that is denied is switched on. Once refused, the Allow button can show
+    /// nothing: macOS asks only once, and the switch in System Settings is the way left. The Health page
+    /// gives the same sentences.
+    private var permissionWarnings: [String] {
+        var warnings: [String] = []
+        if !model.holds(.screenRecording) { warnings.append(L("In System Settings › Privacy & Security › Screen Recording, turn KoffeeLid on.")) }
+        if !model.holds(.inputMonitoring) { warnings.append(L("In System Settings › Privacy & Security › Input Monitoring, turn KoffeeLid on.")) }
+        if !model.holds(.notifications) { warnings.append(L("In System Settings › Notifications › KoffeeLid, turn on “Allow notifications”.")) }
+        return warnings
+    }
+
+    /// One instruction for each row that is red, and none for a row that is green.
     private var safetyWarnings: [String] {
         var warnings: [String] = []
         if !model.holds(.sleepLock) { warnings.append(L("Set up the sleep lock. It asks for your administrator password once.")) }
@@ -95,7 +104,7 @@ struct SettingsSystemPage: View {
     private func confirmReset() {
         let alert = NSAlert()
         alert.messageText = L("Reset KoffeeLid?")
-        alert.informativeText = L("This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen Recording and notification permissions, and clears every setting. The onboarding then starts again.")
+        alert.informativeText = L("This disarms, removes the sleep lock and its sudoers rule (administrator password), unregisters the login items, resets the Screen Recording, Input Monitoring and notification permissions, removes the hooks, and clears every setting. The onboarding then starts again.")
         alert.alertStyle = .warning
         alert.addButton(withTitle: L("Reset"))
         alert.addButton(withTitle: L("Cancel"))

@@ -5,7 +5,7 @@ import KoffeeLidCore
 import LidPlaneKit
 
 /// What every page of the Settings window reads and writes: the preferences, and the states a page
-/// reports. One instance, owned by the window, shared by the six pages.
+/// reports. One instance, owned by the window, shared by the pages.
 ///
 /// The preferences live in UserDefaults behind `Preferences.shared`, whose `onChange` belongs to the
 /// coordinator alone, so a page writes through the bindings here and they announce the change themselves.
@@ -17,8 +17,12 @@ final class SettingsModel: ObservableObject {
     let prefs = Preferences.shared
 
     /// `SMAppService` is the source of truth for the login item: the user can revoke it in System
-    /// Settings without the app ever hearing about it.
-    @Published private(set) var launchAtLogin = false
+    /// Settings without the app ever hearing about it. It says one thing the General page's switch cannot
+    /// show, a login item switched off in System Settings while KoffeeLid asked for it, which the Health
+    /// page reports.
+    @Published private(set) var loginItem: LoginItemState = .disabled
+    /// The General page's switch: on only while the system would open KoffeeLid at login.
+    var launchAtLogin: Bool { loginItem == .enabled }
     /// The grants and hooks that are there right now.
     @Published private(set) var held: Set<SettingsGrant> = []
     @Published private(set) var sensorPresent = false
@@ -66,19 +70,12 @@ final class SettingsModel: ObservableObject {
 
     // MARK: States
 
-    /// The settings a state's colour depends on.
-    var context: SettingsContext {
-        SettingsContext(effectEnabled: prefs.effect.enabled,
-                        gestureEnabled: prefs.armWithOption,
-                        gestureUsesFn: prefs.gestureModifier == .fn,
-                        autoArmEnabled: prefs.armOnActivity)
-    }
-
     func holds(_ grant: SettingsGrant) -> Bool { held.contains(grant) }
 
-    /// The mark of one grant: `yes` while it is there, `no` while it is not, coloured by `SettingsStatus`.
+    /// The mark of one grant: `yes` while it is there, `no` while it is not, coloured by `SettingsStatus`:
+    /// red when a required grant is missing, orange when an optional one is, on every page alike.
     func mark(_ grant: SettingsGrant, yes: String, no: String) -> StatusMark {
-        StatusMark(SettingsStatus.severity(of: grant, held: held, context: context), holds(grant) ? yes : no)
+        StatusMark(SettingsStatus.severity(of: grant, held: held), holds(grant) ? yes : no)
     }
 
     /// Runs a grant's own flow (the permission dialog, the pane in System Settings, the hook installer),
@@ -109,10 +106,10 @@ final class SettingsModel: ObservableObject {
     func refresh() {
         objectWillChange.send()
 
-        let login = SMAppService.mainApp.status == .enabled
-        if login != launchAtLogin { launchAtLogin = login }
+        let login = Self.loginItemState
+        if login != loginItem { loginItem = login }
         // The preference mirrors the service: the coordinator registers the login item from it at launch.
-        if prefs.launchAtLogin != login { prefs.launchAtLogin = login }
+        if prefs.launchAtLogin != launchAtLogin { prefs.launchAtLogin = launchAtLogin }
 
         let now = Set((PermissionCatalog.items + HookCatalog.items).filter { $0.granted() }.map(\.id))
         if now != held { held = now }
@@ -131,6 +128,16 @@ final class SettingsModel: ObservableObject {
         if sensor != sensorPresent { sensorPresent = sensor }
 
         readLive()
+    }
+
+    /// What `SMAppService` says about KoffeeLid opening at login. Registered and then switched off in
+    /// System Settings is `requiresApproval`: the login will not happen although KoffeeLid asked for it.
+    private static var loginItemState: LoginItemState {
+        switch SMAppService.mainApp.status {
+        case .enabled: .enabled
+        case .requiresApproval: .needsApproval
+        default: .disabled
+        }
     }
 
     /// The two readings that move while the window is open.

@@ -12,7 +12,7 @@ struct SettingsAutoArmPage: View {
         SettingsPage {
             SettingsGroup(title: L("While you work"),
                           hint: L("KoffeeLid arms itself while work is running and turns itself off once it is over. It never changes the mode you picked yourself."),
-                          warnings: SettingsStatus.autoArmIsDeaf(held: model.held, context: model.context)
+                          warnings: SettingsStatus.autoArmIsDeaf(held: model.held, autoArmEnabled: auto)
                             ? [L("Set up Claude Code or the terminal below. Until then, KoffeeLid cannot tell when work is running.")]
                             : [],
                           notes: [L("“Disarm once finished” in the menu also ends your own arm, one minute after the work is over.")]) {

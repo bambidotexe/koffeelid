@@ -7,10 +7,10 @@ import SwiftUI
 /// selection cannot disagree about which page a click means.
 ///
 /// One case per page. A page is a subject the user thinks in, never a kind of control: General first,
-/// then the features in the order a user meets them, then what the app needs from the system, then the
-/// tip jar, last.
+/// then the features in the order a user meets them, then what the app needs from the system, then
+/// whether it is doing its job, then the tip jar, last.
 enum SettingsPageID: String, CaseIterable, Sendable {
-    case general, arming, autoArm, lidEffect, sound, system, tip
+    case general, arming, autoArm, lidEffect, sound, system, health, tip
 
     /// The toolbar item's label, and the window's title while the page is shown. Title Case.
     var title: String {
@@ -21,6 +21,7 @@ enum SettingsPageID: String, CaseIterable, Sendable {
         case .lidEffect: L("Lid Effect")
         case .sound: L("Sound")
         case .system: L("System")
+        case .health: L("Health")
         case .tip: L("Tip")
         }
     }
@@ -35,6 +36,7 @@ enum SettingsPageID: String, CaseIterable, Sendable {
         case .lidEffect: "perspective"
         case .sound: "speaker.wave.2"
         case .system: "checkmark.shield"
+        case .health: "stethoscope"
         case .tip: "mug"
         }
     }
@@ -63,6 +65,8 @@ struct SettingsRootView: View {
     @ObservedObject var selection: SettingsSelection
     /// What every page reads and writes. One instance, owned by the window.
     @ObservedObject var model: SettingsModel
+    /// The Health page's own readings, taken when the window shows that page.
+    let health: HealthCheck
 
     var body: some View {
         // The page scrolls because the window's height is capped to what fits on the screen: on a
@@ -92,6 +96,7 @@ struct SettingsRootView: View {
         case .lidEffect: SettingsLidEffectPage(model: model)
         case .sound: SettingsSoundPage(model: model)
         case .system: SettingsSystemPage(model: model)
+        case .health: SettingsHealthPage(model: model, health: health)
         case .tip: SettingsTipPage()
         }
     }
@@ -113,6 +118,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
     /// The window starts and stops the model's polling, never a page: a view's `onAppear` fires once per
     /// hosting view, and this window is built once and re-shown.
     private let model = SettingsModel()
+    /// The Health page's readings: taken by the window when it shows that page, never on a timer.
+    private let health = HealthCheck()
     private let hosting: NSHostingController<SettingsRootView>
     /// Whether another window of the app still needs it active once this one goes away: the onboarding,
     /// which "Show Onboarding Again" and a reset open from here. Injected, not inferred from `NSApp.windows`.
@@ -137,7 +144,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
                           backing: .buffered, defer: false)
         window.title = selection.page.title
         window.isReleasedWhenClosed = false
-        hosting = NSHostingController(rootView: SettingsRootView(selection: selection, model: model))
+        hosting = NSHostingController(rootView: SettingsRootView(selection: selection, model: model, health: health))
         // The height is this class's to animate. A hosting controller that also constrains the window
         // to its content fights every resize.
         hosting.sizingOptions = []
@@ -169,6 +176,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         model.startPolling()
+        if selection.page == .health { health.read() }
     }
 
     // MARK: Height
@@ -273,6 +281,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         guard let page = SettingsPageID(rawValue: sender.itemIdentifier.rawValue) else { return }
         selection.page = page
         window.title = page.title
+        // The Health page's own readings are taken when it is shown, never on a timer.
+        if page == .health { health.read() }
     }
 
     // MARK: Going away
@@ -289,5 +299,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
 
     func windowDidMiniaturize(_ notification: Notification) { windowWentAway() }
 
-    func windowDidDeminiaturize(_ notification: Notification) { model.startPolling() }
+    func windowDidDeminiaturize(_ notification: Notification) {
+        model.startPolling()
+        if selection.page == .health { health.read() }
+    }
 }

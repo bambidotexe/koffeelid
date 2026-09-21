@@ -151,6 +151,13 @@ the desktop at fold 0.
   bundle id **and** team id; there is no per-app reset (`sfltool resetbtm` wipes every app's).
 - launchd starts a `BundleProgram` agent with a relative `argv[0]` and `/` as working directory.
 - launchd starts the agent before the app at login, so the app runs `launchctl kickstart` on every start.
+- While the app runs with the agent enabled the watchdog runs too. No API says so; the Health page looks for a
+  process whose executable is this bundle's `Contents/MacOS/KoffeeLidWatchdog`, compared by device and inode
+  rather than by path (`ProcWalk.isRunning`: `proc_listallpids`, `proc_pidpath`, `stat`), so a firmlinked path
+  and a second copy of the app elsewhere can neither fool it nor be taken for it.
+- `SMAppService.mainApp.status` reads `requiresApproval` once the user switches KoffeeLid off under "Open at
+  Login" after it registered: a login that will not happen although the app asked for it. The Health page reports
+  it orange; the General page's switch simply reads off.
 - An `LSUIElement` app that is **already running** receives `applicationShouldHandleReopen(_:hasVisibleWindows:)`
   when it is opened again (Finder, Spotlight, `open`); no second process starts. A **cold** open receives
   `applicationDidFinishLaunching` only: it never becomes active (`NSApp.isActive` stays false, no

@@ -9,7 +9,6 @@ enum HookCatalog {
         PermissionItem(id: .claudeHooks,
                        title: L("Claude Code"),
                        why: L("Tells KoffeeLid when a Claude Code session is working, so it arms while you close the lid and disarms once the turn is over. Adds hooks to ~/.claude/settings.json (backed up first)."),
-                       required: false,
                        granted: { (HookInstaller.installedCount() ?? 0) == HookConfig.events.count },
                        buttonTitle: L("Set up…"),
                        action: { window, done in
@@ -29,7 +28,6 @@ enum HookCatalog {
         PermissionItem(id: .zshHook,
                        title: L("Terminal (zsh)"),
                        why: L("Adds one line to ~/.zshrc so commands running longer than a few seconds arm KoffeeLid too. Open a new terminal afterwards."),
-                       required: false,
                        granted: { HookInstaller.zshrcHasSnippet() },
                        buttonTitle: L("Set up…"),
                        action: { window, done in

@@ -606,6 +606,7 @@ final class KoffeeLidController {
     private func handleBattery(_ b: BatteryState?) {
         guard isArmed, LowBatteryPolicy(enabled: prefs.lowBatteryDisarm, thresholdPercent: prefs.lowBatteryDisarmPercent).shouldDisarm(b) else { return }
         disarm(reason: "low battery")
+        lastSafetyStop = SafetyStop(reason: .lowBattery, at: Date())
         let body = b.map { String(format: L("Battery dropped to %d%%. The low-battery safety disarmed KoffeeLid so your Mac can sleep instead of running flat."), $0.percent) }
             ?? L("macOS stopped reporting battery charge while the low-battery safety was enabled. KoffeeLid disarmed so the Mac can sleep.")
         NotificationsController.shared.post(id: "battery", title: L("KoffeeLid disarmed"), body: body)
@@ -614,6 +615,7 @@ final class KoffeeLidController {
     private func handleThermal(_ t: ThermalLevel) {
         guard isArmed, t >= .serious else { return }
         disarm(reason: "thermal")
+        lastSafetyStop = SafetyStop(reason: .thermal, at: Date())
         NotificationsController.shared.post(id: "thermal", title: L("KoffeeLid disarmed"), body: String(format: L("macOS reported %@ thermal pressure. Normal lid-close sleep has been restored."), t == .critical ? L("critical") : L("serious")))
     }
 
@@ -637,6 +639,7 @@ final class KoffeeLidController {
         if kind == .lidSleepOverride { log.log("lid-sleep override repeated too often; giving up the hold") }
         log.log("armed session interrupted by external software sleep" + (reason.map { " (\($0))" } ?? ""))
         disarm(reason: "external sleep")
+        lastSafetyStop = SafetyStop(reason: .externalSleep, at: Date())
         NotificationsController.shared.post(id: "extsleep", title: L("KoffeeLid disarmed"), body: L("Another app or automation put your Mac to sleep while KoffeeLid was armed. Check your charging, scheduling, and automation settings before trying again."))
     }
 
@@ -802,6 +805,15 @@ final class KoffeeLidController {
     /// The sudoers rule is installed or removed from Settings / onboarding: true when the lock is
     /// available now. An armed session picks it up immediately.
     var sleepLockAvailable: Bool { sleepLock.isAvailable }
+    /// What the Health page reads of the mechanism. Read-only: the page reports and changes nothing.
+    var sleepLockEngaged: Bool { sleepLock.engaged }
+    /// Lid sleep is off: KoffeeLid's last successful write of the kernel flag set it.
+    var lidSleepFlagSet: Bool { power?.lidSleepDisabled ?? false }
+    /// A clear of the kernel flag failed and is retried every 30 s; the cup is orange meanwhile.
+    var lidSleepRestorePending: Bool { flagClearPending }
+    var builtInFnReaderState: BuiltInFnKeyReader.State { builtInFn.state }
+    /// The last arm a safety rail ended since launch, for the Health page.
+    private(set) var lastSafetyStop: SafetyStop?
     func sleepLockRuleChanged() {
         guard isStarted, isArmed, !sleepLock.engaged else { return }
         engageSleepLock()

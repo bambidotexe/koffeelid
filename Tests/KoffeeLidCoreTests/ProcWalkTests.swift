@@ -18,6 +18,16 @@ final class ProcWalkTests: XCTestCase {
         XCTAssertNil(ProcWalk.environmentValue("KOFFEELID_NOT_SET_ANYWHERE", forPid: getpid()))
         XCTAssertNil(ProcWalk.environmentValue("HOME", forPid: 2_000_000), "no such process reads as nil")
     }
+    func testARunningExecutableIsFoundByTheFileItIs() throws {
+        // This test's own process is the one executable certain to be running.
+        let own = try XCTUnwrap(ProcWalk.info(for: getpid())?.path)
+        XCTAssertTrue(ProcWalk.isRunning(executableAt: URL(fileURLWithPath: own)))
+        let stranger = FileManager.default.temporaryDirectory.appendingPathComponent("not-running-\(UUID().uuidString)")
+        try Data().write(to: stranger)
+        defer { try? FileManager.default.removeItem(at: stranger) }
+        XCTAssertFalse(ProcWalk.isRunning(executableAt: stranger))
+        XCTAssertFalse(ProcWalk.isRunning(executableAt: URL(fileURLWithPath: "/nonexistent/KoffeeLidWatchdog")))
+    }
     func testClaudePathShapes() {
         XCTAssertTrue(ProcWalk.isClaudePath("/Users/x/.local/bin/claude"))
         XCTAssertTrue(ProcWalk.isClaudePath("/Users/x/.local/share/claude/versions/2.1.246"))

@@ -177,7 +177,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,
   from the CLI) opens nothing, and neither does an open request that arrives while an install's outcome is
   still unread: that one is the update helper's, not a person's (§ Updates).
-- **Settings.** One window with seven pages, picked from a toolbar that draws each page's symbol above its
+- **Settings.** One window with eight pages, picked from a toolbar that draws each page's symbol above its
   title; the window's title is the shown page's. It is 640 pt wide and as tall as the shown page: it resizes
   around its top-left corner, animated, on a page switch and whenever a page gains or loses a line, never past
   the display's visible height less 140 pt (beyond that the page scrolls). It opens on General, sized then
@@ -190,7 +190,8 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
   | Lid Effect | Effect (the switch, and the Screen Recording grant while it is on); Lid angle (the live angle, the angle in the menu bar); When it starts; Look; Preview (reset to defaults, simulate a fold) |
   | Sound | Lid-close sound (the switch, and the clip as a pop-up menu: picking one plays it); Volume (the forced volume and its level) |
-  | System | Staying awake safely (sleep lock, Login Items approval); Permissions (Screen Recording, Input Monitoring, Notifications); Compatibility (lid-angle sensor); Diagnostics (the log's switch, open the log); Start over (show the onboarding again, reset everything) |
+  | System | Staying awake safely (sleep lock, Background App Activity, each with its button while missing); Permissions (Screen Recording, Input Monitoring, Notifications, each with its Allow button and a warning naming its switch in System Settings while denied); Diagnostics (the log's switch, open the log); Start over (show the onboarding again, reset everything). Only states with a control beside them: a bare verdict is on Health |
+  | Health | whether KoffeeLid is doing its job, at a glance (below) |
   | Tip | a card with no title: the app icon beside the sentence saying every feature is free and stays free, and that a coffee is how the project is supported; One-time tip (the Ko-fi cup on its own red wash, "A cup of coffee" and what it is, and a button naming the smallest tip the page takes, `SupportLink.smallestTip`, 5 €). The button opens https://ko-fi.com/bambidotexe in the browser; the app sets nothing and reads nothing back, and nothing is paid inside it |
 
   A group is a title, a card of rows, and under the card a grey hint, then orange warnings, present only while
@@ -204,16 +205,41 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   and effect switches are disabled on a Mac without a lid-angle sensor; right-click arming and the angle in the
   menu bar are disabled while the menu-bar cup is hidden. A number is a slider with its value beside it.
 - **States in Settings.** A state is one row: what is reported on the left, and on the right a symbol and a word
-  in the state's colour. Green: as it should be. Blue: worth knowing. Orange: to be fixed, or did not work. Red:
-  refused. A spinner: still happening. The colour follows whether the state is what it should be
-  (`SettingsStatus`): the sleep lock (Available / Missing) and the Login Items approval (Enabled / Disabled) are
-  orange whenever missing; a permission that is not granted reads Denied, red only while something switched on
-  needs it (Screen Recording while the effect is on, Input Monitoring while the gesture is on with Fn,
-  Notifications always) and blue otherwise; a hook that is not set up reads Disabled, orange only while auto-arm
-  is on with neither hook set up, which also puts a warning under the auto-arm switch, and blue otherwise. A
+  in the state's colour. Green (a check): as it should be. Blue (an i): a reading, or a switch of KoffeeLid's own
+  the user turned off. Orange (a triangle): not as it should be, and KoffeeLid still keeps a closed Mac awake.
+  Red (a stop sign): not as it should be, and because of it KoffeeLid cannot keep a closed Mac awake, or cannot
+  do it safely. A spinner: still happening. The colour follows whether the state is what it should be, and is
+  the same on every page (`SettingsStatus`, `HealthRules`): **a grant that is missing is red when the onboarding
+  marks it required and orange otherwise, never blue.** The sleep lock (Available / Missing) and Background App
+  Activity (Enabled / Disabled) are required, so red while missing; Screen Recording, Input Monitoring and
+  Notifications (Granted / Denied) and the two hooks (Enabled / Disabled) are optional, so orange while missing,
+  whatever the switches. Auto-arm switched on with neither hook set up also puts a warning under its switch. A
   state the user can fix has a button under it only while it is wrong; once it is right the button goes and the
-  row stays. While the window is open it re-reads the grants, the hooks and the login item every 2 s and the lid
-  angle and the activity counts four times a second, and it is a consumer of the lid-angle sensor.
+  row stays. A state with nothing to press beside it is on the Health page alone, unless it is the context of what
+  its page holds (a grant above its button, the lid angle beside the angle sliders, the work running now beside
+  the auto-arm switch). While the window is open it re-reads the grants, the hooks and the login item every 2 s
+  and the lid angle and the activity counts four times a second, and it is a consumer of the lid-angle sensor.
+- **The Health page.** One question, at a glance: is KoffeeLid doing its job, and if not, what is wrong. It
+  reports and changes nothing but itself; every orange or red row puts a warning under its group saying where
+  it is put right. A row's detail (a path, a date, an identifier) is its tooltip. Its own readings (displays,
+  battery, heat, the watchdog, the Claude Code settings file, crash reports, memory, where the app is) are taken
+  when the page is shown and on Check Again, never on a timer; the grants and the lid come from the window's
+  poll, and KoffeeLid's own state from the coordinator as the page draws.
+
+  | Group | Rows, and how each reads |
+  |---|---|
+  | Overview | "KoffeeLid": green "Everything works", orange "N things to look at" (the orange rows), red "Not working: N problems" (the red rows; red wins), "Checking" while a check runs (at least half a second after Check Again); then **Check Again** |
+  | Permissions | Screen Recording, Input Monitoring, Notifications: Granted green, Denied orange, each with the switch to turn on in System Settings › Privacy & Security (Notifications: its own pane's "Allow notifications") |
+  | Staying awake safely | Mode (blue: Off, Armed, Armed + screen on, Auto-armed, Armed for one close; the tooltip is the command line's status line); Lid sleep (Enabled green while not armed, Disabled green while armed; red Enabled while armed, orange Disabled while a clear is being retried); Sleep lock (Available green; Missing red; Failed red when it did not engage for an arm; Failed orange when it could not be released); External displays (blue: None or how many are connected; red Failed when the display list cannot be read, which refuses every arm); Last turned itself off (blue: the safety rail and how long ago, since launch) |
+  | Battery and heat | Battery (blue: the charge and plugged in or on battery; orange when the low-battery rail is on and the charge is at or under its level on battery, which refuses every arm until the Mac is plugged in); Thermal pressure (green Normal or Moderate; orange Serious or Critical, which refuses every arm until the Mac cools). A safety rail refusing an arm is the rail doing its job, not KoffeeLid failing, so it is never red |
+  | After a crash | KoffeeLid in "Background App Activity" (Enabled green, Disabled red); Crash recovery (the watchdog: Running green, Stopped orange; shown while the agent is enabled); Last reopened after a crash (blue, from the watchdog's relaunch record) |
+  | Lid gesture and effect | only with a lid-angle sensor. Lid gesture and Lid effect (Enabled green, Disabled blue); This Mac's own 🌐 Fn key (while the gesture watches 🌐 Fn with the Input Monitoring grant: Available green, Missing or Failed orange, any keyboard's 🌐 Fn then arming it) |
+  | While you work | Auto-arm (Enabled green, Disabled blue, Disabled orange when KoffeeLid was started with auto-arm off in its environment); Claude Code hooks and Terminal hook (zsh) (Enabled green, Disabled orange; the tooltip says how many of the 15 hook events point at this copy of KoffeeLid), each followed while it is set up by the time of the last event it reported since the Mac started (blue, "None yet"); Work running now (blue) |
+  | Compatibility | Lid angle sensor (Available green, Missing orange: the gesture and the effect are not available); Lid angle now (blue) |
+  | App | Launch at login (Enabled green, Disabled blue, orange when switched off in System Settings while KoffeeLid asked for it); Running for, Memory used (blue); Crashes in the last 7 days (None green, a count orange, the last one's date in the tooltip, from `~/Library/Logs/DiagnosticReports`); Installed in (Applications green, another folder blue, the disk image or a temporary copy orange) |
+  | Report | **Copy Report**: the whole page as text, KoffeeLid's version and macOS's first, for a bug report. Nothing secret is on the page |
+
+  The version and updates are not health: they stay on General.
 - **Onboarding.** Four pages in an ordinary window: pitch, Permissions, "Arm while you work" (hooks), All set.
   Shown at first launch and from Settings › System › "Show Onboarding Again". It opens in front because it is
   the last window to open, and from then on it behaves like any other window: a permission dialog, the

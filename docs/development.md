@@ -193,12 +193,26 @@ words are written, in both languages. The window is `SettingsWindow` (an `NSTool
 subject and the group by what the control governs; a control that depends on a switch sits under it with
 `enabled:`. A rule about a state's colour goes in `SettingsStatus` (Core, tested); the Updates group's rules
 are `UpdatePanel` (Core, tested). How it looks or reads is judged by the owner in the running app, never by
-the agent.
+the agent. `SettingsWordsTests` reads every `L("…")` key of the window's `Settings…` and `Health…` files
+against the catalog: French present, no long dash, a key's symbol before its name.
+
+**A Health page row.** Start with the skill's *The Health page*. The row is decided in Core: a fact in
+`HealthFacts` (a plain value, nil while unread), a case in `HealthItemID`, and its line in
+`HealthReport.sections(for:)` with its level from a `HealthRules` rule (red only for what stops KoffeeLid keeping
+a closed Mac awake, or doing it safely; a missing grant through `HealthRules.grant`), its `HealthWord`, its
+`HealthDetail` and its `HealthFix`; the tests in `HealthTests`. The words go in `HealthWords`
+(`HealthWords.swift`) with their French in the catalog. The fact is read where it lives: a grant or
+anything else the window polls from `SettingsModel`; KoffeeLid's own state as a read-only property of the
+coordinator, read as the page draws; anything else in `HealthCheck.read()`, off the main thread if it waits on
+a file, a directory or another process, never on a timer.
 
 **A permission or a hook row.** Start with the `macos-building-onboarding` skill: it holds the rules below and the
-traps behind them. Add a case to `SettingsGrant` (Core) with its colour rule and test in `SettingsStatus`, then
-a `PermissionItem` to `PermissionCatalog.items` or `HookCatalog.items`: its `id`, title, why, `required`, a
-synchronous `granted` closure (cache asynchronous state the way notifications do), button title and an action
+traps behind them. Add a case to `SettingsGrant` (Core) and say in `isRequired` whether KoffeeLid cannot keep a
+closed Mac awake safely without it: that is the onboarding's ⚠︎ (`PermissionItem.required` reads it) and the
+colour of the missing grant on every page (red when required, orange otherwise, `SettingsStatus`); then its line
+on the Health page (`HealthReport`) and a `PermissionItem` to `PermissionCatalog.items` or `HookCatalog.items`:
+its `id`, title, why, a synchronous `granted` closure (cache asynchronous state the way notifications do),
+button title and an action
 that calls `done` when the state may have changed. The onboarding lists it from the catalog; the Settings page
 that owns it adds its `StatusRow`, and its `ButtonRow` shown only while it is missing. Four rules the row has
 to keep, each of which was once broken:

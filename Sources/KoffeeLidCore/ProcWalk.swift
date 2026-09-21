@@ -82,4 +82,31 @@ public enum ProcWalk {
     /// kill(0) proves a process, not THE process: a pid recycled while the app was down must not keep a dead session alive.
     public static func looksLikeClaude(pid: Int32) -> Bool { info(for: pid).map(isClaudeProcess) ?? false }
     public static func isAlive(pid: Int32) -> Bool { kill(pid, 0) == 0 || errno == EPERM }
+
+    /// Whether any process runs the executable at `url`. Compared by file identity (device and inode), not
+    /// by path: the path the kernel reports and the one a bundle was opened from can differ by a link or a
+    /// firmlink and still name the same file, and two copies of the app at two paths are two files. Reads
+    /// every process's path once; a few milliseconds.
+    public static func isRunning(executableAt url: URL) -> Bool {
+        var target = stat()
+        guard stat(url.path, &target) == 0 else { return false }
+        let capacity = proc_listallpids(nil, 0)
+        guard capacity > 0 else { return false }
+        // Room for processes started between the two calls.
+        var pids = [Int32](repeating: 0, count: Int(capacity) + 64)
+        let count = pids.withUnsafeMutableBytes { proc_listallpids($0.baseAddress, Int32($0.count)) }
+        guard count > 0 else { return false }
+        let suffix = "/" + url.lastPathComponent
+        var buffer = [CChar](repeating: 0, count: 4096)
+        for pid in pids.prefix(Int(count)) where pid > 0 {
+            guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { continue }
+            let path = String(cString: buffer)
+            guard path.hasSuffix(suffix) else { continue }
+            var candidate = stat()
+            if stat(path, &candidate) == 0, candidate.st_dev == target.st_dev, candidate.st_ino == target.st_ino {
+                return true
+            }
+        }
+        return false
+    }
 }

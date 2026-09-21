@@ -10,7 +10,7 @@ links the SwiftPM package; `Package.swift` defines the two libraries and their t
 
 | Target | Kind | Depends on | Contents |
 |---|---|---|---|
-| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy, filter and state machine as a value type with injected time, plus the update feature's rules (`ReleaseVersion`, `LatestRelease`, `UpdateCheck`, `UpdateSchedule`, `UpdatePanel`, `UpdateSession`, `StagedUpdateCheck`, `UpdateInstallPlan`/`UpdateInstallScript`/`UpdateResult`, `DetachedProcess`) and the Settings window's `SettingsStatus` (which colour a state takes). All logic tests live against it. |
+| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy, filter and state machine as a value type with injected time, plus the update feature's rules (`ReleaseVersion`, `LatestRelease`, `UpdateCheck`, `UpdateSchedule`, `UpdatePanel`, `UpdateSession`, `StagedUpdateCheck`, `UpdateInstallPlan`/`UpdateInstallScript`/`UpdateResult`, `DetachedProcess`), the Settings window's `SettingsStatus` (which colour a state takes) and the Health page's rules (`Health`, `HealthRules`, `HealthReport`, `CrashReports`). All logic tests live against it. |
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library (AppKit, Metal, ScreenCaptureKit) | Core | The lid effect: `EffectController`, `DesktopCapture`, `PlaneRenderer`, `PlaneShader`, `EffectOverlayPanel`, `CaptureStartGate`, `PlaneRemap`. |
 | `KoffeeLid` (`App/Sources`) | app, `LSUIElement` | Core, LidPlaneKit | The coordinator, one adapter per system API, the UI, the update feature (`UpdateController` and what it runs), App Intents, the CLI client. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | LaunchAgent that relaunches the app after an unclean exit. |
@@ -27,14 +27,29 @@ from `applicationShouldTerminate`.
 
 The Settings window (`App/Sources/UI/Settings*.swift`) is one `SettingsWindow`: an `NSWindow` with a
 `.preference` `NSToolbar` over a single `NSHostingController`, built once by `AppDelegate.showSettings()` and
-re-shown. Its seven pages are SwiftUI views built only from the kit in `SettingsKit.swift`; the window's height
+re-shown. Its eight pages are SwiftUI views built only from the kit in `SettingsKit.swift`; the window's height
 follows the shown page. `SettingsModel` is what the pages share: bindings onto `Preferences.shared` that
 announce their own changes to SwiftUI (the coordinator stays the one subscriber of `Preferences.onChange`), and
 the states a page reports, polled on the main thread and started and stopped by the window (open, close,
 miniaturise), never by a view: the grants, the hooks and the login item every 2 s, the lid angle and the
 activity counts every 0.25 s, the window being a consumer of `LidAngleObserver` for as long as it is up. The
-rules the pages apply are Core's: `SettingsStatus` colours a state and `UpdatePanel` is the Updates group, whose
-state is the app's (`UpdateController.shared`) and not the page's. The
+rules the pages apply are Core's: `SettingsStatus` colours a state (a missing grant is red when
+`SettingsGrant.isRequired`, orange otherwise, through `HealthRules.grant`; `PermissionItem.required`, the
+onboarding's mark, is the same property) and `UpdatePanel` is the Updates group, whose state is the app's
+(`UpdateController.shared`) and not the page's. The Health page (`SettingsHealthPage`) is built the same way:
+`HealthReport.sections(for:)` (Core, tested in `HealthTests`) turns a `HealthFacts` of plain values into
+`HealthSection`s of `HealthItem`s, each with its level, a `HealthWord`, a `HealthDetail` and a `HealthFix`
+still out of any language, and `HealthWords` (`HealthWords.swift`) puts them in the catalog's words; the
+overview is `HealthSummary`, Copy Report `HealthReport.text`. The facts come from three places: the model's poll
+(the grants, the login item, the sensor, the lid angle, the activity counts), the coordinator's read-only state
+as the page draws (`mode`, `isArmed`, `armSource`, `statusLine()`, `lidSleepFlagSet`, `lidSleepRestorePending`,
+`sleepLockEngaged`, `builtInFnReaderState`, `lastSafetyStop`, and `ActivityMonitor.lastClaudeEvent` /
+`lastTerminalEventAt`), and `HealthCheck`, which the window asks to read when it opens on Health, when Health is
+picked and on Check Again, never on a timer: at once the process's age and memory (`ProcessStats`), where the
+bundle is (`InstallLocation`), the display list, the battery and the thermal state; off the main thread the
+crash reports (`CrashReports`), whether the watchdog runs (`ProcWalk.isRunning`, by file identity), the
+relaunch record (`RelaunchHistoryStore`) and `~/.claude/settings.json`'s hook count. The overview reads
+*Checking* until the slow half lands, and at least `HealthConstants.minimumBusy` after Check Again. The
 onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. It is a normal window
 too, at the normal level and with the default collection behaviour, like the other two: `AppDelegate` activates
 the app once when it opens, and two things activate it again, both of them grant flows ending:

@@ -23,6 +23,10 @@ final class ActivityMonitor {
     var onLog: ((String) -> Void)?
     var jobArmAfterSeconds: Double = ActivityConstants.jobArmAfterDefaultSeconds
     private(set) var snapshot = ActivitySnapshot()
+    /// The last Claude Code hook event and the last terminal command event this monitor took in, from this
+    /// boot's replay onwards: the Health page's proof that each hook still reports.
+    private(set) var lastClaudeEvent: HookEventSeen?
+    private(set) var lastTerminalEventAt: Date?
 
     private var sessions = ActivitySessionStore()
     private var jobs = ActivityJobStore()
@@ -79,6 +83,7 @@ final class ActivityMonitor {
 
     private func ingest(_ events: [ActivityEvent]) {
         for e in events {
+            noteSeen(e)
             switch e.event {
             case .jobBegin:
                 guard let id = e.jobId else { continue }
@@ -89,6 +94,19 @@ final class ActivityMonitor {
                 onLog?("activity: unparseable hook payload (\(e.rawPrefix?.prefix(60) ?? ""))")
             default:
                 sessions.apply(e)
+            }
+        }
+    }
+
+    /// A line that could not be parsed proves nothing about either hook.
+    private func noteSeen(_ e: ActivityEvent) {
+        switch e.event {
+        case .parseError: break
+        case .jobBegin, .jobEnd:
+            if lastTerminalEventAt.map({ e.loggedAt > $0 }) ?? true { lastTerminalEventAt = e.loggedAt }
+        default:
+            if lastClaudeEvent.map({ e.loggedAt > $0.at }) ?? true {
+                lastClaudeEvent = HookEventSeen(name: e.event.rawValue, at: e.loggedAt)
             }
         }
     }
