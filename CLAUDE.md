@@ -197,16 +197,17 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   something a Release build will not show. `script/build.sh Debug` refuses without `DEBUG_OK=1`; that guard is
   there to make the decision deliberate, not to be worked around. If a Debug build would help, say why and
   ask. Delete the bundle when done with it.
-- **The installed app is the owner's daily driver, and the lid decides what may be done to it.**
+- **The installed app is the owner's daily driver, and quitting it must never be able to sleep the Mac.**
   `AppleClamshellCausesSleep = No` in `ioreg` usually means it is armed — run `koffeelid status` before
-  drawing conclusions. **The lid being shut is the refusal, not the arm.** With the lid open, a Mac that stops
-  being held awake goes back to its idle timer; with the lid shut it can sleep there and then. So
-  `script/install.sh` refuses outright while `status` says `lid: closed`, with no override, and it checks
-  again after the build because the lid may have been shut during it. With the lid open it installs over any
-  arm and puts the manual mode back itself (`caffeinate` / `arm`), so the Mac is unarmed only for the seconds
-  between the quit and the relaunch — the build and the notarizing are already done by then. The auto level
-  needs no restoring: a launch while a session is working arms at once by itself. Never send `off` while the
-  lid is closed on an armed session. Any other utility that sets the same kernel flag will fight the arm;
+  drawing conclusions. **The refusal is `quitWouldSleepTheMac`, not the lid alone.** With the lid open, an
+  external display connected, or the app unarmed, quitting is safe; only armed + lid shut + no external
+  display can sleep the Mac at once. So `script/install.sh` refuses outright while `status` carries the
+  warning `quitting would sleep the Mac`, with no override, and it checks again after the build because the
+  state may have changed during it. Otherwise it installs over any arm and puts the manual mode back itself
+  (`caffeinate` / `arm`), so the Mac is unarmed only for the seconds between the quit and the relaunch — the
+  build and the notarizing are already done by then. The auto level needs no restoring: a launch while a
+  session is working arms at once by itself. Never send `off` while the lid is closed on an armed session
+  with no external display. Any other utility that sets the same kernel flag will fight the arm;
   quit it before testing.
 - **Any work on the Settings window starts with the `building-settings-pages` skill**
   (`.claude/skills/building-settings-pages/SKILL.md`): adding, moving, renaming or rewording a setting, a

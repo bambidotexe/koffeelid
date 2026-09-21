@@ -17,15 +17,15 @@ That is the whole action. It takes about five minutes, most of it Apple's notary
 
 ## What it does, and why each part is not optional
 
-1. **Refuses if the lid is shut, and nothing overrides that.** An install quits the running app, which ends
-   every arm it holds. With the lid open a Mac that stops being held awake goes back to its idle timer; with
-   the lid shut it can sleep there and then. So `lid: closed` in `status` is a refusal with no override, and
-   the script checks again after the build because the lid may have been shut during it. With the lid open it
-   installs over any arm and puts the manual mode back afterwards, so the Mac is unarmed only for the seconds
-   between the quit and the relaunch — the build and the notarizing are already done by then.
-2. **Checks the version rule** (`script/version.sh`): the tree is always one patch ahead of the newest
-   release on GitHub. So the copy on this Mac is always newer than anything published, and is never offered
-   an update that would replace it with something older.
+1. **Refuses if quitting would sleep the Mac, and nothing overrides that.** An install quits the running app,
+   which ends every arm it holds. That is only unsafe when the app is armed, the lid is shut, and no external
+   display is keeping the desktop up (`quitWouldSleepTheMac`) — an open lid, an external display, or an
+   unarmed app are all fine. So the warning `quitting would sleep the Mac` in `status` is a refusal with no
+   override, and the script checks again after the build because the state may have changed during it.
+   Otherwise it installs over any arm and puts the manual mode back afterwards, so the Mac is unarmed only for
+   the seconds between the quit and the relaunch — the build and the notarizing are already done by then.
+2. **Builds exactly the tree's version** (`script/version.sh`): no GitHub check, no requirement to be
+   ahead of what is published. A local install always carries the same version as the code in the tree.
 3. **Builds the real thing** — Release, signed with the Wooflab team's Developer ID under the Hardened
    Runtime, notarized by Apple, stapled, wrapped in the disk image. Not a shortcut, not a Debug build, not an
    unsigned one. What lands in `/Applications` is byte-for-byte what a stranger would download.
@@ -53,7 +53,7 @@ by another route, delete the bundle yourself before you finish.
 | `open` a `.app` from `build/` or `DerivedData/` | Install it. Launching a build bundle is what creates a second instance |
 | Leave a built bundle behind "for next time" | There is no next time; the next build makes its own |
 | Skip notarizing "because it is only local" | Then the installed copy is not what a release ships, and the release path goes untested until it matters |
-| Install while the lid is shut | Open the lid. The script refuses and offers no way round it, because quitting there can sleep the Mac |
+| Install while quitting would sleep the Mac | Open the lid, or connect an external display. The script refuses and offers no way round it otherwise |
 | Leave the owner unarmed afterwards | The script restores `caffeinate`/`arm` itself; if it warns that it could not, say so plainly |
 
 ## Debug builds
@@ -78,7 +78,7 @@ codesign -dvv /Applications/KoffeeLid.app 2>&1 | grep -E 'Authority=Developer|fl
 ```
 
 The authority is `Developer ID Application: Wooflab (85F6AC5QZF)` and the flags include `runtime`. The
-version is whatever `script/version.sh`'s rule gave, one patch above the newest GitHub release.
+version is whatever the tree holds, per `script/version.sh`.
 
 ## Two things the install cannot do for itself
 

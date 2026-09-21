@@ -343,6 +343,7 @@ final class KoffeeLidController {
         if standingBy { parts.append("standing by (external display)") }
         if isArmed { parts.append(sleepLock.engaged ? "sleep lock: on" : "sleep lock: off (no sudoers rule)") }
         if flagClearPending { parts.append("warning: lid sleep restoration pending") }
+        if quitWouldSleepTheMac { parts.append("warning: quitting would sleep the Mac") }
         parts.append(ActivityMonitor.isDisabledByEnvironment
                      ? "activity: off (disabled by environment)"
                      : "activity: " + activity.snapshot.summary)

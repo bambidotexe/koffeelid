@@ -34,14 +34,14 @@ VERSION="$(version_tree)"
 echo "installing $APP_NAME $VERSION" >&2
 
 # ---------------------------------------------------------------------------------------------------------
-# An install quits the running copy, which ends every arm it holds. **The lid is what decides whether that is
-# safe.** With the lid open, a Mac that stops being held awake simply goes back to its idle timer; with the
-# lid shut, it can sleep there and then. So a closed lid refuses, whatever the mode, and no override is
-# offered for it. An armed Mac with the lid open is installed over, and the manual mode is put back
-# afterwards — the arm is down only for the seconds between the quit and the relaunch, because the build and
-# the notarizing are already done by then.
+# An install quits the running copy, which ends every arm it holds. **Quitting must never be able to sleep
+# the Mac.** `KoffeeLidController.quitWouldSleepTheMac` is the one place that rule lives — armed, the lid
+# shut, and no external display keeping the desktop up — and it has no override: an open lid, an external
+# display, or an unarmed app are all safe to quit over. An armed Mac that is safe to quit is installed over,
+# and the manual mode is put back afterwards — the arm is down only for the seconds between the quit and the
+# relaunch, because the build and the notarizing are already done by then.
 # ---------------------------------------------------------------------------------------------------------
-lid_is_shut() { case "$1" in *"lid: closed"*) return 0 ;; *) return 1 ;; esac }
+quit_would_sleep() { case "$1" in *"quitting would sleep the Mac"*) return 0 ;; *) return 1 ;; esac }
 
 # The manual mode to restore. The auto level is not one of these: it re-establishes itself at the next launch
 # from the activity journal, so it needs no putting back.
@@ -56,20 +56,20 @@ manual_mode() {
 STATUS=""
 if [ -x "$DEST/Contents/MacOS/$APP_NAME" ]; then
   STATUS="$("$DEST/Contents/MacOS/$APP_NAME" status 2>/dev/null || true)"
-  if lid_is_shut "$STATUS"; then
-    echo "refusing: the lid is shut ($STATUS)." >&2
-    echo "Quitting the app would let the Mac sleep where it stands. Open the lid and run this again." >&2
+  if quit_would_sleep "$STATUS"; then
+    echo "refusing: quitting would sleep the Mac ($STATUS)." >&2
+    echo "Open the lid, or connect an external display, and run this again." >&2
     exit 1
   fi
 fi
 
 DMG="$("$ROOT/script/release.sh")"
 
-# Read it again: the build took minutes, and the lid may have been shut in them.
+# Read it again: the build took minutes, and the state may have changed in them.
 if [ -x "$DEST/Contents/MacOS/$APP_NAME" ]; then
   STATUS="$("$DEST/Contents/MacOS/$APP_NAME" status 2>/dev/null || true)"
-  if lid_is_shut "$STATUS"; then
-    echo "refusing: the lid was shut while the build ran ($STATUS). The image is built; open the lid and run this again." >&2
+  if quit_would_sleep "$STATUS"; then
+    echo "refusing: quitting would sleep the Mac ($STATUS). The image is built; open the lid or connect an external display and run this again." >&2
     exit 1
   fi
 fi
