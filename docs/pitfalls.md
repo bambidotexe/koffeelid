@@ -196,6 +196,21 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 - **Do not** reach for a collection behaviour to make a window easier to find, for the same reason as the
   window level above: it buys reachability with the user's own window order.
 
+### Closing System Settings does not give a menu-bar app its window back
+- **Symptom.** The wizard is in front of the terminal. A grant button opens System Settings, the grant is
+  made, System Settings is closed, and the wizard is now behind the terminal instead of back in front.
+- **Why.** macOS hands the front back to whatever was in front before the app that quit, and skips
+  `LSUIElement` apps while doing it. An ordinary app gets this for nothing; this one is excluded, so the
+  front went to the terminal.
+- **What the code does.** `PermissionItem.mayOpen` names the app a flow can send the user to, and
+  `FocusReturnWatch` waits for that app's `didTerminateApplicationNotification` and brings the window back
+  once. System Settings quits when its window closes, so that notification is the signal. The wait expires
+  after five minutes, so a user who dismissed the dialog and went to System Settings much later for something
+  else is not interrupted.
+- **Do not** solve this by raising the window's level or by activating when the flow reports back: the flow
+  reports back while System Settings is still coming up, which is the original bug. And do not reach for
+  `.regular` activation policy without building the main menu the app has never had.
+
 ### A modal dialog of our own still leaves an accessory app deactivated
 - **Symptom.** "Configurer…" for the sleep lock, the administrator dialog, the password accepted, and the
   wizard is now behind the terminal.

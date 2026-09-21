@@ -28,6 +28,8 @@ final class SettingsModel: ObservableObject {
 
     private var timer: Timer?
     private var tick = 0
+    /// Brings the window back when the pane a grant button sent the user to quits.
+    private let focusReturn = FocusReturnWatch()
 
     /// The lid angle and the activity counts are read on every tick; everything else every
     /// `ticksPerRefresh` ticks, which is 2 s: slow enough to be free, fast enough that coming back from
@@ -87,6 +89,7 @@ final class SettingsModel: ObservableObject {
         item.action(host) { [weak self] in
             self?.refresh()
             item.reclaimFocusIfNeeded(host)
+            if let opened = item.mayOpen { self?.focusReturn.whenQuit(opened, bringBack: host) }
         }
     }
 
@@ -161,6 +164,7 @@ final class SettingsModel: ObservableObject {
         timer?.invalidate()
         timer = nil
         tick = 0
+        focusReturn.stop()
         KoffeeLidController.shared.lidAngleObserver?.removeConsumer("settings")
     }
 }

@@ -202,6 +202,14 @@ the desktop at fold 0.
 | Notifications | usernoted's group preferences, `apps[]` entry with `bundle-id` | drop the entry, `killall usernoted` and `killall NotificationCenter` |
 | Preferences | UserDefaults domain `dev.rubens.koffeelid` | `defaults delete dev.rubens.koffeelid` |
 
+An accessory app is left out of macOS's activation stack. When an app quits, macOS gives the front back to
+whatever was in front before it, but it skips `LSUIElement` apps doing so, so a window that sent the user to
+System Settings is not brought back when they close it: the front goes to whatever else was open. There is no
+flag for this. Either the app becomes `.regular` for as long as the window is up, which gives it a Dock icon
+and needs a main menu it does not have, or it watches for that app to quit and brings its own window back,
+which is what `FocusReturnWatch` does. System Settings quits when its window is closed, so its
+`NSWorkspace.didTerminateApplicationNotification` is the signal.
+
 **A grant is called, in the app, exactly what System Settings calls it.** The user has to find the switch in a
 list, so a name of our own is a dead end however accurate it reads. macOS 27 shows these, and the app quotes
 them from the system's own tables rather than from memory:

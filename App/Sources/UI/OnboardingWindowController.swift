@@ -33,6 +33,8 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     /// page that owns it is thrown away on a change of step.
     private weak var primaryButton: NSButton?
     private var poll: Timer?
+    /// Brings the wizard back when the pane a grant button sent the user to quits.
+    private let focusReturn = FocusReturnWatch()
     /// Slow enough to be free, fast enough that coming back from System Settings finds the page already right.
     private static let pollInterval: TimeInterval = 2
 
@@ -71,6 +73,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         stopPolling()
+        focusReturn.stop()
         if !othersNeedUsActive() { NSApp.deactivate() }
     }
 
@@ -163,6 +166,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
             if i > 0 { let sep = NSBox(); sep.boxType = .separator; list.addArrangedSubview(sep); sep.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true }
             let row = GrantRow(item: item,
                                window: { [weak self] in self?.window },
+                               focusReturn: focusReturn,
                                didFinish: { [weak self] in self?.updatePrimaryButton() })
             rows[item.id] = row
             list.addArrangedSubview(row.view)
@@ -277,15 +281,18 @@ private final class GrantRow {
 
     private let item: PermissionItem
     private let window: () -> NSWindow?
+    private let focusReturn: FocusReturnWatch
     /// Called once a flow has reported back: the page's primary button may have to change with it.
     private let didFinish: () -> Void
     private let trailing = NSView()
     private var shown: Shown = .nothing
     private var busy = false
 
-    init(item: PermissionItem, window: @escaping () -> NSWindow?, didFinish: @escaping () -> Void) {
+    init(item: PermissionItem, window: @escaping () -> NSWindow?, focusReturn: FocusReturnWatch,
+         didFinish: @escaping () -> Void) {
         self.item = item
         self.window = window
+        self.focusReturn = focusReturn
         self.didFinish = didFinish
 
         let title = NSTextField(labelWithString: item.title); title.font = .systemFont(ofSize: 14, weight: .semibold)
@@ -373,6 +380,7 @@ private final class GrantRow {
             self.refresh()
             self.didFinish()
             self.item.reclaimFocusIfNeeded(self.window())
+            if let opened = self.item.mayOpen { self.focusReturn.whenQuit(opened, bringBack: self.window()) }
         }
     }
 

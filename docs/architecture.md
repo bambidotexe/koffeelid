@@ -37,9 +37,11 @@ rules the pages apply are Core's: `SettingsStatus` colours a state and `UpdatePa
 state is the app's (`UpdateController.shared`) and not the page's. The
 onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. It is a normal window
 too, at the normal level and with the default collection behaviour, like the other two: `AppDelegate` activates
-the app once when it opens, and the only thing that activates it again is a grant flow that owned a modal
-dialog and waited for it (`PermissionItem.returnsFocus`, `reclaimFocusIfNeeded`, the sleep lock alone, used
-the same way by `SettingsModel.grant`). It
+the app once when it opens, and two things activate it again, both of them grant flows ending:
+`PermissionItem.returnsFocus` for a flow that owned a modal dialog and waited for it (the sleep lock alone,
+`reclaimFocusIfNeeded`), and `PermissionItem.mayOpen` for a flow that can send the user to another app, which
+arms a `FocusReturnWatch` on that app's `didTerminateApplicationNotification` (System Settings, for every
+macOS grant). `SettingsModel.grant` uses both the same way. It
 comes forward on `NSApplication.didBecomeActiveNotification` only while `othersNeedUsActive()` is false (the
 same injected predicate `SettingsWindow` and `UpdateController` use to decide whether to `NSApp.deactivate()`
 on close), and it polls its own grants every 2 s between `showWindow` and `windowWillClose`. A page is built
