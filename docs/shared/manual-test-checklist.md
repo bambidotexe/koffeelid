@@ -88,7 +88,7 @@ swift run axprobe hit <x> <y>        # what a real hit test finds at a point
 ## 2. The Settings window
 
 - [ ] Open Settings and click through every toolbar item: **General** first, the feature pages, **System**,
-      **Tip** last, each a symbol above its title, the shown one highlighted, and the window's title
+      **Health**, **Tip** last, each a symbol above its title, the shown one highlighted, and the window's title
       following it. The window opens on General already at its size and centred, with no jump; on every
       switch its bottom edge moves, animated, and its top-left corner does not. A page taller than the screen
       allows scrolls, the window stopping short of the display's height.
@@ -104,6 +104,16 @@ swift run axprobe hit <x> <y>        # what a real hit test finds at a point
       Applications folder: the Settings window comes back.
 - [ ] A permission group on System (if any): the row, and while it is denied a button to the pane and a
       warning naming the switch word for word; once granted both go and the row stays.
+- [ ] **Settings › Health**: the overview reads *Everything works* in green, or the count of orange and red
+      rows; every group's rows are one coloured word each, a detail on hover where there is one; the App
+      group shows launch at login, running for, memory used, crashes in the last 7 days and where the app
+      is installed. **Check Again** greys out and the overview reads *Checking* for about half a second.
+      **Copy Report** puts every row on the clipboard, headed by the version and macOS. Nothing about
+      updates is on the page.
+- [ ] Break one optional thing (refuse an optional permission, remove an optional hook): its row turns
+      orange on Health **and** on the page that owns it, a warning under the group says where to fix it, and
+      the overview reads *1 thing to look at*. Break a required one: red with the stop sign, *Not working: 1
+      problem*. Put both back: green, the warnings gone.
 - [ ] Every setting survives a quit and relaunch. A silent revert to a default means the setting is missing
       from `Settings.init(from:)`.
 - [ ] **Settings › Tip**: the toolbar's mug, the app icon beside the sentence, the Ko-fi cup on its red wash,

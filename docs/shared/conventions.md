@@ -55,19 +55,34 @@ answer, the last section says so; a new app follows the family's answer, which i
   top-left corner, capped at `visibleFrame.height - 140`.
 - **A page is a column of groups. A group is a title, a card of rows, and under the card, outside it, a
   hint, then warnings, then notes. A row is a control and its label and nothing else.**
-- Pages: **General first**, then the features in the order a user meets them, then **System**, then **Tip
-  last**. (That is the order all four apps draw; a document that says otherwise is wrong.)
+- Pages: **General first**, then the features in the order a user meets them, then **System**, then
+  **Health**, then **Tip last**. (That is the order all four apps draw; a document that says otherwise is
+  wrong.)
 - General is, in order: the app icon alone at 144 pt; **Startup** (Launch at login, Show in menu bar, one
   note naming the way back); **Updates**; **Quit**; **Uninstall**.
-- **System** is what the app needs from the OS: permissions (each a status row, with its button and warning
-  only while missing), conflicts with the OS's own features, compatibility, and **Start over** (Show
-  Onboarding Again).
+- **System** is what the app needs from the OS and the controls that give it: permissions (each a status
+  row, with its button and warning only while missing), conflicts with the OS's own features, compatibility
+  switches, and **Start over** (Show Onboarding Again). A state with nothing to press beside it is on Health.
+- **Health** says at a glance whether the app is doing its job, **exhaustively**: an overview row summing
+  the page up (*Everything works*, *N things to look at*, *Not working: N problems*) with **Check Again**;
+  every permission; every mechanism, integration and OS conflict the feature rests on; compatibility; blue
+  readings that prove the app is alive (the last hook event, the last time the feature acted); the same
+  **App** group in every app (launch at login, running for, memory used, crashes in the last 7 days, where
+  it is installed); and **Copy Report**. It reports and changes nothing; each orange or red row says where
+  it is fixed. **The version and updates are never on it**: they are General's. The rows are built in Core
+  from plain values (`HealthFacts` → `HealthReport.groups(for:)`) and tested.
+- **One colour rule on every page**: green as it should be; blue a reading, or an app's own switch the user
+  turned off; orange not as it should be while the app still does its job (an optional permission or setup
+  missing, a feature on that cannot work, a crash this week); red, with the stop sign, what stops the app
+  from doing its job (a permission or setup the wizard marks `required`, the mechanism down). A grant reads
+  the same on System and on Health (`HealthRules.grant(held:required:)`).
 - **Tip** is the tip jar, its own page and the same in every app: a card with no title carrying the app
   icon and one sentence, then **One-time tip** with the Ko-fi cup and a button naming the smallest tip
   (`SupportLink.smallestTip`, 5 €, `https://ko-fi.com/bambidotexe`). Its two cards hold pictures and words
   rather than controls, the one place the row rule is set aside, and the owner asked for it.
-- A state is always a `StatusRow` with one of five marks and **one word** from a fixed vocabulary
-  (Granted/Denied, Enabled/Disabled, Available/Missing, Valid/Invalid, Failed).
+- A state is always a `StatusRow` with one of five marks (green check, blue info, orange triangle, **red
+  stop sign** `xmark.octagon.fill`, spinner) and **one word** from a fixed vocabulary (Granted/Denied,
+  Enabled/Disabled, Available/Missing, Valid/Invalid, Failed).
 - Every number is in `SettingsMetrics`; none of them is an agent's to retune.
 - The copy rules: default size only, **no long dash anywhere a user reads**, a key is its symbol then its
   name (⇧ Shift, ⌘ Command), a hint earns its place or is deleted, buttons are Title Case verbs.
@@ -131,8 +146,9 @@ Identical in every app, and carried whole (`Core/Update*.swift` + `Platform/Upda
 - `NSApp.activate(ignoringOtherApps: true)` **to open** that window and Settings: measured on macOS 27,
   the cooperative `activate()` cannot bring an accessory app forward. Coming back afterwards is
   `makeKeyAndOrderFront` alone.
-- The System page reports each permission live while the window is open, from a 2 s poll the *window*
-  starts and stops (`SystemStatus`), never a view's `onAppear`.
+- The System and Health pages report each permission live while the window is open, from a 2 s poll the
+  *window* starts and stops (`SystemStatus`), never a view's `onAppear`; Health's own readings are taken
+  when the window shows it and on Check Again, never on a timer (`HealthCheck`).
 
 ## 7. Signing, notarizing, packaging, release
 
