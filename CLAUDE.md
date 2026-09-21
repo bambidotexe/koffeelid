@@ -31,6 +31,17 @@ as `bambidotexe`, `gh` logged in). **The installed copy `/Applications/KoffeeLid
 driver and is usually armed while you work** (see Rules). Its data lives in
 `~/Library/Application Support/KoffeeLid/`: `diagnostics.log`, `activity.jsonl`, `koffeelid.pid`, `sleep-lock`.
 
+## The family, and the shared documents
+
+This app is one of the macOS apps under `~/Projects` that share one shape; the `macos-map` skill lists
+them and routes a task to the right skill. **`docs/shared/` is a synced copy of
+`~/Projects/macos-app-template/docs/shared/`, and it is never edited here**: a change goes in the template
+and `sh ~/Projects/macos-app-template/scripts/sync-shared-docs.sh` replicates it to every app. A trap, a
+convention or a platform fact that applies to more than this app goes there, not in this app's own
+documents. `docs/shared/workflow.md` is the change workflow every app of the family follows and
+`docs/shared/pitfalls.md` the traps they all share; the sections below are this app's own statement of the
+workflow, with its own file names, and this app's own traps.
+
 ## Read first
 
 | File | What it is |
@@ -41,7 +52,7 @@ driver and is usually armed while you work** (see Rules). Its data lives in
 | `docs/macOS.md` | The platform facts the app relies on: the kernel flag and powerd, the sleep lock, assertions, the lid-angle sensor, modifier keys, displays, capture, TCC, Claude Code's hooks and registry, zsh. Read it before designing on a platform assumption. |
 | `docs/pitfalls.md` | Traps already hit, each with symptom, cause, what the code does and what not to do. **Read the matching section before changing sleep, lid, gesture, effect, watchdog, privilege or hook code.** |
 | `docs/development.md` | Build, install and debug loop; how to add a preference, a string, a control, a permission row, a verb, an effect tunable, a collaborator; icons; the release checklist; known limitations. |
-| `docs/manual-checks.md` | The hardware checklist: the only verification of everything IOKit, Metal, CoreAudio and TCC. Unit tests cannot reach those paths; the log lines it greps for are part of the contract. |
+| `docs/manual-test-checklist.md` | The hardware checklist: the only verification of everything IOKit, Metal, CoreAudio and TCC. Unit tests cannot reach those paths; the log lines it greps for are part of the contract. |
 | `docs/_audit.md`, `docs/_coverage.md` | Records of the September 2026 audits: what was read, verified and decided. History, not rules. |
 
 ## Changing behaviour — the workflow
@@ -62,7 +73,7 @@ Every change to what the app does follows these steps, in this order. A change t
 4. **Update `docs/functional.md` in the same commit.** Replace the old rule with the new one; never keep an
    outdated rule, not as a note, not as "it used to be". A structural change updates `docs/architecture.md`; a
    new platform fact `docs/macOS.md`; a trap `docs/pitfalls.md`; a behaviour only hardware can show gets a line
-   in `docs/manual-checks.md`; a new setting is a row in `functional.md` § Settings and defaults; every new
+   in `docs/manual-test-checklist.md`; a new setting is a row in `functional.md` § Settings and defaults; every new
    user-visible string gets its `fr` entry.
 5. **Verify.** `swift test` green (count the per-case `passed` lines), the Debug `xcodebuild` warning-free,
    the string catalog covering every `L("…")` key. Add or amend a unit test for any pure rule.
@@ -93,28 +104,28 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 | the CLI, `koffeelid://` URLs, App Intents | `App/main.swift`, `App/CommandServer.swift` (`CommandLineClient`), `Core/DeepLink.swift`, `App/Intents/KoffeeLidIntents.swift`; `KoffeeLidController.perform(_:source:)` | `functional.md` § User interface; `development.md` § How to add things (a CLI / URL verb) |
 | the menu, the status item, the menu-bar glyph | `App/StatusItemController.swift`, `MugShape.swift`, `App/Resources/Glyphs` | `functional.md` § User interface; `development.md` § Icons |
 | the app icon | `App/Resources/AppIcon.icon` (Icon Composer document), its `type: file` source entry in `project.yml` | `development.md` § Icons; `architecture.md` § Build, signing, entitlements |
-| Settings (start with the `building-settings-pages` skill) | `App/UI/SettingsWindow.swift` (pages, toolbar, height), `SettingsKit.swift` (the kit and every number), `SettingsModel.swift` (bindings, polled states), `Settings…Page.swift` (one per page); `Core/SettingsStatus.swift` (a state's colour) | `functional.md` § User interface, § Settings and defaults; `development.md` § How to add things (a settings control); the skill, if a rule of the window changes |
-| onboarding (start with the `building-onboarding` skill) | `App/UI/OnboardingWindowController.swift`, `ControlActionHandler.swift`; `App/AppDelegate.swift` (`showOnboarding`, `applicationShouldHandleReopen`) | `functional.md` § User interface; `pitfalls.md` § Windows and permission grants; the skill, if a rule of the window changes |
-| the Tip page, the Ko-fi link | `App/UI/SettingsTipPage.swift`, `KoFiMark.swift`; `Core/SupportLink.swift` (the page and the smallest tip it takes) | `functional.md` § User interface; `manual-checks.md` § Settings UI |
+| Settings (start with the `macos-building-settings-pages` skill) | `App/UI/SettingsWindow.swift` (pages, toolbar, height), `SettingsKit.swift` (the kit and every number), `SettingsModel.swift` (bindings, polled states), `Settings…Page.swift` (one per page); `Core/SettingsStatus.swift` (a state's colour) | `functional.md` § User interface, § Settings and defaults; `development.md` § How to add things (a settings control); the skill, if a rule of the window changes |
+| onboarding (start with the `macos-building-onboarding` skill) | `App/UI/OnboardingWindowController.swift`, `ControlActionHandler.swift`; `App/AppDelegate.swift` (`showOnboarding`, `applicationShouldHandleReopen`) | `functional.md` § User interface; `pitfalls.md` § Windows and permission grants; the skill, if a rule of the window changes |
+| the Tip page, the Ko-fi link | `App/UI/SettingsTipPage.swift`, `KoFiMark.swift`; `Core/SupportLink.swift` (the page and the smallest tip it takes) | `functional.md` § User interface; `manual-test-checklist.md` § Settings UI |
 | a preference and its default | `App/Preferences.swift`; `KoffeeLidController.preferenceChanged(_:)` | `functional.md` § Settings and defaults |
 | a user-visible string | `App/Resources/Localizable.xcstrings`, edited in place, with its `fr` entry | `development.md` § How to add things (a user-visible string) |
-| a permission row, the sudoers setup, Reset (start with the `building-onboarding` skill) | `App/UI/Permissions.swift` (`PermissionCatalog`, `FocusReturnWatch`), `Core/SettingsStatus.swift` (`SettingsGrant`), `App/UI/SettingsSystemPage.swift`, `App/UI/SleepLockSetupAction.swift`; `KoffeeLidController.resetEverything` | `functional.md` § Permissions and what breaks without them; `macOS.md` § Permissions and how each is reset; `pitfalls.md` § Windows and permission grants |
-| the uninstall | `Core/UninstallPlan.swift` (the root-owned files, the one privileged line, and the helper that waits for this pid); `KoffeeLidController.uninstallEverything`, `App/SleepLock.swift` (`runPrivilegedScript`), `App/DiagnosticLog.swift` (`silence`), the Uninstall group of `App/UI/SettingsGeneralPage.swift` | `functional.md` § Uninstall; `manual-checks.md` § Settings UI |
+| a permission row, the sudoers setup, Reset (start with the `macos-building-onboarding` skill) | `App/UI/Permissions.swift` (`PermissionCatalog`, `FocusReturnWatch`), `Core/SettingsStatus.swift` (`SettingsGrant`), `App/UI/SettingsSystemPage.swift`, `App/UI/SleepLockSetupAction.swift`; `KoffeeLidController.resetEverything` | `functional.md` § Permissions and what breaks without them; `macOS.md` § Permissions and how each is reset; `pitfalls.md` § Windows and permission grants |
+| the uninstall | `Core/UninstallPlan.swift` (the root-owned files, the one privileged line, and the helper that waits for this pid); `KoffeeLidController.uninstallEverything`, `App/SleepLock.swift` (`runPrivilegedScript`), `App/DiagnosticLog.swift` (`silence`), the Uninstall group of `App/UI/SettingsGeneralPage.swift` | `functional.md` § Uninstall; `manual-test-checklist.md` § Settings UI |
 | a notification | `App/NotificationsController.swift` and the call site | the section of the behaviour that posts it |
 | the shortcuts | `App/HotKeyController.swift` | `functional.md` § User interface |
 | the watchdog, crash recovery, the pid file | `Watchdog/Sources/main.swift`; `App/RelaunchAgentController.swift`; `Core/CrashLoopGuard.swift`, `PidFileRecord.swift`, `RelaunchHistoryStore.swift`, `DiagnosticFileWriter.swift` | `architecture.md` § Watchdog contract; `macOS.md` § Login items and the watchdog; `pitfalls.md` § Watchdog and launch |
-| diagnostics and log lines | `App/DiagnosticLog.swift`, `Core/DiagnosticLine.swift` | `docs/manual-checks.md` greps for the phrasing: keep it |
+| diagnostics and log lines | `App/DiagnosticLog.swift`, `Core/DiagnosticLine.swift` | `docs/manual-test-checklist.md` greps for the phrasing: keep it |
 | updates: the check, its schedule, the notification | `Core/UpdateCheck.swift` (`ReleaseVersion`, `LatestRelease`, `UpdateCheck`), `Core/UpdateSchedule.swift`, `Core/UpdatePanel.swift` (the Updates group: mark, button, what a press starts); `App/UpdateController.swift` (the one owner), `App/UpdateChecker.swift`, `App/NotificationsController.swift`; the Updates group of `App/UI/SettingsGeneralPage.swift` | `functional.md` § Updates; `architecture.md` § Updates |
 | updates: the window, the fetch, making it ready | `Core/UpdateSession.swift`, `Core/StagedUpdateCheck.swift`; `App/UI/UpdateWindow.swift`, `App/UpdateChecker.swift` (`UpdateDownload`), `App/UpdateStager.swift`, `App/CodeSignature.swift` | the same, plus `macOS.md` § Updates |
-| updates: Install and Relaunch | `Core/UpdateInstallScript.swift` (the helper's text, `UpdateInstallPlan`, `UpdateResult`), `Core/DetachedProcess.swift`; `App/UpdateInstaller.swift`, `UpdateController.installAndRelaunch`, `KoffeeLidController.quitWouldSleepTheMac` | the same, plus `pitfalls.md` § Updates and `manual-checks.md` § Updates. **Read `pitfalls.md` § Updates before touching the order of an install** |
+| updates: Install and Relaunch | `Core/UpdateInstallScript.swift` (the helper's text, `UpdateInstallPlan`, `UpdateResult`), `Core/DetachedProcess.swift`; `App/UpdateInstaller.swift`, `UpdateController.installAndRelaunch`, `KoffeeLidController.quitWouldSleepTheMac` | the same, plus `pitfalls.md` § Updates and `manual-test-checklist.md` § Updates. **Read `pitfalls.md` § Updates before touching the order of an install** |
 | build, install, release | `project.yml` (never the xcodeproj), `script/bootstrap.sh`, `build.sh`, `install.sh`, `run.sh`, `release.sh`, `ExportOptions.plist`; the version in its three places (Commands) | `development.md` § Release checklist; `architecture.md` § Build, signing, entitlements |
 
 ## Commands
 
 ```bash
 # ---- the two actions. A build of this app reaches a Mac by one of these and by nothing else. ----
-script/install.sh                                     # skill: install-locally. Production build → /Applications; leaves no .app or .dmg behind
-script/publish.sh <patch|minor|major> [--no-install]  # skill: publish-release. The same, plus a version bump, tag, push, GitHub release
+script/install.sh                                     # skill: macos-install-locally. Production build → /Applications; leaves no .app or .dmg behind
+script/publish.sh <patch|minor|major> [--no-install]  # skill: macos-publish-release. The same, plus a version bump, tag, push, GitHub release
 # -------------------------------------------------------------------------------------------------
 
 swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (354); needs the Claude Code sandbox off, like xcodebuild
@@ -186,8 +197,8 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 - **A request that conflicts with a written rule is a question, not a change.** Quote the rule, ask whether it
   is overruled, and only then implement. If the owner reaffirms the request, that is the answer: replace the rule.
 - **A build of this app reaches a Mac in exactly two ways, and there is no third.** `script/install.sh`
-  (skill `install-locally`) builds the production bundle and puts it in `/Applications`; `script/publish.sh`
-  (skill `publish-release`) does the same and puts the disk image on GitHub. Both build the real thing —
+  (skill `macos-install-locally`) builds the production bundle and puts it in `/Applications`; `script/publish.sh`
+  (skill `macos-publish-release`) does the same and puts the disk image on GitHub. Both build the real thing —
   Release, Developer ID, Hardened Runtime, notarized, stapled — so what runs on this Mac is what a stranger
   would download. **Neither leaves an `.app` or a `.dmg` anywhere under the repository**, on any exit path,
   including a failed one: a signed bundle in `build/` or `DerivedData/` is a complete application that
@@ -210,14 +221,14 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   session is working arms at once by itself. Never send `off` while the lid is closed on an armed session
   with no external display. Any other utility that sets the same kernel flag will fight the arm;
   quit it before testing.
-- **Any work on the onboarding window, or on any permission row, starts with the `building-onboarding` skill**
-  (`.claude/skills/building-onboarding/SKILL.md`): adding or rewording a page or a row, changing what a grant
+- **Any work on the onboarding window, or on any permission row, starts with the `macos-building-onboarding` skill**
+  (`~/.claude/skills/macos-building-onboarding/SKILL.md`): adding or rewording a page or a row, changing what a grant
   button does, or anything about which window is in front. It holds the window's contract, how a grant is
   named and asked for, and the traps that cost this window a whole session. Two rules from it that nothing
   may break: **no permission prompt without a click**, and **a grant is titled exactly what System Settings
   titles the switch**.
-- **Any work on the Settings window starts with the `building-settings-pages` skill**
-  (`.claude/skills/building-settings-pages/SKILL.md`): adding, moving, renaming or rewording a setting, a
+- **Any work on the Settings window starts with the `macos-building-settings-pages` skill**
+  (`~/.claude/skills/macos-building-settings-pages/SKILL.md`): adding, moving, renaming or rewording a setting, a
   status, a group, a page or any sentence the window shows. It holds the window's structure, its numbers and
   how its words are written.
 - **Every user-visible string goes through `L("literal key")`** and must exist in
@@ -231,10 +242,10 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 - **Ask before any change to arming behaviour, to TCC grants or to privilege** (sudoers, login items): those
   are the owner's decisions, and the wrong one sleeps or unlocks a closed Mac.
 - Compiler warnings are failures. Unit tests are hermetic and live against Core; a pure rule gets its test
-  first. Anything hardware-facing gets a line in `docs/manual-checks.md` and a log line to grep for.
+  first. Anything hardware-facing gets a line in `docs/manual-test-checklist.md` and a log line to grep for.
 - Diagnostics go through `DiagnosticLog.shared.log` (app) or `DiagnosticFileWriter` (watchdog); both lock
   `diagnostics.lock`. `Preferences.diagnosticsEnabled` silences the app's writer; check it before concluding a
-  log is empty. Keep the existing phrasing of log lines (`docs/manual-checks.md` greps for them).
+  log is empty. Keep the existing phrasing of log lines (`docs/manual-test-checklist.md` greps for them).
 - Shell scripts are zsh (`${0:A:h:h}` for the repo root, `set -euo pipefail`, BSD userland). `rg` is not
   installed; `log` is a shell function (use `/usr/bin/log`).
 - Subagents run on Sonnet by default, with an explicit `model`, and only for a slice with a written brief;
@@ -309,7 +320,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 ## Testing constraints on this machine
 
 - Unit tests are hermetic. Everything hardware-facing (kernel flag, brightness, lock screen, HID sensor,
-  modifier flags, capture, CoreAudio, TCC, the network) is verified only via `docs/manual-checks.md` and log
+  modifier flags, capture, CoreAudio, TCC, the network) is verified only via `docs/manual-test-checklist.md` and log
   lines.
 - `swift test`, `xcodebuild` and anything that decodes HEIC or video fail inside Claude Code's sandbox; run
   them with the sandbox off. The shader is compiled at runtime: syntax-check it with `xcrun metal`
@@ -344,7 +355,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
    Settings prints beside the switch and the user cannot act on it; ask for a grant without a click and macOS
    remembers the refusal for good; take activation when a flow reports back and the window lands on top of the
    pane it just opened, while never taking it leaves the window behind the user's terminal. Start from the
-   `building-onboarding` skill, not from instinct.
+   `macos-building-onboarding` skill, not from instinct.
 6. **Hooks are not a complete signal.** Esc and Ctrl-C fire no hook, `SubagentStop` is often missing,
    `idle_prompt` is a timer, a dialog can be answered without any hook, and hooks fire while the app is down.
    The activity feature reads the registry and the process tree as well; do not tighten it against one
@@ -364,7 +375,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   Icon Composer icon, the seven-page Settings window with its macOS 15 target, and the automatic update (weekly
   check, notification, update window, Install and Relaunch). `script/install.sh` refuses only while quitting
   would sleep the Mac at once (armed, lid shut, no external display) — verified with a real closed-lid,
-  external-display install (`docs/manual-checks.md` § Safety rails). The sudoers rule, the watchdog agent, the
+  external-display install (`docs/manual-test-checklist.md` § Safety rails). The sudoers rule, the watchdog agent, the
   Claude Code hooks and the zsh snippet are all in place.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
@@ -374,10 +385,10 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   showing only the system dialog, the administrator dialog handing the front back, and System Settings handing
   it back when it quits. Every grant row is titled what System Settings titles the switch, quoted from the
   system's tables, and **nothing in the app asks for a permission without a click**. The rules and the traps
-  are in the `building-onboarding` skill; read it before touching that window or any permission row.
+  are in the `macos-building-onboarding` skill; read it before touching that window or any permission row.
 - `swift test` is green (354 distinct cases: 332 Core, 22 LidPlaneKit) and the Debug build warning-free at this
-  commit. The app target has no automated tests; `docs/manual-checks.md` is its verification.
-- Not walked on hardware: the Settings window's checklist (`docs/manual-checks.md` § Settings UI; the owner
+  commit. The app target has no automated tests; `docs/manual-test-checklist.md` is its verification.
+- Not walked on hardware: the Settings window's checklist (`docs/manual-test-checklist.md` § Settings UI; the owner
   approved its look and wording in the running app), the dark-wake hold, the one-close hold, the late-display
   reopen lock, the arrow-key check, the built-in-keyboard Fn rule, and most of the auto-arm section. On the
   onboarding, what has not been seen is the last page's Finish and the Notifications row's own prompt on a Mac
@@ -385,7 +396,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   feature has been run through its unit tests, through a real install and a real roll-back of a stand-in app by
   the real helper, and end to end against a published GitHub release (check, fetch with its digest, unpacking,
   signature rule); KoffeeLid installing over itself, the notification, the update window and the window that says how an
-  install ended have not been seen (`docs/manual-checks.md` § Updates). Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
+  install ended have not been seen (`docs/manual-test-checklist.md` § Updates). Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
 - There is no `/usr/local/bin/koffeelid` wrapper: `/usr/local/bin` is root-owned here, so `script/install.sh`
   prints the `sudo` one-liner instead of writing it. Call the bundle binary meanwhile. The sudoers rule for the
   sleep lock **is** in place.

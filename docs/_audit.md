@@ -137,7 +137,7 @@ None large enough to question the product. All were stale docs:
   ORs the auto level and holds the arm until login.
 - `docs/architecture.md` said the modifier is watched through a global flags monitor; it is read per sample.
 - `docs/development.md` said there is no `gh` CLI; `CLAUDE.md` said releases are made with it.
-- `docs/manual-checks.md` numbered the onboarding's last page 3 (it is 4) and kept a check for a master switch
+- `docs/manual-test-checklist.md` numbered the onboarding's last page 3 (it is 4) and kept a check for a master switch
   that does not exist.
 - The activity spec described an edge-triggered arm policy owning the manual mode; the code has an independent
   level ORed with it.
@@ -202,7 +202,7 @@ Kept on purpose, in addition to the list above: `PlaneRemap.blurRadius` (test-on
 | `pitfalls.md` § Working on this Mac | | the `appintentsmetadataprocessor` warning: the Debug build that printed it wrote no `Metadata.appintents`; the next build, which relinked the app, wrote it; the installed Release build has it |
 | `development.md` § A user-visible string | `rg` one-liner | `grep -rhoE` (rg is not installed here) |
 | `development.md` § A settings control | "as the two Start below sliders do" | only the gesture slider keeps its handle |
-| `development.md` § Daily loop, `CLAUDE.md`, `manual-checks.md` Shortcuts check | | the same Debug-build note |
+| `development.md` § Daily loop, `CLAUDE.md`, `manual-test-checklist.md` Shortcuts check | | the same Debug-build note |
 | `README.md` badge, `CLAUDE.md` | 248 tests | 247 |
 
 ### Left as they are (recorded, not defects)
@@ -228,7 +228,7 @@ Kept on purpose, in addition to the list above: `PlaneRemap.blurRadius` (test-on
    reset, two strings with `fr`. Without the grant the previous rule stands. Two probes on this Mac (scratchpad,
    not in the tree): a matching dictionary carrying `Built-In: true` matched both keyboards, so the filter moved
    to user space; the reader's open → element subscription → schedule → close sequence on the built-in device
-   succeeds under the grant. Key presses themselves are not yet exercised (`docs/manual-checks.md` § Gesture).
+   succeeds under the grant. Key presses themselves are not yet exercised (`docs/manual-test-checklist.md` § Gesture).
 
 ### Questions for the owner
 

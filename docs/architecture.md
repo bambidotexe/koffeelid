@@ -48,7 +48,7 @@ on close), and it polls its own grants every 2 s between `showWindow` and `windo
 only on a change of step: every row of the two list pages is a `GrantRow` that redraws its own trailing
 control when its own grant moves and shows a spinner beside its disabled button while its flow runs, and the
 page's primary button takes its title in place. The window's
-structure, numbers and wording rules are in `.claude/skills/building-settings-pages/SKILL.md`.
+structure, numbers and wording rules are in `~/.claude/skills/macos-building-settings-pages/SKILL.md`.
 
 ## The coordinator
 

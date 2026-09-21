@@ -42,7 +42,7 @@ Routing follows the mission's table. Every spawn sets `model` and `effort` expli
 | S6a tests (activity, hook, shell, watchdog) | `Tests/KoffeeLidCoreTests/Activity*`, `HookConfigTests`, `ShellInitTests`, `ProcWalkTests`, `WatchdogSupportTests`, `DiagnosticFileWriterTests`, `SmallPoliciesTests`, `SmokeTests` | Sonnet | low | 3 |
 | S6b tests (lid, effect, arming) | remaining `Tests/KoffeeLidCoreTests/*`, `Tests/LidPlaneKitTests/*` | Sonnet | low | 3 |
 | S7 build, scripts, resources | `project.yml`, `Package.swift`, `.gitignore`, `script/*` (8), `App/Resources/Localizable.xcstrings`, `Glyphs/*.svg`, `Sounds/SoundEffects-LICENSE.txt`, asset-catalog `Contents.json` (2) | Sonnet | low | 3 |
-| S8a docs | `README.md`, `CLAUDE.md`, `docs/architecture.md`, `development.md`, `gesture.md`, `manual-checks.md`, `platform-notes.md` | Sonnet | low | 3 |
+| S8a docs | `README.md`, `CLAUDE.md`, `docs/architecture.md`, `development.md`, `gesture.md`, `manual-test-checklist.md`, `platform-notes.md` | Sonnet | low | 3 |
 | S8b planning docs | `docs/superpowers/plans/2026-09-11-activity-auto-arm.md`, `docs/superpowers/specs/2026-09-11-activity-auto-arm-design.md` | Sonnet | low | 3 |
 
 Deviation from the default routing, with reason:
@@ -101,7 +101,7 @@ the parent model; none ran at xhigh or max. Waves ran one after the other.
 | | **Total** | **18** | **2.13 M** | |
 
 The parent (Fable) did orchestration, the reads listed above, the log and probe analysis for the animation bug,
-the five docs plus `README.md`, `CLAUDE.md`, `development.md` and `manual-checks.md`, the doc deletions and the
+the five docs plus `README.md`, `CLAUDE.md`, `development.md` and `manual-test-checklist.md`, the doc deletions and the
 verification runs.
 
 ## Read table
@@ -243,7 +243,7 @@ Line counts at commit `d4acc73`. "parent" = also read by the parent (in full for
 | `docs/architecture.md` | S8a | Sonnet | low | S8a worker + parent | yes | 501 |
 | `docs/development.md` | S8a | Sonnet | low | S8a worker + parent | yes | 247 |
 | `docs/gesture.md` | S8a | Sonnet | low | S8a worker + parent | yes | 163 |
-| `docs/manual-checks.md` | S8a | Sonnet | low | S8a worker + parent | yes | 151 |
+| `docs/manual-test-checklist.md` | S8a | Sonnet | low | S8a worker + parent | yes | 151 |
 | `docs/platform-notes.md` | S8a | Sonnet | low | S8a worker + parent | yes | 153 |
 | `docs/superpowers/plans/2026-09-11-activity-auto-arm.md` | S8b | Sonnet | low | S8b worker | yes | 2540 |
 | `docs/superpowers/specs/2026-09-11-activity-auto-arm-design.md` | S8b | Sonnet | low | S8b worker | yes | 267 |
@@ -306,7 +306,7 @@ in full this pass; unread in scope = 0.** The three other workers are additional
   `PlaneRemap.blurRadius` (kept, tested shader reference) and `SleepLockSetup.installCommand` (removed).
 - String catalog: 170 keys, all with an `fr` entry, all reachable (147 `L("…")` literals; the six
   `${applicationName}` phrases are the App Shortcut phrases in `KoffeeLidIntents.swift`); no literal outside the catalog.
-- Every backticked log line in `docs/manual-checks.md` and `docs/development.md` matched a format string in the code.
+- Every backticked log line in `docs/manual-test-checklist.md` and `docs/development.md` matched a format string in the code.
 - Toolchain and OS lines checked with `swift --version` (6.4), `xcodebuild -version` (27.0), `sw_vers` (27.0), `sysctl hw.model` (Mac16,8).
 - Narrative markers (`used to`, `previously`, `Part N`, `legacy`, dates in comments…): none in source.
 
@@ -326,7 +326,7 @@ Deviations from the default routing, with reason:
 
 - Cleanup edits by the parent instead of a Sonnet-medium worker: three edits under 15 lines, each proven by a
   repo-wide grep; a spawn would have cost more than the edits.
-- No separate worker for `development.md`, `manual-checks.md`, `CLAUDE.md`, `README.md`: the parent read them,
+- No separate worker for `development.md`, `manual-test-checklist.md`, `CLAUDE.md`, `README.md`: the parent read them,
   the log-line script above checked their greps, and the toolchain lines were checked against the tools.
 - No Haiku membership pass, for the 2026-09-18 reason.
 

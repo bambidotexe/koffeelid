@@ -55,8 +55,8 @@ A build of this app reaches a Mac by one of two paths and by nothing else.
 
 | | | |
 |---|---|---|
-| `script/install.sh` | skill `install-locally` | The production bundle in `/Applications` |
-| `script/publish.sh` | skill `publish-release` | The same, plus the disk image on GitHub |
+| `script/install.sh` | skill `macos-install-locally` | The production bundle in `/Applications` |
+| `script/publish.sh` | skill `macos-publish-release` | The same, plus the disk image on GitHub |
 
 Both build the real thing — Release, signed with the Wooflab Developer ID under the Hardened Runtime,
 notarized, stapled, wrapped in the disk image — and install the bundle from inside that image, so what runs
@@ -93,7 +93,7 @@ deleted when it has served its purpose.
   `diagnostics.1.log` at 256 KB, guarded by `diagnostics.lock`, shared with the watchdog (lines prefixed
   `watchdog:`). Log through `DiagnosticLog.shared.log` (app) or `DiagnosticFileWriter` (watchdog). Settings ›
   System › Diagnostics silences the app's writer: an empty log usually means it is off. Keep the existing
-  phrasing of log lines; `docs/manual-checks.md` greps for them.
+  phrasing of log lines; `docs/manual-test-checklist.md` greps for them.
 - Kernel flag: `ioreg -r -d1 -c IOPMrootDomain | grep -E 'AppleClamshellCausesSleep|AppleClamshellState'`.
   Trust `koffeelid status`, the log and `pmset -g assertions | grep KoffeeLid` over `AppleClamshellCausesSleep`
   alone (`docs/pitfalls.md`).
@@ -160,7 +160,7 @@ KOFFEELID_UPDATE_FEED=file:///tmp/latest.json /Applications/KoffeeLid.app/Conten
 
 The update is only accepted from a build signed by the same team as the running one, and the app replaces the
 bundle it runs from: test on the installed copy, not on `DerivedData`. The helper's own log is
-`~/Library/Application Support/KoffeeLid/updates/install.log`; `docs/manual-checks.md` § Updates is the walk.
+`~/Library/Application Support/KoffeeLid/updates/install.log`; `docs/manual-test-checklist.md` § Updates is the walk.
 
 ## Safety on this Mac
 
@@ -184,8 +184,8 @@ renaming a key means renaming it where `L("…")` is called and in the catalog's
 coverage: `grep -rhoE 'L\("[^"]+"\)' App/Sources | sort -u` against the catalog's keys. An
 untranslated key is a build warning.
 
-**A settings control.** Start with the `building-settings-pages` skill
-(`.claude/skills/building-settings-pages/SKILL.md`): it holds the window's structure, its numbers and how its
+**A settings control.** Start with the `macos-building-settings-pages` skill
+(`~/.claude/skills/macos-building-settings-pages/SKILL.md`): it holds the window's structure, its numbers and how its
 words are written, in both languages. The window is `SettingsWindow` (an `NSToolbar` over one
 `NSHostingController`); a page is a SwiftUI `Settings…Page` built only from the kit in `SettingsKit.swift`
 (`SettingsPage`, `SettingsGroup`, `ToggleRow`, `SegmentedRow`, `SliderRow`, `PopUpRow`, `StatusRow`,
@@ -195,7 +195,7 @@ subject and the group by what the control governs; a control that depends on a s
 are `UpdatePanel` (Core, tested). How it looks or reads is judged by the owner in the running app, never by
 the agent.
 
-**A permission or a hook row.** Start with the `building-onboarding` skill: it holds the rules below and the
+**A permission or a hook row.** Start with the `macos-building-onboarding` skill: it holds the rules below and the
 traps behind them. Add a case to `SettingsGrant` (Core) with its colour rule and test in `SettingsStatus`, then
 a `PermissionItem` to `PermissionCatalog.items` or `HookCatalog.items`: its `id`, title, why, `required`, a
 synchronous `granted` closure (cache asynchronous state the way notifications do), button title and an action
@@ -228,7 +228,7 @@ only.
 in `EffectParametersTests`; the maths in `PlaneRemap` with tests in `PlaneRemapTests`; the same maths in
 `PlaneShader.source` and the value in `PlaneUniforms` (field order must match the MSL `Uniforms` struct); a
 `SliderRow` in `SettingsLidEffectPage` with its `fr` string; the defaults row in
-`docs/functional.md` and the Reset item in `docs/manual-checks.md`. Then check the shader offline.
+`docs/functional.md` and the Reset item in `docs/manual-test-checklist.md`. Then check the shader offline.
 
 **Tuning the effect's look without the lid.** The plane is `PlaneRemap` plus four Gaussian levels, so a CPU
 render of the same formulas shows what the shader draws: blur a still with `CIGaussianBlur` at σ = 2, 6, 16,
@@ -289,7 +289,7 @@ before running it.
 2. The code and the documents describe the same app, and the commit is made and pushed. `script/publish.sh`
    refuses on a dirty tree before it does anything else, because that is not this script's to resolve.
 3. `script/install.sh`, approve Login Items and grant Screen Recording if asked, quit and reopen.
-4. Walk `docs/manual-checks.md` with any other lid-sleep utility quit.
+4. Walk `docs/manual-test-checklist.md` with any other lid-sleep utility quit.
 5. Decide the level — patch for a fix, minor for a new feature, major for a breaking change — and run
    `script/publish.sh <level>`. It computes the new version and refuses if that tag already exists, then
    bumps the version by that level, commits and pushes the bump, builds the notarized image, tags, pushes,

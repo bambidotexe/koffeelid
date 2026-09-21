@@ -171,132 +171,43 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 ## Windows and permission grants
 
 ### A window that floats to stay reachable covers what it sent you to
-- **Symptom.** The onboarding wizard sits on top of the System Settings window and the administrator dialog its
-  own buttons open, hiding the instructions it just gave.
-- **Why.** `NSWindow.level = .floating` is above every other app, and `NSApp.activate(ignoringOtherApps: true)`
-  pulls the app in front of whatever it has just launched. Both were there because an `LSUIElement` app is not
-  reactivated when System Settings or a password dialog closes, which leaves its windows behind everything.
-- **What the code does.** The wizard is a normal window and the app is activated once, when it opens. It is
-  reachable again three other ways: it comes forward on `NSApplication.didBecomeActiveNotification` while it is
-  the app's only window, `applicationShouldHandleReopen` prefers it over Settings, and the grant rows follow
-  System Settings by polling rather than by needing the window back in front.
-- **Do not** raise a window's level, or call `activate(ignoringOtherApps:)`, to keep it findable. Reachability
-  and z-order are different problems; the second fix covers the user's own work.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O1**.
 
 ### `.moveToActiveSpace` costs the window its z-order
-- **Symptom.** The wizard opens correctly in front of the terminal. Switch to another Space, come back, and it
-  is now *behind* the terminal.
-- **Why.** `NSWindowCollectionBehavior.moveToActiveSpace` pulls the window to whichever Space is active
-  instead of leaving it in its own, and it is re-inserted into that Space's window list at the back. A normal
-  window belongs to one Space and keeps its place in it. `.fullScreenAuxiliary` is the same kind of
-  exception, letting the window sit over a full-screen app.
-- **What the code does.** The onboarding sets no `collectionBehavior` at all, which is what `SettingsWindow`
-  and `UpdateWindow` have always done. Only `EffectOverlayPanel` overrides it, because a desktop overlay
-  really does belong on every Space.
-- **Do not** reach for a collection behaviour to make a window easier to find, for the same reason as the
-  window level above: it buys reachability with the user's own window order.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O2**.
 
 ### Closing System Settings does not give a menu-bar app its window back
-- **Symptom.** The wizard is in front of the terminal. A grant button opens System Settings, the grant is
-  made, System Settings is closed, and the wizard is now behind the terminal instead of back in front.
-- **Why.** macOS hands the front back to whatever was in front before the app that quit, and skips
-  `LSUIElement` apps while doing it. An ordinary app gets this for nothing; this one is excluded, so the
-  front went to the terminal.
-- **What the code does.** `PermissionItem.mayOpen` names the app a flow can send the user to, and
-  `FocusReturnWatch` waits for that app's `didTerminateApplicationNotification` and brings the window back
-  once. System Settings quits when its window closes, so that notification is the signal. The wait expires
-  after five minutes, so a user who dismissed the dialog and went to System Settings much later for something
-  else is not interrupted.
-- **Do not** solve this by raising the window's level or by activating when the flow reports back: the flow
-  reports back while System Settings is still coming up, which is the original bug. And do not reach for
-  `.regular` activation policy without building the main menu the app has never had.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O3**.
 
 ### A modal dialog of our own still leaves an accessory app deactivated
-- **Symptom.** "Configurer…" for the sleep lock, the administrator dialog, the password accepted, and the
-  wizard is now behind the terminal.
-- **Why.** The dialog is drawn by SecurityAgent, not by us: `NSAppleScript` running
-  `do shell script … with administrator privileges` blocks the main thread while another process owns the
-  screen. When it closes macOS hands activation back to an ordinary app, but not to an `LSUIElement` one, so
-  the window it belonged to is left wherever it had fallen in the order.
-- **What the code does.** `PermissionItem.returnsFocus` marks a flow that puts up its own dialog and waits
-  for it, and such a flow alone calls `reclaimFocusIfNeeded` when it ends. The sleep lock is the only one
-  today, and both surfaces that run these flows honour it.
-- **Do not** give that flag to a flow that hands over to System Settings or to a system prompt. Those report
-  back at once, while the thing they opened is still coming up, and taking activation then is exactly what put
-  the wizard on top of the pane it had just opened.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O4**. Here the sleep lock is the one flow that owns a dialog (`PermissionItem.returnsFocus`).
 
 ### `NSScreen.main` is nil with no key window
 - **What the code does.** Window sizing falls back to the first screen.
 
 ### A poll that rebuilds the page blanks it
-- **Symptom.** The onboarding's Permissions page goes blank and draws itself again, once every time a grant
-  moves and once on every press of a grant button.
-- **Why.** The page was rebuilt wholesale to show the new state: `content.subviews.forEach { $0.removeFromSuperview() }`
-  empties the window, and the replacement only appears at the next layout pass. Comparing the grants first and
-  rebuilding "only when one moved" does not help — the flicker is the rebuild, not its frequency.
-- **What the code does.** A page is built on a change of step and at no other time. Each row is a `GrantRow`
-  that owns its own trailing control and swaps that alone, after comparing what it is showing with what it
-  should show, so a refresh that changes nothing touches no view.
-- **Do not** redraw a whole view tree to reflect one value. A polled page needs a per-row updater, and it
-  needs a loading state of its own: a row whose flow is still running must survive the next tick, or the
-  spinner is taken away from under it.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O5**.
 
 ### A grant named anything but what System Settings calls it
-- **Symptom.** The row says "Éléments d’ouverture", the user presses its button, and the pane that opens has no
-  such heading: it has "Ouvrir avec la session" and "Activité des apps en arrière-plan". Nothing tells them
-  which of the two to touch, and KoffeeLid is listed under both.
-- **Why.** The row had been named after the **pane**, and after the pane's older name at that. A permission row
-  is a pointer into a list the user has to scan, so the only name that works is the one printed beside the
-  switch.
-- **What the code does.** Every row is titled with the system's own string, quoted from the system's tables
-  (`macOS.md` § Permissions): Background App Activity, Screen Recording, Input Monitoring.
-- **Do not** name a grant from memory, and do not pick between two candidate keys in a system loctable by
-  guessing which one is live. Privacy & Security lists `SCREEN_CAPTURE` ("Screen Recording") and
-  `SCREENANDAUDIOCAPTURE` ("Screen & System Audio Recording") as two separate grants; the app requests the
-  first and never the second, so the API it calls is what decides the name, not the pane. Grepping the pane's
-  binary for a bare key name does not settle it: `LISTEN_EVENT` does not appear that way either, and Input
-  Monitoring is plainly a section of its own.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O6**. The names this app quotes are in `macOS.md` § Permissions.
 
 ### A permission asked without a click
-- **Symptom.** The notification prompt appears at launch, with nothing on screen to explain it.
-- **Why.** The start-up path asked for authorization once onboarding was done. Anyone who reached the end of
-  onboarding without granting that row still had the grant at `notDetermined`, so the next launch prompted
-  them out of nowhere. A refusal there is remembered by macOS for good.
-- **What the code does.** Nothing asks but a button: the onboarding's rows and Settings > System, each with
-  the reason beside it. A state is read with the preflight or check call
-  (`CGPreflightScreenCaptureAccess`, `IOHIDCheckAccess`, `getNotificationSettings`, `SMAppService...status`).
-- **Do not** read a grant with the API that requests it. It returns the current state, which makes it look
-  like a reader, and it also prompts; both windows re-read every 2 s, so that is a prompt every 2 s.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O7**.
 
 ### A grant request and a System Settings pane, both at once
-- **Symptom.** One press of "Allow…" and the user gets the system permission dialog *and* System Settings, one
-  over the other.
-- **Why.** `CGRequestScreenCaptureAccess()` shows the dialog and returns the state as it is *now*, which is
-  still not-granted, so a `if !request() { openSystemSettings() }` opens the pane every single time.
-- **What the code does.** Each grant action calls the request API and stops there (`PermissionCatalog`); the
-  dialog's own button is the way to System Settings. The pane openers were deleted so the branch cannot come
-  back.
-- **Do not** read a request API's return value as "the user refused": it is the state before the user has
-  answered.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O8**.
 
 ### A stepping button in a stack with an invisible spacer stops being where it is drawn
-- **Symptom.** The wizard's stepping button, at the bottom right of a list page, looking perfectly ordinary,
-  and **unclickable for ever, however many times it is pressed**. It starts the moment a permission is granted.
-- **Why.** The footer was `NSStackView(views: [spacer, primary])` with a width constraint and no height
-  constraint. A bare `NSView` has no intrinsic size, so nothing decided the footer's own height and the
-  enclosing vertical stack handed it every point the page was not using. Granting a permission swaps that
-  row's 26 pt button for an 18 pt "Granted" label, the list shrinks by 36 pt, and the slack goes into the
-  footer: measured in snappy-snap at **460 x 186 instead of 460 x 24**, with the button floating in the middle
-  of it. The button is still inside the footer, so no constraint breaks, `AXFrame` keeps naming a plausible
-  rectangle and `AXPress` still works; only a real click misses.
-- **What the code does.** The footer is a plain `NSView` with the button pinned to its trailing edge **and to
-  both its top and bottom**, which fixes the footer's height to the button's, and the slack goes to a view of
-  its own between the list and the footer, with vertical hugging and compression resistance at **priority 1**
-  (`OnboardingWindowController.listPage`).
-- **Do not** leave Auto Layout to decide which view absorbs a page's slack. `Metrics` decides sizes, and a
-  stack view free to decide one will. It shipped here, in snappy-snap and in my-sidepulse at the same time,
-  because the `building-onboarding` skill's reference file carried the spacer: a trap fixed in a window and
-  not in the reference is a trap that ships again.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **O9**. Here the footer is `OnboardingWindowController.listPage`.
 
 ## Watchdog and launch
 
@@ -318,12 +229,8 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 ## Updates
 
 ### A helper started by the app dies with the app
-- **Symptom.** The app quits for an update and nothing happens: the helper that was to swap the bundles is gone.
-- **Why.** launchd kills what is left in a job's process group when the job's main process exits, and an app is
-  a launchd job.
-- **What the code does.** `DetachedProcess` spawns the helper with `POSIX_SPAWN_SETPGROUP` (a group of its own),
-  no inherited descriptors and an environment of the app's making.
-- **Do not** start it with a plain `posix_spawn` or a shell `&`.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **U1**.
 
 ### The new version exits at once if the old one is still there
 - **Why.** `AppDelegate` exits a duplicate instance, and an app that has been asked to quit is still a running
@@ -338,36 +245,24 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
   has stood down.
 
 ### The outcome has to be written before the new version starts
-- **Why.** The new version reads `updates/result` as it launches, while the helper is still watching it start.
-- **What the code does.** The helper writes `installed` before `open` and overwrites it if it rolls back. The
-  app never deletes `updates/previous/`: the helper may still need to put it back.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **U3**.
 
 ### A new version that is gone two seconds later has crashed, or has been quit
-- **Symptom.** The update is rolled back, and the previous version comes back, because the user quit the new
-  one as soon as it appeared: the relaunch shows the update window saying the install worked, with a Done
-  button and the menu bar a click away.
-- **What the code does.** The launch that reads the outcome renames it to `result.read`. Gone with that mark in
-  place, the version had started and its quit is the user's; gone without it, the helper looks again for as long
-  as it first looked (an app changing hands with launchd is gone for that moment), and only if it is still
-  nowhere is the previous one put back. `UpdateController.start()` runs last in `applicationDidFinishLaunching`,
-  so the mark means the launch got that far.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **U4**.
 
 ### A helper that gives up while the app may still quit
-- **Why.** Two clocks, the helper's limit and the app's "did not quit" notice, leave a gap in which the app
-  quits with no helper left: nothing installed, nothing running, nothing said.
-- **What the code does.** One clock decides. After `UpdateInstallPlan.stallNotice` the app stops the helper
-  (`SIGTERM`; while the app runs the helper can only be in its wait, having touched nothing) and then says so.
-  The helper's own, longer limit serves only an app too hung to do that.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **U5**. Here the clock is `UpdateInstallPlan.stallNotice`.
 
 ### `ps` lists the path the kernel ran, not the one the app was installed at
-- **Why.** An app reached through a symbolic link (`/tmp` is one) runs under its resolved path.
-- **What the code does.** The helper looks for the executable under the installed path and under `pwd -P` of it;
-  missing a running version would roll back a good install. It also treats an exited, unreaped app (state `Z`
-  in `ps`) as gone: `kill -0` still answers for one.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **U6**.
 
 ### `diskutil eject <folder>` names the volume the folder sits on
-- **Why.** A plain folder's path resolves to its volume, which is the Mac's own.
-- **What the code does.** `UpdateStager` only detaches a folder whose device differs from its parent's.
+
+This is every app's fact: `docs/shared/macOS.md` § Updates.
 
 ## Privilege
 
@@ -380,10 +275,8 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 - **Do not** trust `PATH` or `TMPDIR` in a script that runs as root.
 
 ### `get-task-allow` in a development-signed Release build
-- **Why.** The Apple Development identity injects it; a same-user process can then take the app's task port
-  and act under its Screen Recording grant.
-- **What the code does.** `CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO` for Release. Check with
-  `codesign -d --entitlements - /Applications/KoffeeLid.app`.
+
+This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO` for Release in `project.yml` is what keeps it out.
 
 ## Claude Code hooks and the shell
 

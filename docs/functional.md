@@ -433,4 +433,4 @@ rule if work is running.
 - Whether the Input Monitoring grant takes effect without relaunching the app (the reader retries when the app
   becomes active; `built-in Fn reader: open FAILED` in the log means it did not).
 - The dark-wake hold and the one-close hold have been exercised through logs on this Mac; the manual
-  checklist (`docs/manual-checks.md`) is the record of what has been verified on hardware.
+  checklist (`docs/manual-test-checklist.md`) is the record of what has been verified on hardware.

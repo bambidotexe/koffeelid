@@ -26,11 +26,11 @@ document answers which question.
 | What does macOS actually do here (kernel flag, powerd, sleep lock, assertions, lid sensor, modifier keys, displays, capture, TCC, Claude Code's hooks and registry, zsh)? | `macOS.md` |
 | What looked right and was not? What must the code never do again? | `pitfalls.md` — symptom, cause, what the code does, what not to do |
 | How do I build, install, debug, add a preference, a string, a control, a permission row, a verb, an effect tunable, a collaborator? How do I change the menu-bar glyph or the app icon? How is a release made? | `development.md` |
-| How is a hardware-only behaviour verified? Which log line proves it? | `manual-checks.md` |
+| How is a hardware-only behaviour verified? Which log line proves it? | `manual-test-checklist.md` |
 | What was read, verified and decided in the September 2026 audits? | `_audit.md` (the findings and decisions) and `_coverage.md` (the file manifest); records, not rules |
-| How is the Settings window built, and how are its words written? | the `building-settings-pages` skill |
-| How is the onboarding built? How is a permission named, asked for, and kept from covering what it opens? | the `building-onboarding` skill |
-| How does a build reach this Mac, or a release reach GitHub? | the `install-locally` and `publish-release` skills |
+| How is the Settings window built, and how are its words written? | the `macos-building-settings-pages` skill |
+| How is the onboarding built? How is a permission named, asked for, and kept from covering what it opens? | the `macos-building-onboarding` skill |
+| How does a build reach this Mac, or a release reach GitHub? | the `macos-install-locally` and `macos-publish-release` skills |
 
 ## Keeping the documents true
 
@@ -41,5 +41,12 @@ document answers which question.
   this Mac, and the text says when it has not.
 - `pitfalls.md` gains an entry when something that looked right was not; it is the only place that records
   approaches that fail.
-- `manual-checks.md` gains a line for every behaviour only hardware can show, with the log line to grep for.
+- `manual-test-checklist.md` gains a line for every behaviour only hardware can show, with the log line to grep for.
 - `CLAUDE.md` § Status says what is tagged, released and installed, and what has not been walked on hardware.
+
+## The shared documents
+
+`shared/` is a byte-for-byte copy of `~/Projects/macos-app-template/docs/shared/`: the workflow every app
+of the family follows, the conventions, the platform facts, the traps and the walks they all share. **It is
+never edited here**; a change goes in the template and `sh ~/Projects/macos-app-template/scripts/sync-shared-docs.sh`
+replicates it. What is this app's own stays in the documents above.

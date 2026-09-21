@@ -178,7 +178,7 @@ sensor at 30 Hz and interpolated per frame. See `docs/architecture.md` and `docs
 - `docs/macOS.md`: the macOS mechanisms it relies on and how they behave
 - `docs/pitfalls.md`: the traps already hit, and what the code does instead
 - `docs/development.md`: build/install/debug loop, adding preferences, strings and controls
-- `docs/manual-checks.md`: hardware verification checklist
+- `docs/manual-test-checklist.md`: hardware verification checklist
 
 ## Support
 
