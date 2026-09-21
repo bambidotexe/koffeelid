@@ -45,8 +45,10 @@ swift run axprobe hit <x> <y>        # what a real hit test finds at a point
       *Granted*, the button turns to *Continue*, **the wizard stays open**, and the app starts working.
       **No relaunch.**
 - [ ] **Take the grant away** while the app runs: the app stops and says so; the wizard comes back if the
-      app cannot work without it. Grant it again: it starts again. With the wizard already up, it is not
-      replaced.
+      app cannot work without it, and **its row reads the grant as missing from that moment**, whatever
+      macOS's cached answer still claims. Grant it again: it starts again. With the wizard already up, it is
+      not replaced. **In an app that holds an event tap this step is the owner's, behind a dead-man's
+      switch** (`macOS.md`, *Working on the owner's Mac*), and never an agent's.
 - [ ] Settings › System while all of that happens: the row follows within two seconds, and the button and
       the warning appear and disappear with it.
 

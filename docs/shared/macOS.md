@@ -124,7 +124,12 @@ The platform facts every app leans on, as measured on the owner's Mac (Apple sil
   `x-apple.systempreferences:com.apple.Desktop-Settings.extension`.
 - **`com.apple.accessibility.api`** is posted on the distributed notification centre when the privacy
   database changes: how a grant given or taken away reaches a running app with no timer. It can arrive a
-  moment before the process is really trusted, which is why the wizard also polls while it is up.
+  moment before the process is really trusted, which is why the wizard also polls while it is up. It is
+  posted for any application's grant, and removing an app from the list with the minus button has been
+  reported to post nothing: a hint, never an answer.
+- **`AXIsProcessTrusted()` is an answer the system keeps for the process**, and it lags: seen saying yes for
+  seconds after the switch was turned off, and refilled by a round trip with no timeout. A window may show
+  it; nothing that can hold up input is enabled on it (`pitfalls.md` E5).
 - **Grants are per code identity and per bundle path.** A stable Developer ID signature keeps them across
   reinstalls; an ad-hoc signature gives the app a new identity on every build and loses every grant. A
   DerivedData or `build/` copy and the `/Applications` copy are different apps to TCC and to Background Task
@@ -138,6 +143,34 @@ The platform facts every app leans on, as measured on the owner's Mac (Apple sil
 - A usage string (`NS…UsageDescription`) is read by macOS from the bundle, not from the running app, so it
   ships in `Info.plist` and in each `.lproj/InfoPlist.strings`: the one piece of user-facing text the
   Swift string tables cannot hold. Accessibility has no such key.
+
+## Event taps
+
+- **A `.defaultTap` is waited for; a `.listenOnly` tap is not.** The window server holds every event a
+  default tap subscribes to until its callback answers, so an app holding one is in the path of the Mac's
+  input; a listener only hears. What is safe around a listener is not safe around a tap that can swallow
+  (`pitfalls.md` E1).
+- A tap whose callback does not answer in time is disabled by macOS, which says so through the tap itself
+  (`tapDisabledByTimeout`). **That disable is the net under everything**: a tap that can swallow is never
+  enabled again by the event that says so.
+- `CGEvent.tapEnable(tap:enable: false)` comes back to the tap's own callback as `tapDisabledByUserInput`
+  (`pitfalls.md` E2), and `CGEvent.tapCreate` returns a tap already enabled (E3).
+- A callback is run by the run loop its source was added to. A tap on the main run loop waits for whatever
+  the main thread is doing (E4).
+- **A process that dies takes its taps with it**, whatever state the input is in. It is the one remedy that
+  always works, and why a walk that risks input runs behind a dead-man's switch (below).
+
+## Sleep and the lock screen
+
+- **The notifications come in an order nothing promises, and one of them may not come at all.** Measured on a
+  MacBook with the lid closed for about a minute and a half, twice: `NSWorkspace.willSleepNotification` 0.14
+  to 0.19 s **before** `com.apple.screenIsLocked`; on opening, `com.apple.screenIsUnlocked` reached the app
+  **before any wake notice did**. `com.apple.screenIsLocked` and `com.apple.screenIsUnlocked` are not
+  documented.
+- So each reason to be away (asleep, locked, another user's session in front) is counted apart and ended by
+  its own notification, and all of them are held against the session itself at any news:
+  `CGSessionCopyCurrentDictionary()` says whether the screen is locked (`CGSSessionScreenIsLocked`, present
+  and true only while it is) and whether this session is on the console (`kCGSessionOnConsoleKey`). (shiftpick)
 
 ## Updates: disk images, signatures, the helper
 
@@ -184,7 +217,10 @@ The platform facts every app leans on, as measured on the owner's Mac (Apple sil
 ## The uninstall
 
 - `tccutil reset <Service> <bundle id>` gives a grant back, and it has to run **while the bundle it names
-  still exists**.
+  still exists**. Whatever the grant gates is stopped first: an event tap before anything else.
+- **Every step waits on another process, so none of them runs on the main thread**, and each has a deadline:
+  `Process.waitUntilExit()` runs the calling thread's run loop while it waits (`pitfalls.md` X4). `tccutil`
+  took 10 to 30 ms and `SMAppService` unregistering under 10 ms when they answered.
 - **`cfprefsd` writes a preferences domain back out as the process exits, whatever happens.** Removing the
   plist from inside the app leaves an empty one where a Mac that never had the app has no file at all. The
   removal goes to a detached helper that waits for the pid, along with the Application Support folder, the
@@ -260,3 +296,8 @@ bundled `.icns` (a flat stand-in) but what `NSWorkspace` renders for the built a
 - **A Claude turn that dies when the Thunderbolt dock is unplugged is a network event, not a sleep.** The
   dock carries the primary Ethernet interface; an API stream in flight cannot migrate to Wi-Fi.
 - Never `open` a folder from an agent shell: it navigates the user's own frontmost Finder window.
+- **A walk that can take the owner's input away runs behind a dead-man's switch, and it is the owner's.**
+  The switch is started first, right before the step, in a session of its own, and kills the app after a set
+  time whatever happens (shiftpick's `scripts/drill.sh`), so the worst a step can cost is that many seconds
+  of a Mac that ignores you, never the power button. An agent never takes a grant away, runs `tccutil`, or
+  creates an event tap from a shell to see what happens.

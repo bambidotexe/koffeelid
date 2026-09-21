@@ -9,6 +9,56 @@ Every number was measured on an M-series Mac running macOS 27.0 (build 26A428).
 
 ---
 
+## Event taps and the grant
+
+### E1. An enabled tap that can swallow, a grant taken away, and a callback that enables it again
+- **Symptom.** No click and no key reaches anything, anywhere, until the power button is held down.
+- **Why.** A `.defaultTap` sits in the path of every event it subscribes to, and the window server waits for
+  its answer. When its owner loses the Accessibility grant while it is enabled, the callback stops being run
+  and the events are still routed into it: each one waits, until macOS disables the tap and says so with
+  `tapDisabledByTimeout`. That disable is the only net there is, and a callback that answers it by enabling
+  the tap again cuts it.
+- **What holds.** A tap that can swallow is enabled only for as long as it has to be (shiftpick: only while
+  ⇧ Shift is held), a `.listenOnly` tap does the rest, a tap macOS disabled is never enabled by the event
+  that says so, and a few timeouts inside a minute destroy the taps until the user asks for another try.
+  Enabling a `.listenOnly` tap again from its callback is safe, and snappy-snap does it: the window server
+  never waits for a listener. On a tap that can swallow, it is this entry.
+- **Rule.** Never reproduce it by trying it. A walk that takes a grant away from an app holding a tap runs
+  behind a dead-man's switch started first, which kills the app after a set time whatever happens (shiftpick's
+  `scripts/drill.sh`): a process that dies takes its taps with it. An agent never takes a grant away. (shiftpick)
+
+### E2. A tap its own app disables is told it was disabled "for user input"
+- **Symptom.** A breaker counting the times macOS took a tap away opened within a millisecond of the first
+  launch, with nothing wrong and nobody touching anything.
+- **Measured.** `CGEvent.tapEnable(tap:enable: false)` delivers `tapDisabledByUserInput` to that tap's own
+  callback, at every call, even on a tap already disabled: the reason macOS also gives when it turns a tap off
+  itself.
+- **What holds.** Only a timeout is a trip. A user-input disable heard while the app believes the tap is off is
+  its own echo: nothing is done, above all not a second disable, which is heard back in turn. **The tap API's
+  pseudo-events are not what their names say**: a rule built on one needs the event measured. (shiftpick)
+
+### E3. A tap is born enabled
+- **What holds.** `CGEvent.tapCreate` returns an enabled tap. One that must start off is disabled in the line
+  after it is created, before its port is on any run loop. (shiftpick)
+
+### E4. A tap served by the main run loop stalls input whenever the interface stalls
+- **Why.** A callback is run by the run loop its source was added to. On the main one, every layout, alert,
+  SwiftUI update and wait on the main thread is a wait for every event the tap holds up.
+- **What holds.** Taps have a thread of their own that does nothing else, never calls Accessibility and never
+  waits without a deadline. Work goes to a worker, and **the budget is kept by whoever waits**, not by the
+  work: a worker that checks its own clock can be stuck in the one call that never returns. (shiftpick)
+
+### E5. `AXIsProcessTrusted()` says yes for seconds after the grant has gone
+- **Symptom.** A permission row reads *Granted* under a switch the user has just turned off, and anything gated
+  on the answer stays on.
+- **Measured.** It is an answer the system keeps for the process: right at launch, late after
+  `com.apple.accessibility.api`, seen saying yes for seconds after the switch went off, and refilled by a round
+  trip with no timeout.
+- **What holds.** Nothing that can hold up input is enabled on it. A live question is asked instead, off any
+  tap's thread: one attribute of the Dock with a 50 ms messaging timeout, where `apiDisabled` is a refusal,
+  any answer is a grant and a timeout says nothing. A row shows the grant as missing from the moment the app
+  has found it gone itself (`macos-building-onboarding`). (shiftpick)
+
 ## Onboarding
 
 ### O1. A window that floats to stay reachable covers what it sent you to
@@ -238,6 +288,18 @@ Every number was measured on an M-series Mac running macOS 27.0 (build 26A428).
 - **What holds.** The app's entry is dropped from `group.com.apple.usernoted`'s `apps[]` and `usernoted`
   and `NotificationCenter` are restarted. Its failure is not worth a sentence.
 
+### X4. `Process.waitUntilExit()` on the main thread runs the main run loop
+- **Symptom.** Settings › General › Uninstall froze under a spinning wheel for a minute. The grant had been
+  reset and nothing else had happened: the bundle, the login item and the preferences were all still there.
+- **Measured.** `waitUntilExit` runs the calling thread's run loop until the tool is done: thirteen timer
+  ticks during a 64 ms wait for `/usr/bin/true`. In the middle of the wait for `tccutil`, the Settings
+  window's two-second refresh ran, read the grant and the login item, and one of its calls never came back.
+- **What holds.** Nothing waits on another process on the main thread. A bounded wait blocks the calling
+  thread and nothing else (a termination handler and a semaphore with a deadline, the tool terminated past
+  it), and the uninstall runs its steps on a global queue through it, each within a deadline and logged with
+  what came back and how long it took, then hops back for its last alert. **Whatever the grant gates stops
+  before the reset**: an enabled tap whose owner loses the grant stalls every click (E1). (shiftpick)
+
 ## Launch, login items and launch agents
 
 ### L1. A reinstall opens a window nobody asked for
@@ -290,6 +352,15 @@ Every number was measured on an M-series Mac running macOS 27.0 (build 26A428).
 - **What holds.** A DerivedData or `build/` copy and the `/Applications` copy are different apps to macOS;
   changing the signing team asks for every grant again; a Login Items approval survives an uninstall, so a
   reinstalled bundle re-registers silently. (koffeelid)
+
+### L9. A second copy that asks the first through `NSWorkspace.open` and exits asks nobody
+- **Symptom.** `open -n /Applications/<App>.app` did nothing: the second copy left, and the first never showed
+  its window.
+- **Why.** The request is handed to LaunchServices asynchronously, and a process that exits right after
+  making it never has it delivered.
+- **What holds.** The second copy posts a distributed notification the first observes (shiftpick's
+  `AppDelegate.openedAgain`), then exits, before it has created anything: two copies of an app that holds an
+  event tap are two taps on the same events. (shiftpick)
 
 ## Signing and the build
 
@@ -395,3 +466,18 @@ Every number was measured on an M-series Mac running macOS 27.0 (build 26A428).
 ### T9. A Claude turn that dies when the Thunderbolt dock is unplugged is a network event
 - **Rule.** `configd` logs `interface detach`; `pmset -g log` has no sleep line. Do not read it as the
   app's doing. (koffeelid)
+
+### T10. A test that makes a preferences domain of its own leaves a file behind every run
+- **Symptom.** 129 `.plist` files in `~/Library/Preferences`, one per test ever run.
+- **Why.** `UserDefaults(suiteName:)` with a fresh name per test creates a domain, and `cfprefsd` keeps a
+  domain's plist even once `removePersistentDomain` has emptied it (X1 is the same daemon).
+- **What holds.** One fixed suite name for the whole test class, emptied before and after each test.
+  (shiftpick)
+
+### T11. Code that no test can run can still be pinned where it stands
+- **Why.** An event tap cannot be created in a test, because the runner has no Accessibility grant, so the
+  code that creates, enables and tears one down runs nowhere but the owner's Mac.
+- **What holds.** A test that reads the source, the way the purity tests read the imports: one place that
+  enables the tap, nothing enabled from a callback, the order of a teardown. Each check is shown to fail
+  against a copy of the code with its net removed, and one that fails because code moved is moved with the
+  code, never loosened (shiftpick's `SafetyNetTests`). (shiftpick)
