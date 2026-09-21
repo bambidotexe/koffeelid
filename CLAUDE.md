@@ -152,9 +152,9 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
   (`docs/pitfalls.md` § Working on this Mac). No linter is configured.
 - XCTest's summary line undercounts here; count the per-case `passed` lines
   (`swift test 2>&1 | grep -E "^Test Case '.*' passed" | sort -u | wc -l`).
-- A release is `script/publish.sh <patch|minor|major>` and nothing else: it refuses on a dirty tree, bumps
-  the version by the level given, commits and pushes that bump, refuses if the resulting tag already exists,
-  then builds the notarized image, tags, pushes, creates the GitHub release and installs the same bundle in
+- A release is `script/publish.sh <patch|minor|major>` and nothing else: it refuses on a dirty tree, computes
+  the new version and refuses if that tag already exists, then bumps the version, commits and pushes that
+  bump, builds the notarized image, tags, pushes, creates the GitHub release and installs the same bundle in
   `/Applications`. Nothing bumps the tree again afterward — it sits at exactly what was published.
   `script/release.sh` underneath it makes the image alone.
   The DMG is signed with the Wooflab team's Developer ID (`85F6AC5QZF`) and notarized; it runs on any Mac.

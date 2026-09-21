@@ -279,10 +279,11 @@ before running it.
 3. `script/install.sh`, approve Login Items and grant Screen Recording if asked, quit and reopen.
 4. Walk `docs/manual-checks.md` with any other lid-sleep utility quit.
 5. Decide the level — patch for a fix, minor for a new feature, major for a breaking change — and run
-   `script/publish.sh <level>`. It bumps the version by that level, commits and pushes the bump, refuses if
-   the resulting tag already exists, then builds the notarized image, tags, pushes, creates the GitHub
-   release with the image attached, and installs the same bundle in `/Applications`. Nothing is left to
-   commit afterward: the version bump was already committed and pushed before the build started.
+   `script/publish.sh <level>`. It computes the new version and refuses if that tag already exists, then
+   bumps the version by that level, commits and pushes the bump, builds the notarized image, tags, pushes,
+   creates the GitHub release with the image attached, and installs the same bundle in `/Applications`.
+   Nothing is left to commit afterward: the version bump was already committed and pushed before the build
+   started.
 
 The version is not chosen ad hoc: `script/version.sh` holds it, and `script/publish.sh` is the only thing
 that ever moves it — by the level asked for, committed and pushed before it builds, never bumped again

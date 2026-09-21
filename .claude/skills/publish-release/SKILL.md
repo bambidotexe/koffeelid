@@ -22,12 +22,12 @@ when the owner has asked for a release.
 
 1. **Refuses on a dirty tree.** A release names a commit, and the version bump below is about to add one, so
    whatever is already there must be resolved first.
-2. **Bumps the version by the level given, commits that alone, and pushes it** (`script/version.sh`): the
+2. **Computes the new version and refuses if that tag already exists**, locally or on GitHub — checked
+   *before* the bump, so a collision costs nothing.
+3. **Bumps the version by the level given, commits that alone, and pushes it** (`script/version.sh`): the
    tree held exactly the last published version until now, so this is the only version change in the whole
    flow. `git push` happens before anything is built, so the commit this script tags always carries the
    version it releases.
-3. **Refuses if that version's tag already exists**, locally or on GitHub — checked *before* the bump, so a
-   collision costs nothing.
 4. **Builds the real thing** — Release, Developer ID, Hardened Runtime, notarized, stapled, in its disk
    image. The same bytes for GitHub and for `/Applications`.
 5. **Tags and pushes**, then creates the GitHub release with the disk image attached. The tag is made only
