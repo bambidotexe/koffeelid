@@ -41,6 +41,12 @@ enum SettingsMetrics {
     static let tipTileSide: CGFloat = 88
     static let tipMarkSide: CGFloat = 52
     static let tipPictureGap: CGFloat = 14
+    /// Around the one-time-tip row's content, equal on every side, so the Ko-fi tile has as much air
+    /// above and below it as beside it.
+    static let tipOfferPadding: CGFloat = 16
+    /// The Ko-fi tile's own corner, smaller than the card's so the two curves read as nested rather
+    /// than as two unrelated corners that happen to share a radius.
+    static let tipTileRadius: CGFloat = 8
     /// A slider's track. Every slider on every page is this wide, so their handles share one column.
     static let sliderWidth: CGFloat = 220
     /// The value beside a slider. Fixed and trailing aligned, so a changing number never moves the track.

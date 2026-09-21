@@ -39,8 +39,8 @@ reproduce them.
 
 - **A page is a subject the user thinks in** (in SnappySnap: Snapping, Snap Bar, Handles), never a kind of control and
   never a layer of the code. Title Case, one or two words, one outline SF Symbol that pictures the subject.
-- Order: **General** first, then the features in the order a user meets them, then **Tip**, then
-  **System** last.
+- Order: **General** first, then the features in the order a user meets them, then **System**, then
+  **Tip** last.
 - **General** is, in this order: the app icon alone (`SettingsAppIcon`, 144 pt, centred); **Startup**
   (Launch at login, Show in menu bar, no hint, and one **note** naming the way back to this window when
   the icon is hidden); **Updates** (its contract is below); **Quit** (one destructive `ButtonRow`, no
@@ -231,6 +231,7 @@ All in `SettingsMetrics`. Change one only on the owner's word, and then in the k
 | card radius | 10 | screen height left alone | 140 |
 | Tip: app icon | 44 | Tip: picture to words | 14 |
 | Tip: Ko-fi tile | 88 | Tip: the cup inside it | 52 |
+| Tip: offer padding | 16 | Tip: Ko-fi tile radius | 8 |
 
 Card: fill `Color.primary.opacity(0.05)`, stroke `Color.primary.opacity(0.08)` at 0.5. Switch:
 `.toggleStyle(.switch)`, `.controlSize(.mini)`, label hidden but set. Segmented: `.labelsHidden()`,
