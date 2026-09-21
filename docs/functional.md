@@ -222,7 +222,9 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   Space switch. It comes forward again when the app is activated and it is the app's only
   window, and opening KoffeeLid again (Finder, Spotlight, `open -b`) brings it back rather than Settings. The
   two list pages re-read the grants and the hooks every 2 s while the window is up, so a grant made in System
-  Settings ticks the row over to "Granted" on its own; the page is rebuilt only when one has actually moved.
+  Settings ticks the row over to "Granted" on its own. Only that row changes, never the page: while a grant is
+  being set up its row keeps the button that started it, disabled, with a spinner beside it, and the page is
+  built again only when the user moves to another page.
   Closing the window gives the frontmost app back to whoever had it, unless another KoffeeLid window is up.
 - **Notifications.** Arm refused; disarmed by battery, thermal or external sleep; held awake after a charger
   or display change; lock failed; lid sleep restoration pending or failed; sleep could not be re-enabled; a

@@ -14,7 +14,8 @@ import KoffeeLidCore
 /// window opens, and never again from here.
 ///
 /// Nothing tells an app that a grant was made in System Settings, so the two list pages poll every
-/// `pollInterval` the way the Settings window does, and rebuild only when a grant has actually moved.
+/// `pollInterval` the way the Settings window does. Only a change of step builds a page: a grant that moves
+/// redraws the one row it belongs to, and a row whose flow is still running shows its loading state.
 final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     private var step = 0
     /// The espresso brown of the mug; used to accent one word of the headline.
@@ -25,9 +26,12 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     /// would send the user's keystrokes nowhere.
     var othersNeedUsActive: @MainActor () -> Bool = { false }
 
-    /// The grants and hooks the pages were last drawn from. Rebuilding the view tree on every tick would
-    /// drop the focus ring and fight the user's clicks, so a tick that moved nothing draws nothing.
-    private var drawnGrants: Set<SettingsGrant> = []
+    /// The rows of the page on screen, by grant. A grant that moves updates its own row and nothing else:
+    /// rebuilding the page to show it blanked the window and drew it again.
+    private var rows: [SettingsGrant: GrantRow] = [:]
+    /// The page's primary button, whose title follows whether the page's own condition is met. Weak: the
+    /// page that owns it is thrown away on a change of step.
+    private weak var primaryButton: NSButton?
     private var poll: Timer?
     /// Slow enough to be free, fast enough that coming back from System Settings finds the page already right.
     private static let pollInterval: TimeInterval = 2
@@ -72,9 +76,12 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: pages
 
+    /// Builds the page for `step`. Called on a change of step and nowhere else — a grant, a hook or a
+    /// running flow changes one row, never the page.
     private func render() {
         guard let window, let content = window.contentView else { return }
-        drawnGrants = currentGrants()
+        rows.removeAll()
+        primaryButton = nil
         content.subviews.forEach { $0.removeFromSuperview() }
         let page: NSView
         let height: CGFloat
@@ -134,38 +141,39 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func permissionsPage() -> NSView {
-        let permissions = PermissionCatalog.items
-        let allRequired = permissions.filter(\.required).allSatisfy { $0.granted() }
-        return listPage(header: L("Permissions"),
-                        intro: L("KoffeeLid needs a few things from macOS. Items marked with a warning are required for a closed Mac to stay awake safely."),
-                        items: permissions, continueTitle: allRequired ? L("Continue") : L("Skip"))
+        listPage(header: L("Permissions"),
+                 intro: L("KoffeeLid needs a few things from macOS. Items marked with a warning are required for a closed Mac to stay awake safely."),
+                 items: PermissionCatalog.items)
     }
 
     private func hooksPage() -> NSView {
-        let hooks = HookCatalog.items
-        let anySetUp = hooks.contains { $0.granted() }
-        return listPage(header: L("Arm while you work"),
-                        intro: L("Optional. Let KoffeeLid arm itself while Claude Code or a terminal command is running, and disarm a minute after nothing is. Setting up either turns auto-arm on; both can be changed later in Settings."),
-                        items: hooks, continueTitle: anySetUp ? L("Continue") : L("Skip"))
+        listPage(header: L("Arm while you work"),
+                 intro: L("Optional. Let KoffeeLid arm itself while Claude Code or a terminal command is running, and disarm a minute after nothing is. Setting up either turns auto-arm on; both can be changed later in Settings."),
+                 items: HookCatalog.items)
     }
 
-    private func listPage(header: String, intro: String, items: [PermissionItem], continueTitle: String) -> NSView {
+    private func listPage(header: String, intro: String, items: [PermissionItem]) -> NSView {
         let headerLabel = NSTextField(labelWithString: header)
         headerLabel.font = .systemFont(ofSize: 22, weight: .bold)
         let introLabel = NSTextField(wrappingLabelWithString: intro)
         introLabel.font = .systemFont(ofSize: 13); introLabel.textColor = .secondaryLabelColor; introLabel.preferredMaxLayoutWidth = 460
 
         let list = NSStackView(); list.orientation = .vertical; list.spacing = 12; list.alignment = .leading
-        for (i, p) in items.enumerated() {
+        for (i, item) in items.enumerated() {
             if i > 0 { let sep = NSBox(); sep.boxType = .separator; list.addArrangedSubview(sep); sep.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true }
-            list.addArrangedSubview(row(for: p))
+            let row = GrantRow(item: item,
+                               window: { [weak self] in self?.window },
+                               didFinish: { [weak self] in self?.updatePrimaryButton() })
+            rows[item.id] = row
+            list.addArrangedSubview(row.view)
         }
         list.arrangedSubviews.forEach { $0.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true }
 
-        let skip = NSButton(title: continueTitle, target: nil, action: nil)
-        skip.bezelStyle = .rounded; skip.keyEquivalent = "\r"; skip.actionHandler = { [weak self] in self?.advance() }
+        let primary = NSButton(title: "", target: nil, action: nil)
+        primary.bezelStyle = .rounded; primary.keyEquivalent = "\r"; primary.actionHandler = { [weak self] in self?.advance() }
+        primaryButton = primary
         let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let footer = NSStackView(views: [spacer, skip])
+        let footer = NSStackView(views: [spacer, primary])
 
         let stack = NSStackView(views: [headerLabel, introLabel, list, footer])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
@@ -175,58 +183,36 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         // Width constraints only once every view shares the stack as ancestor.
         list.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -80).isActive = true
         footer.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true
+        updatePrimaryButton()
         return stack
     }
 
-    private func row(for p: PermissionItem) -> NSView {
-        let title = NSTextField(labelWithString: p.title); title.font = .systemFont(ofSize: 14, weight: .semibold)
-        let titleRow = NSStackView(views: [title]); titleRow.spacing = 6
-        if p.required {
-            let warn = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: L("Required"))!)
-            warn.contentTintColor = .systemOrange; warn.symbolConfiguration = .init(pointSize: 12, weight: .semibold); warn.toolTip = L("Required")
-            titleRow.addArrangedSubview(warn)
+    /// "Continue" once the page's own condition is met, "Skip" until then: every required grant on the
+    /// Permissions page, either hook on the hooks page. Set in place, so the page is not rebuilt for a word.
+    private func updatePrimaryButton() {
+        guard let primaryButton else { return }
+        let title: String
+        switch step {
+        case 1: title = PermissionCatalog.items.filter(\.required).allSatisfy { $0.granted() } ? L("Continue") : L("Skip")
+        case 2: title = HookCatalog.items.contains { $0.granted() } ? L("Continue") : L("Skip")
+        default: return
         }
-        let why = NSTextField(wrappingLabelWithString: p.why)
-        why.font = .systemFont(ofSize: 12); why.textColor = .secondaryLabelColor; why.preferredMaxLayoutWidth = 320
-        let text = NSStackView(views: [titleRow, why]); text.orientation = .vertical; text.alignment = .leading; text.spacing = 3
-        text.widthAnchor.constraint(lessThanOrEqualToConstant: 320).isActive = true
-
-        let trailing: NSView
-        if p.granted() {
-            let v = NSTextField(labelWithString: p.doneTitle); v.font = .systemFont(ofSize: 13); v.textColor = .secondaryLabelColor
-            if let remove = p.remove {
-                let b = NSButton(title: p.removeTitle ?? L("Remove"), target: nil, action: nil); b.bezelStyle = .rounded
-                b.actionHandler = { [weak self] in remove(self?.window) { self?.render() } }
-                let pair = NSStackView(views: [v, b]); pair.spacing = 8
-                trailing = pair
-            } else {
-                trailing = v
-            }
-        } else {
-            let b = NSButton(title: p.buttonTitle, target: nil, action: nil); b.bezelStyle = .rounded
-            b.actionHandler = { [weak self] in p.action(self?.window) { self?.render() } }
-            trailing = b
-        }
-        let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let row = NSStackView(views: [text, spacer, trailing]); row.alignment = .centerY; row.spacing = 12
-        return row
+        if primaryButton.title != title { primaryButton.title = title }
     }
+
 
     // MARK: helpers
 
-    /// Re-reads every grant and rebuilds the page only if one has moved. Notification authorization is
-    /// asynchronous, so the read goes through `refreshNotifications` and the comparison happens in its
-    /// callback, once the cached value is current.
+    /// Re-reads every grant and lets each row redraw itself if its own state moved. Notification
+    /// authorization is asynchronous, so the read goes through `refreshNotifications` and the rows are
+    /// refreshed in its callback, once the cached value is current. A page with no rows (the pitch, "All
+    /// set") has nothing to do here.
     private func refreshGrants() {
         PermissionCatalog.refreshNotifications { [weak self] in
-            guard let self, self.step == 1 || self.step == 2 else { return }
-            if self.currentGrants() != self.drawnGrants { self.render() }
+            guard let self else { return }
+            for row in self.rows.values { row.refresh() }
+            self.updatePrimaryButton()
         }
-    }
-
-    /// Which of the grants and the hooks are there right now.
-    private func currentGrants() -> Set<SettingsGrant> {
-        Set((PermissionCatalog.items + HookCatalog.items).filter { $0.granted() }.map(\.id))
     }
 
     /// Idempotent.
@@ -271,5 +257,127 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     private func advance() {
         if step < 3 { step += 1; render() }
         else { Preferences.shared.onboardingCompleted = true; close() }
+    }
+}
+
+/// One row of a list page: what the grant is, why it is wanted, and a trailing control that follows its
+/// state. Built once and updated in place — rebuilding the page to show a grant that moved blanked the
+/// window and drew it again.
+///
+/// While a grant flow is running the row keeps the button that started it, disabled, with a spinner beside
+/// it, and the poll leaves that loading state alone until the flow reports back. Flows that report more than
+/// once settle the row on the first only.
+@MainActor
+private final class GrantRow {
+    let view: NSStackView
+
+    /// What the trailing control is showing. Compared before redrawing, so a refresh that changes nothing
+    /// touches no view.
+    private enum Shown: Equatable { case nothing, granted, notGranted, busy(String) }
+
+    private let item: PermissionItem
+    private let window: () -> NSWindow?
+    /// Called once a flow has reported back: the page's primary button may have to change with it.
+    private let didFinish: () -> Void
+    private let trailing = NSView()
+    private var shown: Shown = .nothing
+    private var busy = false
+
+    init(item: PermissionItem, window: @escaping () -> NSWindow?, didFinish: @escaping () -> Void) {
+        self.item = item
+        self.window = window
+        self.didFinish = didFinish
+
+        let title = NSTextField(labelWithString: item.title); title.font = .systemFont(ofSize: 14, weight: .semibold)
+        let titleRow = NSStackView(views: [title]); titleRow.spacing = 6
+        if item.required {
+            let warn = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: L("Required"))!)
+            warn.contentTintColor = .systemOrange; warn.symbolConfiguration = .init(pointSize: 12, weight: .semibold); warn.toolTip = L("Required")
+            titleRow.addArrangedSubview(warn)
+        }
+        let why = NSTextField(wrappingLabelWithString: item.why)
+        why.font = .systemFont(ofSize: 12); why.textColor = .secondaryLabelColor; why.preferredMaxLayoutWidth = 320
+        let text = NSStackView(views: [titleRow, why]); text.orientation = .vertical; text.alignment = .leading; text.spacing = 3
+        text.widthAnchor.constraint(lessThanOrEqualToConstant: 320).isActive = true
+
+        let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        view = NSStackView(views: [text, spacer, trailing]); view.alignment = .centerY; view.spacing = 12
+        refresh()
+    }
+
+    /// Re-reads the grant and redraws the trailing control only if it should look different. A row whose
+    /// flow is still running keeps its loading state: the poll must not take it away.
+    func refresh() {
+        guard !busy else { return }
+        show(item.granted() ? .granted : .notGranted)
+    }
+
+    private func show(_ next: Shown) {
+        guard next != shown else { return }
+        shown = next
+        trailing.subviews.forEach { $0.removeFromSuperview() }
+        let content: NSView
+        switch next {
+        case .nothing:
+            content = NSView()
+        case .busy(let title):
+            let button = Self.button(title); button.isEnabled = false
+            let spinner = NSProgressIndicator()
+            spinner.style = .spinning; spinner.controlSize = .small; spinner.isIndeterminate = true
+            spinner.startAnimation(nil)
+            let pair = NSStackView(views: [spinner, button]); pair.spacing = 8
+            content = pair
+        case .granted:
+            let done = NSTextField(labelWithString: item.doneTitle)
+            done.font = .systemFont(ofSize: 13); done.textColor = .secondaryLabelColor
+            if let remove = item.remove {
+                let title = item.removeTitle ?? L("Remove")
+                let button = Self.button(title)
+                button.actionHandler = { [weak self] in
+                    guard let self else { return }
+                    self.start(title) { settle in remove(self.window(), settle) }
+                }
+                let pair = NSStackView(views: [done, button]); pair.spacing = 8
+                content = pair
+            } else {
+                content = done
+            }
+        case .notGranted:
+            let button = Self.button(item.buttonTitle)
+            button.actionHandler = { [weak self] in
+                guard let self else { return }
+                self.start(self.item.buttonTitle) { settle in self.item.action(self.window(), settle) }
+            }
+            content = button
+        }
+        content.translatesAutoresizingMaskIntoConstraints = false
+        trailing.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: trailing.leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: trailing.trailingAnchor),
+            content.topAnchor.constraint(equalTo: trailing.topAnchor),
+            content.bottomAnchor.constraint(equalTo: trailing.bottomAnchor),
+        ])
+    }
+
+    /// Runs one grant flow with the row in its loading state, and reads the grant again when it reports back.
+    private func start(_ title: String, _ flow: (_ settle: @escaping () -> Void) -> Void) {
+        busy = true
+        show(.busy(title))
+        var settled = false
+        flow { [weak self] in
+            guard !settled else { return }
+            settled = true
+            guard let self else { return }
+            self.busy = false
+            self.refresh()
+            self.didFinish()
+        }
+    }
+
+    private static func button(_ title: String) -> NSButton {
+        let button = NSButton(title: title, target: nil, action: nil)
+        button.bezelStyle = .rounded
+        return button
     }
 }

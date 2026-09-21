@@ -40,8 +40,10 @@ too, at the normal level and with the default collection behaviour, like the oth
 the app once when it opens and nothing in the controller activates it again, it
 comes forward on `NSApplication.didBecomeActiveNotification` only while `othersNeedUsActive()` is false (the
 same injected predicate `SettingsWindow` and `UpdateController` use to decide whether to `NSApp.deactivate()`
-on close), and it polls its own grants every 2 s between `showWindow` and `windowWillClose`, rebuilding a page
-only when a grant has moved. The window's
+on close), and it polls its own grants every 2 s between `showWindow` and `windowWillClose`. A page is built
+only on a change of step: every row of the two list pages is a `GrantRow` that redraws its own trailing
+control when its own grant moves and shows a spinner beside its disabled button while its flow runs, and the
+page's primary button takes its title in place. The window's
 structure, numbers and wording rules are in `.claude/skills/building-settings-pages/SKILL.md`.
 
 ## The coordinator

@@ -107,6 +107,7 @@
 - [ ] Page 2, "Éléments d’ouverture" → System Settings comes forward and **stays** there; the wizard does not jump over it. Approve KoffeeLid, leave System Settings open: within about 2 s the row reads "Accordée" on its own with the wizard still behind
 - [ ] Page 2, "Enregistrement de l’écran" and "Surveillance de l'entrée" → **only** the system dialog, never System Settings alongside it; the dialog's own button is the way there. Same on a second press after refusing once
 - [ ] Page 2, "Verrou de veille" → the administrator dialog opens over the wizard and stays in front until answered
+- [ ] No page rebuild: on every press of a grant button, and on every grant that ticks over from System Settings, the page does **not** blank or redraw — only that one row's trailing control changes, the other rows and the header do not move, and the pressed row shows its button disabled with a spinner beside it until the flow reports back
 - [ ] Space switch: with the wizard in front of a terminal window, switch to another Space and back — the wizard is still in front of the terminal, in the Space it opened in, not behind it and not dragged along
 - [ ] The wizard is reachable again without being on top: `open -b dev.rubens.koffeelid` brings the wizard forward, not Settings; activating KoffeeLid with Settings also open brings Settings forward, not the wizard
 - [ ] Closing the wizard on page 1 gives the frontmost app back to whoever had it (keystrokes go to that app, not nowhere); closing it while Settings is open leaves Settings active

@@ -199,6 +199,19 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 ### `NSScreen.main` is nil with no key window
 - **What the code does.** Window sizing falls back to the first screen.
 
+### A poll that rebuilds the page blanks it
+- **Symptom.** The onboarding's Permissions page goes blank and draws itself again, once every time a grant
+  moves and once on every press of a grant button.
+- **Why.** The page was rebuilt wholesale to show the new state: `content.subviews.forEach { $0.removeFromSuperview() }`
+  empties the window, and the replacement only appears at the next layout pass. Comparing the grants first and
+  rebuilding "only when one moved" does not help — the flicker is the rebuild, not its frequency.
+- **What the code does.** A page is built on a change of step and at no other time. Each row is a `GrantRow`
+  that owns its own trailing control and swaps that alone, after comparing what it is showing with what it
+  should show, so a refresh that changes nothing touches no view.
+- **Do not** redraw a whole view tree to reflect one value. A polled page needs a per-row updater, and it
+  needs a loading state of its own: a row whose flow is still running must survive the next tick, or the
+  spinner is taken away from under it.
+
 ### A grant request and a System Settings pane, both at once
 - **Symptom.** One press of "Allow…" and the user gets the system permission dialog *and* System Settings, one
   over the other.
