@@ -266,11 +266,31 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         primary.keyEquivalent = "\r"
         primary.actionHandler = { [weak self] in self?.advance() }
         primaryButton = primary
-        let spacer = NSView()
-        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let footer = NSStackView(views: [spacer, primary])
+        // The footer is a plain view with the button pinned to its trailing edge and to **both** its top
+        // and bottom, which is what fixes the footer's height to the button's.
+        //
+        // An `NSStackView` holding an invisible spacer is the trap, and it shipped in three apps: a spacer
+        // has no intrinsic height, so nothing decides the footer's own height, and the vertical stack hands
+        // it every point of slack the page is not using. Granting a permission swaps that row's 26 pt button
+        // for an 18 pt "Granted" label; the list shrinks by 36 pt, the footer grows to absorb it, and the
+        // button sits wherever the slack put it rather than at the bottom of the page. It is still drawn,
+        // `AXFrame` still names a plausible rectangle, no constraint breaks, and a press on it does not land.
+        let footer = NSView()
+        primary.translatesAutoresizingMaskIntoConstraints = false
+        footer.addSubview(primary)
+        NSLayoutConstraint.activate([
+            primary.trailingAnchor.constraint(equalTo: footer.trailingAnchor),
+            primary.topAnchor.constraint(equalTo: footer.topAnchor),
+            primary.bottomAnchor.constraint(equalTo: footer.bottomAnchor),
+        ])
 
-        let stack = NSStackView(views: [headerLabel, introLabel, list, footer])
+        // The slack goes here, deliberately, and into nothing else: above the footer, so the stepping button
+        // stays at the bottom right of the page however tall the rows happen to be.
+        let slack = NSView()
+        slack.setContentHuggingPriority(.init(1), for: .vertical)
+        slack.setContentCompressionResistancePriority(.init(1), for: .vertical)
+
+        let stack = NSStackView(views: [headerLabel, introLabel, list, slack, footer])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = Metrics.listSpacing

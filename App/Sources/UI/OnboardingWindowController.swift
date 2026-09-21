@@ -175,10 +175,29 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         let primary = NSButton(title: "", target: nil, action: nil)
         primary.bezelStyle = .rounded; primary.keyEquivalent = "\r"; primary.actionHandler = { [weak self] in self?.advance() }
         primaryButton = primary
-        let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let footer = NSStackView(views: [spacer, primary])
+        // The footer is a plain view with the button pinned to its trailing edge and to **both** its top
+        // and bottom, which fixes the footer's height to the button's. An `NSStackView` holding an invisible
+        // spacer is the trap: a spacer has no intrinsic height, so nothing decides the footer's height and
+        // the vertical stack hands it every point of slack the page is not using. Granting a permission swaps
+        // a row's 26 pt button for an 18 pt label, the list shrinks, the footer grows to absorb it, and the
+        // button sits wherever the slack put it: still drawn, `AXFrame` still plausible, no constraint broken,
+        // and a press on it does not land.
+        let footer = NSView()
+        primary.translatesAutoresizingMaskIntoConstraints = false
+        footer.addSubview(primary)
+        NSLayoutConstraint.activate([
+            primary.trailingAnchor.constraint(equalTo: footer.trailingAnchor),
+            primary.topAnchor.constraint(equalTo: footer.topAnchor),
+            primary.bottomAnchor.constraint(equalTo: footer.bottomAnchor),
+        ])
 
-        let stack = NSStackView(views: [headerLabel, introLabel, list, footer])
+        // The slack goes here, deliberately, and into nothing else: above the footer, so the stepping button
+        // stays at the bottom right of the page however tall the rows happen to be.
+        let slack = NSView()
+        slack.setContentHuggingPriority(.init(1), for: .vertical)
+        slack.setContentCompressionResistancePriority(.init(1), for: .vertical)
+
+        let stack = NSStackView(views: [headerLabel, introLabel, list, slack, footer])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
         stack.setCustomSpacing(20, after: introLabel)
         stack.setCustomSpacing(24, after: list)

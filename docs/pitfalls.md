@@ -279,6 +279,25 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 - **Do not** read a request API's return value as "the user refused": it is the state before the user has
   answered.
 
+### A stepping button in a stack with an invisible spacer stops being where it is drawn
+- **Symptom.** The wizard's stepping button, at the bottom right of a list page, looking perfectly ordinary,
+  and **unclickable for ever, however many times it is pressed**. It starts the moment a permission is granted.
+- **Why.** The footer was `NSStackView(views: [spacer, primary])` with a width constraint and no height
+  constraint. A bare `NSView` has no intrinsic size, so nothing decided the footer's own height and the
+  enclosing vertical stack handed it every point the page was not using. Granting a permission swaps that
+  row's 26 pt button for an 18 pt "Granted" label, the list shrinks by 36 pt, and the slack goes into the
+  footer: measured in snappy-snap at **460 x 186 instead of 460 x 24**, with the button floating in the middle
+  of it. The button is still inside the footer, so no constraint breaks, `AXFrame` keeps naming a plausible
+  rectangle and `AXPress` still works; only a real click misses.
+- **What the code does.** The footer is a plain `NSView` with the button pinned to its trailing edge **and to
+  both its top and bottom**, which fixes the footer's height to the button's, and the slack goes to a view of
+  its own between the list and the footer, with vertical hugging and compression resistance at **priority 1**
+  (`OnboardingWindowController.listPage`).
+- **Do not** leave Auto Layout to decide which view absorbs a page's slack. `Metrics` decides sizes, and a
+  stack view free to decide one will. It shipped here, in snappy-snap and in my-sidepulse at the same time,
+  because the `building-onboarding` skill's reference file carried the spacer: a trap fixed in a window and
+  not in the reference is a trap that ships again.
+
 ## Watchdog and launch
 
 ### `argv[0]` is useless under launchd

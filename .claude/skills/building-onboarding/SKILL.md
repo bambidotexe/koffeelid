@@ -202,6 +202,50 @@ see the window, so do not retune one because it reads better in a diff.
 - The stepping button is `keyEquivalent = "\r"`, reads **Continue** once the page's rule is met and **Skip**
   until then. The permissions page's rule is every **required** grant; an optional page's is any one row.
 
+## The footer, and where the slack goes
+
+**This one shipped in three of these apps at once, and it is the worst failure the window has had**: the
+stepping button drawn at the bottom right of a list page, looking perfectly normal, and unclickable for
+ever. It started the moment a permission was granted.
+
+```swift
+let spacer = NSView()
+spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+let footer = NSStackView(views: [spacer, primary])      // the bug
+```
+
+A bare `NSView` has no intrinsic size, so **nothing decides that footer's height**, and the enclosing
+vertical stack hands it every point the page is not using. Granting a permission swaps a row's 26 pt button
+for an 18 pt "Granted" label, the list shrinks by 36 pt, and the slack goes into the footer:
+
+```
+before the swap   footer bounds 460 x 24     button frame (381, 0,  79, 24)
+after the swap    footer bounds 460 x 186    button frame (381, 81, 79, 24)
+```
+
+The button is still inside the footer, so **no constraint breaks and `AXFrame` keeps naming a plausible
+rectangle**. `AXPress` on it works. Every other element of the page hit-tests correctly. It has simply
+stopped being where the page put it, and a press on it does not land.
+
+**What holds.** A footer is a plain `NSView` with the button pinned to its trailing edge **and to both its
+top and bottom**, which fixes the footer's height to the button's. The slack is then given somewhere on
+purpose, a view of its own between the list and the footer, with vertical hugging and compression resistance
+at **priority 1**, so no control can ever take it. `reference/OnboardingWindow.swift` has it.
+
+**The rule behind it: `Metrics` decides sizes, and a stack view left free to decide one will.** Anywhere a
+vertical stack holds a control beside something that can grow or shrink, ask which view absorbs the
+difference, and answer it in the code rather than leaving it to Auto Layout.
+
+**How to see it.** A frame that names a rectangle and a hit test that finds nothing there is this class of
+bug, and only a real hit test shows it: the project's Accessibility probe prints the front window's subtree
+with every element's frame, and asks what a hit test actually finds at a point. The window logs it too: the
+`onboarding` category at `--level debug` prints the stepping button's frame in window coordinates and, up the
+chain, each superview's height and whether it still contains it. Keep both.
+
+- [ ] **The walk that catches it**: on a list page, with the permission not yet granted, press the stepping
+      button: it advances. Go back, grant the permission, and press it again **without closing the window**.
+      It must advance on the first click. A button that does nothing here is this bug, whatever it looks like.
+
 ## Wiring it into the app
 
 - A **fresh controller every time** it is shown, so the pages re-read every grant and start at page one.
@@ -258,4 +302,6 @@ Then walk it on hardware, because none of this has an automated test:
 | Hide the button while its flow runs | Disable it and put a spinner beside it, so nothing jumps. |
 | Ask for a grant at launch, or when a feature needing it is switched on | Only a click asks. Report the missing grant and offer the button. |
 | Read a grant with the API that requests it | Preflight and check APIs read; request APIs ask. Behind the poll, the second prompts every tick. |
+| Put the stepping button in a stack with an invisible spacer | A plain view, the button pinned top, bottom and trailing, and the slack in a view of its own at priority 1. It is unclickable the moment a grant swaps a row's button for a label. |
+| Leave it to Auto Layout to decide which view absorbs a page's slack | Decide it. A control handed the slack moves out from under the pointer while still drawing where it was. |
 | Retune a spacing, a height or a font size | The owner fitted them in the running window. You cannot see it. |
