@@ -105,9 +105,10 @@ Identical in every app, and carried whole (`Core/Update*.swift` + `Platform/Upda
 - **Uninstall** is the last group of General: a hint saying what goes, a permanent **warning** that
   dragging the app to the Trash leaves the rest behind, and one destructive button that asks first with an
   `NSAlert`. It removes the system registrations *while the bundle they name still exists* (`tccutil
-  reset` for each permission, the login item, the notification authorization), moves the bundle to the
-  **Trash** (not a delete), and hands the preferences and the Application Support folder to a **detached
-  helper that waits for this pid**, because `cfprefsd` writes the domain back out as the process exits.
+  reset` for each permission, the login item), leaves the notification authorization where macOS keeps
+  it (`pitfalls.md` X3: no public API puts it back), moves the bundle to the **Trash** (not a delete),
+  and hands the preferences and the Application Support folder to a **detached helper that waits for
+  this pid**, because `cfprefsd` writes the domain back out as the process exits.
 - **Launch at login** is `SMAppService.mainApp`, and the switch shows *the system's* answer, re-read after
   every attempt; nothing is mirrored into the settings file. An app that must survive a crash unnoticed
   uses a plain launch agent plist bootstrapped with `launchctl` instead (my-sidepulse), which is both "open
