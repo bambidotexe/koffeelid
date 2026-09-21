@@ -140,10 +140,10 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
   on a module-cache path, the repo folder moved: `rm -rf DerivedData .build` and rebuild.
 - **The version lives in three places that must agree**, and `script/version.sh` is the only thing that writes
   them: `App/Info.plist` `CFBundleShortVersionString` (with `CFBundleVersion` rising beside it),
-  `KoffeeLidCore.version` and its assertion in `Tests/KoffeeLidCoreTests/SmokeTests.swift`. **The tree is
-  always one patch ahead of the newest GitHub release**, so the copy on this Mac is newer than anything
-  published and is never offered an update that would replace it with something older. Publishing is the only
-  thing that moves the version: `script/publish.sh` releases the tree's version and then raises the tree again.
+  `KoffeeLidCore.version` and its assertion in `Tests/KoffeeLidCoreTests/SmokeTests.swift`. **A local install
+  always builds and installs exactly the tree's version** — the same version production runs, until the tree
+  is next bumped. Publishing is the only thing that moves the version: `script/publish.sh` releases the
+  tree's version as it stands, then raises the tree to the next patch so that version is never built again.
   The README test badge is a static shields.io URL.
 - App targets only build with `xcodebuild` (App Intents metadata, String Catalog, asset catalog). `swift build`
   covers `Sources/` only.
@@ -339,15 +339,15 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 ## Status
 
-- Version 1.1.1 everywhere it must agree (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), one patch
-  above the published **1.1.0**, which is the rule. The tree carries the manual update
+- Version 1.1.0 everywhere it must agree (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), matching
+  the published **1.1.0**: a local install now always builds the tree's own version rather than one ahead of
+  production. The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
   requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
   Icon Composer icon, the seven-page Settings window with its macOS 15 target, and the automatic update (weekly
   check, notification, update window, Install and Relaunch). `/Applications/KoffeeLid.app` is installed at
-  **0.1.3**, the version 1.1.0 is offered to: `script/publish.sh --no-install` published the release and left
-  the Mac on the older copy on purpose, so that the update a user gets is the one that is walked here. The
-  sudoers rule, the watchdog agent, the Claude Code hooks and the zsh snippet are all in place.
+  **1.1.0**, the same version that is published. The sudoers rule, the watchdog agent, the Claude Code hooks
+  and the zsh snippet are all in place.
   `script/release.sh` produces a Developer ID-signed, notarized DMG under the Wooflab team (`85F6AC5QZF`,
   looked up by `script/signing.env`); it publishes nothing by itself.
 - `swift test` is green (354 distinct cases: 332 Core, 22 LidPlaneKit) and the Debug build warning-free at this

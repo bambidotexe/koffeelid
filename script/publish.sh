@@ -4,8 +4,8 @@
 #   script/publish.sh [--no-install]
 #
 # Tags this commit, pushes it, attaches the signed and notarized disk image to a GitHub release, installs the
-# same bundle in /Applications, and raises the tree to the next patch so that it is once again one ahead of
-# what is published. It leaves nothing behind: no .app and no .dmg anywhere under the repository.
+# same bundle in /Applications, and raises the tree to the next patch so that the version just published is
+# never built again by mistake. It leaves nothing behind: no .app and no .dmg anywhere under the repository.
 #
 # `--no-install` publishes the release and leaves /Applications alone. It is how the update the users get is
 # tested: the Mac stays on the version it runs, and that version finds the release and installs it itself.
@@ -39,7 +39,7 @@ trap cleanup EXIT INT TERM
 # ---------------------------------------------------------------------------------------------------------
 [ -z "$(git -C "$ROOT" status --porcelain)" ] || { echo "refusing: the working tree is dirty. Commit first — a release names a commit." >&2; exit 1; }
 
-VERSION="$(version_check)" || exit 1
+VERSION="$(version_tree)"
 TAG="v$VERSION"
 git -C "$ROOT" rev-parse -q --verify "refs/tags/$TAG" >/dev/null && { echo "refusing: $TAG already exists." >&2; exit 1; }
 [ -z "$(gh release view "$TAG" -R "$GITHUB_REPO" --json tagName -q .tagName 2>/dev/null)" ] || { echo "refusing: a release $TAG already exists on GitHub." >&2; exit 1; }
@@ -77,7 +77,8 @@ else
   echo "/Applications is untouched: the copy running there is what this release is offered to." >&2
 fi
 
-# The tree goes one ahead of what is now published, which is the rule every later build is held to.
+# The tree moves to the next patch, so a local install or a later release never builds the version just
+# published.
 NEXT="$(version_next "$VERSION")"
 version_set "$NEXT"
 echo "the tree is now $NEXT; commit it." >&2

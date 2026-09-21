@@ -69,9 +69,9 @@ both driving the kernel lid-sleep flag. `script/no-leftovers.sh` holds that rule
 writes `.metadata_never_index` into the directories it builds through so Spotlight cannot offer a bundle even
 while the build is running.
 
-The version comes from `script/version.sh`: **the tree is always one patch ahead of the newest GitHub
-release**, so the installed copy is never offered an update that would replace it with something older.
-Publishing is the only thing that moves it.
+The version comes from `script/version.sh`: **a local install always builds and installs exactly the tree's
+own version**, the same version production runs until the tree is next bumped. Publishing is the only thing
+that moves it, and it raises the tree to the next patch once it has, so that version is never built again.
 
 `script/install.sh` **refuses unless `koffeelid status` says `mode: off` without `auto-armed`** (`FORCE=1`
 overrides), because quitting an armed app ends the user's session and can sleep a closed Mac. It quits the app
@@ -281,8 +281,8 @@ The release itself is one command, `script/publish.sh`. The list is what to have
    attached, installs the same bundle in `/Applications`, and raises the tree to the next patch. **That last
    change is left uncommitted on purpose**; commit it as `build(version): the tree moves to X.Y.Z`.
 
-The version is not chosen: `script/version.sh` holds the rule that the tree is one patch ahead of the newest
-release, so the tree's version *is* the one being published.
+The version is not chosen ad hoc: `script/version.sh` holds it, and publishing releases exactly the tree's
+version, then raises the tree to the next patch so the same version is never built again.
 
 The installed copies update themselves from that release, which holds it to a contract: a tag that parses as a
 version, one asset whose name ends in `.dmg` with `KoffeeLid.app` at the image's root, a
