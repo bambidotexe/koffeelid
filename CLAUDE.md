@@ -94,11 +94,11 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 | the menu, the status item, the menu-bar glyph | `App/StatusItemController.swift`, `MugShape.swift`, `App/Resources/Glyphs` | `functional.md` § User interface; `development.md` § Icons |
 | the app icon | `App/Resources/AppIcon.icon` (Icon Composer document), its `type: file` source entry in `project.yml` | `development.md` § Icons; `architecture.md` § Build, signing, entitlements |
 | Settings (start with the `building-settings-pages` skill) | `App/UI/SettingsWindow.swift` (pages, toolbar, height), `SettingsKit.swift` (the kit and every number), `SettingsModel.swift` (bindings, polled states), `Settings…Page.swift` (one per page); `Core/SettingsStatus.swift` (a state's colour) | `functional.md` § User interface, § Settings and defaults; `development.md` § How to add things (a settings control); the skill, if a rule of the window changes |
-| onboarding | `App/UI/OnboardingWindowController.swift`, `ControlActionHandler.swift`; `App/AppDelegate.swift` (`showOnboarding`, `applicationShouldHandleReopen`) | `functional.md` § User interface; `pitfalls.md` § Windows and permission grants |
+| onboarding (start with the `building-onboarding` skill) | `App/UI/OnboardingWindowController.swift`, `ControlActionHandler.swift`; `App/AppDelegate.swift` (`showOnboarding`, `applicationShouldHandleReopen`) | `functional.md` § User interface; `pitfalls.md` § Windows and permission grants; the skill, if a rule of the window changes |
 | the Tip page, the Ko-fi link | `App/UI/SettingsTipPage.swift`, `KoFiMark.swift`; `Core/SupportLink.swift` (the page and the smallest tip it takes) | `functional.md` § User interface; `manual-checks.md` § Settings UI |
 | a preference and its default | `App/Preferences.swift`; `KoffeeLidController.preferenceChanged(_:)` | `functional.md` § Settings and defaults |
 | a user-visible string | `App/Resources/Localizable.xcstrings`, edited in place, with its `fr` entry | `development.md` § How to add things (a user-visible string) |
-| a permission row, the sudoers setup, Reset | `App/UI/Permissions.swift` (`PermissionCatalog`), `Core/SettingsStatus.swift` (`SettingsGrant`), `App/UI/SettingsSystemPage.swift`, `App/UI/SleepLockSetupAction.swift`; `KoffeeLidController.resetEverything` | `functional.md` § Permissions and what breaks without them; `macOS.md` § Permissions and how each is reset; `pitfalls.md` § Windows and permission grants |
+| a permission row, the sudoers setup, Reset (start with the `building-onboarding` skill) | `App/UI/Permissions.swift` (`PermissionCatalog`, `FocusReturnWatch`), `Core/SettingsStatus.swift` (`SettingsGrant`), `App/UI/SettingsSystemPage.swift`, `App/UI/SleepLockSetupAction.swift`; `KoffeeLidController.resetEverything` | `functional.md` § Permissions and what breaks without them; `macOS.md` § Permissions and how each is reset; `pitfalls.md` § Windows and permission grants |
 | the uninstall | `Core/UninstallPlan.swift` (the root-owned files, the one privileged line, and the helper that waits for this pid); `KoffeeLidController.uninstallEverything`, `App/SleepLock.swift` (`runPrivilegedScript`), `App/DiagnosticLog.swift` (`silence`), the Uninstall group of `App/UI/SettingsGeneralPage.swift` | `functional.md` § Uninstall; `manual-checks.md` § Settings UI |
 | a notification | `App/NotificationsController.swift` and the call site | the section of the behaviour that posts it |
 | the shortcuts | `App/HotKeyController.swift` | `functional.md` § User interface |
@@ -210,6 +210,12 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   session is working arms at once by itself. Never send `off` while the lid is closed on an armed session
   with no external display. Any other utility that sets the same kernel flag will fight the arm;
   quit it before testing.
+- **Any work on the onboarding window, or on any permission row, starts with the `building-onboarding` skill**
+  (`.claude/skills/building-onboarding/SKILL.md`): adding or rewording a page or a row, changing what a grant
+  button does, or anything about which window is in front. It holds the window's contract, how a grant is
+  named and asked for, and the traps that cost this window a whole session. Two rules from it that nothing
+  may break: **no permission prompt without a click**, and **a grant is titled exactly what System Settings
+  titles the switch**.
 - **Any work on the Settings window starts with the `building-settings-pages` skill**
   (`.claude/skills/building-settings-pages/SKILL.md`): adding, moving, renaming or rewording a setting, a
   status, a group, a page or any sentence the window shows. It holds the window's structure, its numbers and

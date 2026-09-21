@@ -3,8 +3,7 @@ import ServiceManagement
 import KoffeeLidCore
 
 /// Four pages: the pitch, one permissions page (every macOS grant the app needs, required ones
-/// flagged), one hooks page (auto-arm on activity: Claude Code and terminal), and "All set". Page views
-/// are rebuilt on every render so their state is always current.
+/// flagged), one hooks page (auto-arm on activity: Claude Code and terminal), and "All set".
 ///
 /// An ordinary window: the normal level and the default collection behaviour, the same as `SettingsWindow`
 /// and `UpdateWindow`. It comes up in front because it is the last window to open, and from then on it takes
