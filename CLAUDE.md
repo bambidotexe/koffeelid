@@ -114,7 +114,7 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 ```bash
 # ---- the two actions. A build of this app reaches a Mac by one of these and by nothing else. ----
 script/install.sh                                     # skill: install-locally. Production build → /Applications; leaves no .app or .dmg behind
-script/publish.sh [--no-install]                      # skill: publish-release. The same, plus tag, push, GitHub release, and the tree moves on
+script/publish.sh <patch|minor|major> [--no-install]  # skill: publish-release. The same, plus a version bump, tag, push, GitHub release
 # -------------------------------------------------------------------------------------------------
 
 swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (354); needs the Claude Code sandbox off, like xcodebuild
@@ -141,10 +141,10 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
 - **The version lives in three places that must agree**, and `script/version.sh` is the only thing that writes
   them: `App/Info.plist` `CFBundleShortVersionString` (with `CFBundleVersion` rising beside it),
   `KoffeeLidCore.version` and its assertion in `Tests/KoffeeLidCoreTests/SmokeTests.swift`. **A local install
-  always builds and installs exactly the tree's version** — the same version production runs, until the tree
-  is next bumped. Publishing is the only thing that moves the version: `script/publish.sh` releases the
-  tree's version as it stands, then raises the tree to the next patch so that version is never built again.
-  The README test badge is a static shields.io URL.
+  always builds and installs exactly the tree's version** — the same version production runs, until the next
+  publish. Publishing is the only thing that moves the version: `script/publish.sh <patch|minor|major>` bumps
+  the tree by that level, commits and pushes the bump before it builds anything, then releases exactly that
+  version. Nothing bumps it again afterward. The README test badge is a static shields.io URL.
 - App targets only build with `xcodebuild` (App Intents metadata, String Catalog, asset catalog). `swift build`
   covers `Sources/` only.
 - Treat compiler warnings as failures; the tree is warning-free. A `warning:` line from
@@ -152,10 +152,11 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
   (`docs/pitfalls.md` § Working on this Mac). No linter is configured.
 - XCTest's summary line undercounts here; count the per-case `passed` lines
   (`swift test 2>&1 | grep -E "^Test Case '.*' passed" | sort -u | wc -l`).
-- A release is `script/publish.sh` and nothing else: it refuses on a dirty tree, an existing tag or a `HEAD`
-  that differs from `origin` before it builds anything, then builds the notarized image, tags, pushes, creates
-  the GitHub release, installs the same bundle in `/Applications`, and raises the tree to the next patch —
-  which it leaves uncommitted for the owner to see. `script/release.sh` underneath it makes the image alone.
+- A release is `script/publish.sh <patch|minor|major>` and nothing else: it refuses on a dirty tree, bumps
+  the version by the level given, commits and pushes that bump, refuses if the resulting tag already exists,
+  then builds the notarized image, tags, pushes, creates the GitHub release and installs the same bundle in
+  `/Applications`. Nothing bumps the tree again afterward — it sits at exactly what was published.
+  `script/release.sh` underneath it makes the image alone.
   The DMG is signed with the Wooflab team's Developer ID (`85F6AC5QZF`) and notarized; it runs on any Mac.
 
 ## Architecture in one screen
@@ -340,10 +341,10 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 ## Status
 
-- Version 1.1.1 committed and published (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`): a local
-  install always builds exactly the tree's own version now, never one ahead of production. The tree carries a
-  further, uncommitted bump to 1.1.2 from `script/publish.sh`'s own post-release step, left for the owner to
-  commit. `/Applications/KoffeeLid.app` is installed at **1.1.0** on purpose: `script/publish.sh --no-install`
+- Version 1.1.1 committed and published (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), and the
+  tree sits at exactly that: a local install always builds exactly the tree's own version, never one ahead of
+  production, and nothing bumps the tree again until the next `script/publish.sh <patch|minor|major>`.
+  `/Applications/KoffeeLid.app` is installed at **1.1.0** on purpose: `script/publish.sh patch --no-install`
   published 1.1.1 and left the Mac on the older copy, so that the update a user gets is the one walked here,
   through Settings › Updates. The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key

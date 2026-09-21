@@ -1,11 +1,13 @@
 #!/bin/zsh
 # **Release to GitHub.** The other of the two ways a build of this app ever reaches a Mac.
 #
-#   script/publish.sh [--no-install]
+#   script/publish.sh <patch|minor|major> [--no-install]
 #
-# Tags this commit, pushes it, attaches the signed and notarized disk image to a GitHub release, installs the
-# same bundle in /Applications, and raises the tree to the next patch so that the version just published is
-# never built again by mistake. It leaves nothing behind: no .app and no .dmg anywhere under the repository.
+# Bumps the version by the given level, commits and pushes that alone, then tags the commit, attaches the
+# signed and notarized disk image to a GitHub release, and installs the same bundle in /Applications. The
+# tree is left exactly at the version just published — nothing bumps it further, so a later local install
+# carries the same version until someone next runs this script. It leaves nothing behind: no .app and no
+# .dmg anywhere under the repository.
 #
 # `--no-install` publishes the release and leaves /Applications alone. It is how the update the users get is
 # tested: the Mac stays on the version it runs, and that version finds the release and installs it itself.
@@ -17,13 +19,16 @@ source "$ROOT/script/signing.env"
 source "$ROOT/script/version.sh"
 source "$ROOT/script/no-leftovers.sh"
 
+LEVEL=""
 INSTALL=1
 for arg in "$@"; do
   case "$arg" in
+    patch|minor|major) LEVEL="$arg" ;;
     --no-install) INSTALL=0 ;;
-    *) echo "unknown argument: $arg (only --no-install)" >&2; exit 1 ;;
+    *) echo "unknown argument: $arg (patch, minor, major, --no-install)" >&2; exit 1 ;;
   esac
 done
+[ -n "$LEVEL" ] || { echo "usage: script/publish.sh <patch|minor|major> [--no-install]" >&2; exit 1; }
 
 # Whatever happens — a refused release, a failed build, an interrupt — the repository is left with nothing
 # launchable in it. The named paths keep the build tree tidy; the sweep is what enforces the rule.
@@ -34,20 +39,24 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # ---------------------------------------------------------------------------------------------------------
-# A release names a commit, so everything it names has to be committed and pushed first. These refusals come
-# before the build: none of them is worth five minutes of notarizing to discover.
+# A release names a commit, so everything it names has to be committed and pushed — including the version
+# bump this script makes itself, below. This refusal comes before the bump and the build: dirty is not this
+# script's to resolve, and none of what follows is worth five minutes of notarizing to discover it was.
 # ---------------------------------------------------------------------------------------------------------
 [ -z "$(git -C "$ROOT" status --porcelain)" ] || { echo "refusing: the working tree is dirty. Commit first — a release names a commit." >&2; exit 1; }
 
-VERSION="$(version_tree)"
+VERSION="$(version_bump "$LEVEL" "$(version_tree)")"
 TAG="v$VERSION"
 git -C "$ROOT" rev-parse -q --verify "refs/tags/$TAG" >/dev/null && { echo "refusing: $TAG already exists." >&2; exit 1; }
 [ -z "$(gh release view "$TAG" -R "$GITHUB_REPO" --json tagName -q .tagName 2>/dev/null)" ] || { echo "refusing: a release $TAG already exists on GitHub." >&2; exit 1; }
 
+# The bump is its own commit, pushed before anything is built: the commit this script tags is the commit
+# that carries the version it releases, so nobody ever sees a tag whose bump is missing from the branch.
 BRANCH="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)"
-git -C "$ROOT" fetch -q origin "$BRANCH"
-[ "$(git -C "$ROOT" rev-parse HEAD)" = "$(git -C "$ROOT" rev-parse "origin/$BRANCH")" ] \
-  || { echo "refusing: HEAD and origin/$BRANCH differ. Push first — a release names a commit others can fetch." >&2; exit 1; }
+version_set "$VERSION"
+git -C "$ROOT" add App/Info.plist Sources/KoffeeLidCore/KoffeeLidCore.swift Tests/KoffeeLidCoreTests/SmokeTests.swift
+git -C "$ROOT" commit -q -m "build(version): the tree moves to $VERSION"
+git -C "$ROOT" push -q origin "$BRANCH"
 
 echo "releasing $APP_NAME $VERSION" >&2
 DMG="$("$ROOT/script/release.sh")"
@@ -76,11 +85,5 @@ if [ "$INSTALL" -eq 1 ]; then
 else
   echo "/Applications is untouched: the copy running there is what this release is offered to." >&2
 fi
-
-# The tree moves to the next patch, so a local install or a later release never builds the version just
-# published.
-NEXT="$(version_next "$VERSION")"
-version_set "$NEXT"
-echo "the tree is now $NEXT; commit it." >&2
 
 echo "https://github.com/$GITHUB_REPO/releases/tag/$TAG"

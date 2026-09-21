@@ -70,8 +70,9 @@ writes `.metadata_never_index` into the directories it builds through so Spotlig
 while the build is running.
 
 The version comes from `script/version.sh`: **a local install always builds and installs exactly the tree's
-own version**, the same version production runs until the tree is next bumped. Publishing is the only thing
-that moves it, and it raises the tree to the next patch once it has, so that version is never built again.
+own version**, the same version production runs until the next publish. Publishing is the only thing that
+moves it: `script/publish.sh <patch|minor|major>` bumps the tree by that level, commits and pushes the bump
+before it builds anything, then releases exactly that version. Nothing bumps it again afterward.
 
 `script/install.sh` **refuses only while quitting would sleep the Mac at once** — armed, the lid shut, and no
 external display keeping the desktop up (`status` carries the warning `quitting would sleep the Mac`,
@@ -269,20 +270,23 @@ cp /tmp/AppIcon.iconset/icon_128x128@2x.png docs/assets/icon.png
 
 ## Release checklist
 
-The release itself is one command, `script/publish.sh`. The list is what to have done before running it.
+The release itself is one command, `script/publish.sh <patch|minor|major>`. The list is what to have done
+before running it.
 
 1. `swift test` green, `xcodebuild` warning-free; adjust the README test badge if the count changed.
 2. The code and the documents describe the same app, and the commit is made and pushed. `script/publish.sh`
-   refuses on a dirty tree, on a tag that already exists, and on a `HEAD` that differs from `origin` — all
-   before it builds anything, because none of those is worth five minutes of notarizing to discover.
+   refuses on a dirty tree before it does anything else, because that is not this script's to resolve.
 3. `script/install.sh`, approve Login Items and grant Screen Recording if asked, quit and reopen.
 4. Walk `docs/manual-checks.md` with any other lid-sleep utility quit.
-5. `script/publish.sh`. It builds the notarized image, tags, pushes, creates the GitHub release with the image
-   attached, installs the same bundle in `/Applications`, and raises the tree to the next patch. **That last
-   change is left uncommitted on purpose**; commit it as `build(version): the tree moves to X.Y.Z`.
+5. Decide the level — patch for a fix, minor for a new feature, major for a breaking change — and run
+   `script/publish.sh <level>`. It bumps the version by that level, commits and pushes the bump, refuses if
+   the resulting tag already exists, then builds the notarized image, tags, pushes, creates the GitHub
+   release with the image attached, and installs the same bundle in `/Applications`. Nothing is left to
+   commit afterward: the version bump was already committed and pushed before the build started.
 
-The version is not chosen ad hoc: `script/version.sh` holds it, and publishing releases exactly the tree's
-version, then raises the tree to the next patch so the same version is never built again.
+The version is not chosen ad hoc: `script/version.sh` holds it, and `script/publish.sh` is the only thing
+that ever moves it — by the level asked for, committed and pushed before it builds, never bumped again
+afterward.
 
 The installed copies update themselves from that release, which holds it to a contract: a tag that parses as a
 version, one asset whose name ends in `.dmg` with `KoffeeLid.app` at the image's root, a
