@@ -102,8 +102,12 @@
 - [ ] Shortcuts app shows Arm / Arm + screen on / Turn Off / Toggle / Toggle screen on / Status actions and they work; Status returns the mode name (the bundle must contain `Contents/Resources/Metadata.appintents`; a Debug build whose log printed `Metadata extraction skipped` has none until rebuilt)
 
 ## Onboarding
-- [ ] First launch (or Settings › System › "Show Onboarding Again"): page 1 headline "Vos agents continuent de travailler. Écran rabattu." with "agents" in brown, three capsules inside the margins, clicking the headline changes nothing; the window stays above other windows
-- [ ] Page 2 "Autorisations": Verrou de veille ⚠︎, Éléments d’ouverture ⚠︎, Enregistrement de l’écran, Surveillance de l'entrée, Notifications, separators between rows; each button runs its grant (password dialog / System Settings / system prompts) and the window comes back to front with the row now "Accordée"; bottom right says "Ignorer" until both ⚠︎ rows are granted, then "Continuer"
+- [ ] First launch (or Settings › System › "Show Onboarding Again"): page 1 headline "Vos agents continuent de travailler. Écran rabattu." with "agents" in brown, three capsules inside the margins, clicking the headline changes nothing; the window opens in front, and clicking another app's window puts it behind that window and leaves it there
+- [ ] Page 2 "Autorisations": Verrou de veille ⚠︎, Éléments d’ouverture ⚠︎, Enregistrement de l’écran, Surveillance de l'entrée, Notifications, separators between rows; bottom right says "Ignorer" until both ⚠︎ rows are granted, then "Continuer"
+- [ ] Page 2, "Éléments d’ouverture" → System Settings comes forward and **stays** there; the wizard does not jump over it. Approve KoffeeLid, leave System Settings open: within about 2 s the row reads "Accordée" on its own with the wizard still behind
+- [ ] Page 2, "Verrou de veille" → the administrator dialog opens over the wizard and stays in front until answered
+- [ ] The wizard is reachable again without being on top: `open -b dev.rubens.koffeelid` brings the wizard forward, not Settings; activating KoffeeLid with Settings also open brings Settings forward, not the wizard
+- [ ] Closing the wizard on page 1 gives the frontmost app back to whoever had it (keystrokes go to that app, not nowhere); closing it while Settings is open leaves Settings active
 - [ ] Page 3 "Arm while you work": the two hooks, one "Set up…" button each (details under Auto-arm on activity)
 - [ ] Page 4 "Tout est prêt" mentions the mug; Finish sets `onboardingCompleted`
 - [ ] Notifications are not requested at launch before onboarding: the system prompt appears only from the Notifications row

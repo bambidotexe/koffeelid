@@ -1,36 +1,79 @@
 import AppKit
 import ServiceManagement
+import KoffeeLidCore
 
 /// Four pages: the pitch, one permissions page (every macOS grant the app needs, required ones
 /// flagged), one hooks page (auto-arm on activity: Claude Code and terminal), and "All set". Page views
 /// are rebuilt on every render so their state is always current.
-final class OnboardingWindowController: NSWindowController {
+///
+/// An ordinary window at the normal level. It comes up in front because it is the last window to open, and
+/// from then on it takes its turn like any other: a permission dialog, the administrator dialog and System
+/// Settings all open over it and stay there until the user leaves them, and the wizard keeps its place
+/// underneath. The app is activated once, when the window opens, and never again from here.
+///
+/// Nothing tells an app that a grant was made in System Settings, so the two list pages poll every
+/// `pollInterval` the way the Settings window does, and rebuild only when a grant has actually moved.
+final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     private var step = 0
     /// The espresso brown of the mug; used to accent one word of the headline.
     private static let brand = NSColor(srgbRed: 0.42, green: 0.25, blue: 0.15, alpha: 1)
-    private var observer: NSObjectProtocol?
+    private var observers: [NSObjectProtocol] = []
+    /// Whether another window of the app still needs it active once the wizard goes away. Injected, as
+    /// `SettingsWindow`'s is: an accessory app with no window left is still the active application, which
+    /// would send the user's keystrokes nowhere.
+    var othersNeedUsActive: @MainActor () -> Bool = { false }
+
+    /// The grants and hooks the pages were last drawn from. Rebuilding the view tree on every tick would
+    /// drop the focus ring and fight the user's clicks, so a tick that moved nothing draws nothing.
+    private var drawnGrants: Set<SettingsGrant> = []
+    private var poll: Timer?
+    /// Slow enough to be free, fast enough that coming back from System Settings finds the page already right.
+    private static let pollInterval: TimeInterval = 2
 
     init() {
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 440), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "KoffeeLid"; w.center(); w.isReleasedWhenClosed = false
-        // A menu-bar app's windows drop behind whatever took focus (System Settings, the password dialog);
-        // the wizard stays on top and comes back to front after every action.
-        w.level = .floating
         w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         w.contentView = NSView()
         super.init(window: w)
-        // Coming back from System Settings: refresh the grants.
-        observer = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: w, queue: .main) { [weak self] _ in self?.refreshGrants() }
+        w.delegate = self
+        // Coming back from System Settings: refresh the grants. The poll covers the window that is already
+        // key and never sees this edge.
+        observers.append(NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: w, queue: .main) { [weak self] _ in self?.refreshGrants() })
+        // The app coming forward brings the wizard with it, the way any app's window does.
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in self?.comeForward() })
         refreshGrants()
         render()
     }
     required init?(coder: NSCoder) { fatalError() }
-    deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
+    deinit {
+        poll?.invalidate()
+        observers.forEach(NotificationCenter.default.removeObserver)
+    }
+
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        startPolling()
+    }
+
+    /// The wizard back in front of the app's own windows, and only while it is the app's one window, so it
+    /// never lands on top of Settings or the update window. Never `NSApp.activate(ignoringOtherApps:)`:
+    /// that is what used to pull the wizard over the System Settings window it had just opened.
+    private func comeForward() {
+        guard let window, window.isVisible, !othersNeedUsActive() else { return }
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        stopPolling()
+        if !othersNeedUsActive() { NSApp.deactivate() }
+    }
 
     // MARK: pages
 
     private func render() {
         guard let window, let content = window.contentView else { return }
+        drawnGrants = currentGrants()
         content.subviews.forEach { $0.removeFromSuperview() }
         let page: NSView
         let height: CGFloat
@@ -44,7 +87,6 @@ final class OnboardingWindowController: NSWindowController {
         let dy = height - content.frame.height
         frame.origin.y -= dy; frame.size.height += dy
         window.setFrame(frame, display: true, animate: window.isVisible)
-        if window.isVisible { NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
         page.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(page)
         NSLayoutConstraint.activate([
@@ -171,11 +213,33 @@ final class OnboardingWindowController: NSWindowController {
 
     // MARK: helpers
 
+    /// Re-reads every grant and rebuilds the page only if one has moved. Notification authorization is
+    /// asynchronous, so the read goes through `refreshNotifications` and the comparison happens in its
+    /// callback, once the cached value is current.
     private func refreshGrants() {
         PermissionCatalog.refreshNotifications { [weak self] in
-            guard let self else { return }
-            if self.step == 1 || self.step == 2 { self.render() }
+            guard let self, self.step == 1 || self.step == 2 else { return }
+            if self.currentGrants() != self.drawnGrants { self.render() }
         }
+    }
+
+    /// Which of the grants and the hooks are there right now.
+    private func currentGrants() -> Set<SettingsGrant> {
+        Set((PermissionCatalog.items + HookCatalog.items).filter { $0.granted() }.map(\.id))
+    }
+
+    /// Idempotent.
+    private func startPolling() {
+        guard poll == nil else { return }
+        poll = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshGrants() }
+        }
+    }
+
+    /// Idempotent.
+    private func stopPolling() {
+        poll?.invalidate()
+        poll = nil
     }
 
     /// A rounded capsule with an SF Symbol and a short label, in the brand colour.

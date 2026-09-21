@@ -45,12 +45,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for u in urls { if let link = DeepLink(url: u) { KoffeeLidController.shared.perform(link, source: .url) } }
     }
 
-    /// Opening KoffeeLid again (Finder, Spotlight, `open -b`) has nothing else to show: Settings is the window.
+    /// Opening KoffeeLid again (Finder, Spotlight, `open -b`) has nothing else to show: Settings is the window,
+    /// unless the onboarding is up, which is then what the user is looking for. The wizard is an ordinary
+    /// window, so this is how it is fetched back from behind whatever the user left in front of it.
     /// A cold launch gets no reopen (and none from the login item either, `docs/macOS.md`), so it stays quiet.
     /// The one open request that is nobody's is the update helper's, and an open request outlives the process
     /// it was sent to: while an install's outcome is still unread, this launch is that install's.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        if !hasVisibleWindows, !UpdateController.installOutcomeIsWaiting { showSettings() }
+        if UpdateController.installOutcomeIsWaiting { return true }
+        if let wizard = onboarding?.window, wizard.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            wizard.makeKeyAndOrderFront(nil)
+        } else if !hasVisibleWindows {
+            showSettings()
+        }
         return true
     }
 
@@ -67,10 +75,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settings?.show()
     }
-    /// A fresh controller every time: the pages re-read every grant and start from page one.
-    func showOnboarding() {
+    /// A fresh controller every time: the pages re-read every grant and start from page one. The wizard is
+    /// an ordinary window; activating the app here is the one thing that puts it in front, and it is in front
+    /// only because it is the last window to open.
+    @MainActor func showOnboarding() {
         onboarding?.close()
-        onboarding = OnboardingWindowController()
-        onboarding?.showWindow(nil); NSApp.activate(ignoringOtherApps: true)
+        let wizard = OnboardingWindowController()
+        wizard.othersNeedUsActive = { [weak self] in
+            self?.settings?.isUp == true || UpdateController.shared.windowIsUp
+        }
+        onboarding = wizard
+        wizard.showWindow(nil); NSApp.activate(ignoringOtherApps: true)
     }
 }

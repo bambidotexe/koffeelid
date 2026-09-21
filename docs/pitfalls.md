@@ -168,11 +168,23 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
   notifies; a one-close arm that
   never sees a lock ends at that reopen rather than being held over a visible desktop.
 
-### A menu-bar app's windows fall behind
-- **Why.** An `LSUIElement` app is not reactivated when System Settings or a password dialog closes;
-  `NSScreen.main` can be nil with no key window.
-- **What the code does.** The onboarding window floats and re-activates after every action; window sizing falls
-  back to the first screen.
+## Windows and permission grants
+
+### A window that floats to stay reachable covers what it sent you to
+- **Symptom.** The onboarding wizard sits on top of the System Settings window and the administrator dialog its
+  own buttons open, hiding the instructions it just gave.
+- **Why.** `NSWindow.level = .floating` is above every other app, and `NSApp.activate(ignoringOtherApps: true)`
+  pulls the app in front of whatever it has just launched. Both were there because an `LSUIElement` app is not
+  reactivated when System Settings or a password dialog closes, which leaves its windows behind everything.
+- **What the code does.** The wizard is a normal window and the app is activated once, when it opens. It is
+  reachable again three other ways: it comes forward on `NSApplication.didBecomeActiveNotification` while it is
+  the app's only window, `applicationShouldHandleReopen` prefers it over Settings, and the grant rows follow
+  System Settings by polling rather than by needing the window back in front.
+- **Do not** raise a window's level, or call `activate(ignoringOtherApps:)`, to keep it findable. Reachability
+  and z-order are different problems; the second fix covers the user's own work.
+
+### `NSScreen.main` is nil with no key window
+- **What the code does.** Window sizing falls back to the first screen.
 
 ## Watchdog and launch
 

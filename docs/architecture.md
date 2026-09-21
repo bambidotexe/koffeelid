@@ -35,7 +35,12 @@ miniaturise), never by a view: the grants, the hooks and the login item every 2 
 activity counts every 0.25 s, the window being a consumer of `LidAngleObserver` for as long as it is up. The
 rules the pages apply are Core's: `SettingsStatus` colours a state and `UpdatePanel` is the Updates group, whose
 state is the app's (`UpdateController.shared`) and not the page's. The
-onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. The window's
+onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. It is a normal window
+too: `AppDelegate` activates the app once when it opens and nothing in the controller activates it again, it
+comes forward on `NSApplication.didBecomeActiveNotification` only while `othersNeedUsActive()` is false (the
+same injected predicate `SettingsWindow` and `UpdateController` use to decide whether to `NSApp.deactivate()`
+on close), and it polls its own grants every 2 s between `showWindow` and `windowWillClose`, rebuilding a page
+only when a grant has moved. The window's
 structure, numbers and wording rules are in `.claude/skills/building-settings-pages/SKILL.md`.
 
 ## The coordinator

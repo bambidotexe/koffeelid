@@ -214,8 +214,15 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   state the user can fix has a button under it only while it is wrong; once it is right the button goes and the
   row stays. While the window is open it re-reads the grants, the hooks and the login item every 2 s and the lid
   angle and the activity counts four times a second, and it is a consumer of the lid-angle sensor.
-- **Onboarding.** Four pages in a floating window: pitch, Permissions, "Arm while you work" (hooks), All set.
-  Shown at first launch and from Settings › System › "Show Onboarding Again".
+- **Onboarding.** Four pages in an ordinary window: pitch, Permissions, "Arm while you work" (hooks), All set.
+  Shown at first launch and from Settings › System › "Show Onboarding Again". It opens in front because it is
+  the last window to open, and from then on it behaves like any other window: a permission dialog, the
+  administrator dialog and System Settings all open over it and stay there until the user leaves them, and the
+  wizard keeps its place underneath. It comes forward again when the app is activated and it is the app's only
+  window, and opening KoffeeLid again (Finder, Spotlight, `open -b`) brings it back rather than Settings. The
+  two list pages re-read the grants and the hooks every 2 s while the window is up, so a grant made in System
+  Settings ticks the row over to "Granted" on its own; the page is rebuilt only when one has actually moved.
+  Closing the window gives the frontmost app back to whoever had it, unless another KoffeeLid window is up.
 - **Notifications.** Arm refused; disarmed by battery, thermal or external sleep; held awake after a charger
   or display change; lock failed; lid sleep restoration pending or failed; sleep could not be re-enabled; a
   newer release found by an automatic check, the only one with a button (§ Updates).
