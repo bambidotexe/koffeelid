@@ -183,6 +183,19 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 - **Do not** raise a window's level, or call `activate(ignoringOtherApps:)`, to keep it findable. Reachability
   and z-order are different problems; the second fix covers the user's own work.
 
+### `.moveToActiveSpace` costs the window its z-order
+- **Symptom.** The wizard opens correctly in front of the terminal. Switch to another Space, come back, and it
+  is now *behind* the terminal.
+- **Why.** `NSWindowCollectionBehavior.moveToActiveSpace` pulls the window to whichever Space is active
+  instead of leaving it in its own, and it is re-inserted into that Space's window list at the back. A normal
+  window belongs to one Space and keeps its place in it. `.fullScreenAuxiliary` is the same kind of
+  exception, letting the window sit over a full-screen app.
+- **What the code does.** The onboarding sets no `collectionBehavior` at all, which is what `SettingsWindow`
+  and `UpdateWindow` have always done. Only `EffectOverlayPanel` overrides it, because a desktop overlay
+  really does belong on every Space.
+- **Do not** reach for a collection behaviour to make a window easier to find, for the same reason as the
+  window level above: it buys reachability with the user's own window order.
+
 ### `NSScreen.main` is nil with no key window
 - **What the code does.** Window sizing falls back to the first screen.
 

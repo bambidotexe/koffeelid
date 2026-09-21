@@ -6,10 +6,12 @@ import KoffeeLidCore
 /// flagged), one hooks page (auto-arm on activity: Claude Code and terminal), and "All set". Page views
 /// are rebuilt on every render so their state is always current.
 ///
-/// An ordinary window at the normal level. It comes up in front because it is the last window to open, and
-/// from then on it takes its turn like any other: a permission dialog, the administrator dialog and System
-/// Settings all open over it and stay there until the user leaves them, and the wizard keeps its place
-/// underneath. The app is activated once, when the window opens, and never again from here.
+/// An ordinary window: the normal level and the default collection behaviour, the same as `SettingsWindow`
+/// and `UpdateWindow`. It comes up in front because it is the last window to open, and from then on it takes
+/// its turn like any other: a permission dialog, the administrator dialog and System Settings all open over
+/// it and stay there until the user leaves them, and the wizard keeps its place underneath. It belongs to the
+/// Space it opened in and keeps its place in it across a Space switch. The app is activated once, when the
+/// window opens, and never again from here.
 ///
 /// Nothing tells an app that a grant was made in System Settings, so the two list pages poll every
 /// `pollInterval` the way the Settings window does, and rebuild only when a grant has actually moved.
@@ -33,7 +35,6 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     init() {
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 440), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "KoffeeLid"; w.center(); w.isReleasedWhenClosed = false
-        w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         w.contentView = NSView()
         super.init(window: w)
         w.delegate = self
