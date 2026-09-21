@@ -196,7 +196,7 @@ the desktop at fold 0.
 | Grant | Store | Reset |
 |---|---|---|
 | Sleep lock | `/etc/sudoers.d/koffeelid` | `SleepLock.removeRule()` (administrator dialog) |
-| Login Items | Background Task Management (bundle id + team id) | none per app |
+| Login Items | Background Task Management (bundle id + team id). The switch the user flips is KoffeeLid under “Background App Activity” in System Settings › General › Login Items; the pane is `Login Items` (`LoginItems.appex`), and both names are quoted from its own `Localizable.loctable` | none per app: `sfltool` resets every app's approval at once, and an approval survives an uninstall, so a reinstalled bundle re-registers silently |
 | Screen Recording | TCC | `tccutil reset ScreenCapture dev.rubens.koffeelid` |
 | Input Monitoring | TCC | `tccutil reset ListenEvent dev.rubens.koffeelid` |
 | Notifications | usernoted's group preferences, `apps[]` entry with `bundle-id` | drop the entry, `killall usernoted` and `killall NotificationCenter` |

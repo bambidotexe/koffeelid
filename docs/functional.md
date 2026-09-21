@@ -262,7 +262,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Grant | Needed for | Without it |
 |---|---|---|
 | Sleep lock (administrator password once, a sudoers rule for `pmset disablesleep`) | a closed armed Mac surviving a charger or display change | every arm logs `sleep lock unavailable`; only the dark-wake hold protects the session |
-| Login Items approval | the crash-recovery watchdog and launch at login | no relaunch after a crash; a crashed armed app leaves the flag set until the next launch |
+| Login Items approval (KoffeeLid on under “Background App Activity” in System Settings › General › Login Items) | the crash-recovery watchdog and launch at login | no relaunch after a crash; a crashed armed app leaves the flag set until the next launch |
 | Screen Recording | the lid effect | `effect: screen recording not granted; effect stays off`; arming works |
 | Input Monitoring | reading the built-in keyboard's Fn key, so only it arms the lid gesture | `built-in Fn reader: Input Monitoring not granted`; any keyboard's Fn/Globe key counts |
 | Notifications | every message above | silent failures; the log still has them |

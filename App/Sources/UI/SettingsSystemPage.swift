@@ -77,7 +77,7 @@ struct SettingsSystemPage: View {
     private var safetyWarnings: [String] {
         var warnings: [String] = []
         if !model.holds(.sleepLock) { warnings.append(L("Set up the sleep lock. It asks for your administrator password once.")) }
-        if !model.holds(.loginItems) { warnings.append(L("In General, Login Items, allow KoffeeLid in the background.")) }
+        if !model.holds(.loginItems) { warnings.append(L("In System Settings › General › Login Items, turn KoffeeLid on under “Background App Activity”.")) }
         return warnings
     }
 

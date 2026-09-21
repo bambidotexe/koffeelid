@@ -28,7 +28,7 @@ struct PermissionItem {
 ///
 /// A grant's action asks macOS and nothing else: the system dialog carries its own way to System Settings, so
 /// the app never opens a pane beside it, nor instead of it once a grant has been refused. Login Items is the
-/// one exception, because macOS offers no dialog for it — the pane *is* that grant's flow.
+/// one exception, because macOS offers no dialog for it: the pane *is* that grant's flow.
 @MainActor
 enum PermissionCatalog {
     private(set) static var notificationsGranted = false
@@ -43,7 +43,7 @@ enum PermissionCatalog {
                        action: { window, done in SleepLockSetupAction.run(from: window); done() }),
         PermissionItem(id: .loginItems,
                        title: L("Login Items"),
-                       why: L("Lets the watchdog relaunch KoffeeLid after a crash and restore lid sleep. Approve KoffeeLid in System Settings › General › Login Items."),
+                       why: L("Lets KoffeeLid come back by itself after a crash and give your Mac its normal sleep back. In System Settings › General › Login Items, turn KoffeeLid on under “Background App Activity”."),
                        required: true,
                        granted: { SMAppService.agent(plistName: RelaunchAgentController.plistName).status == .enabled },
                        buttonTitle: L("Open Login Items"),

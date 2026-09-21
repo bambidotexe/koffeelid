@@ -881,12 +881,12 @@
         }
       }
     },
-    "In General, Login Items, allow KoffeeLid in the background.": {
+    "In System Settings › General › Login Items, turn KoffeeLid on under “Background App Activity”.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dans Général, Ouverture, autorisez KoffeeLid en arrière-plan."
+            "value": "Dans Réglages Système › Général › Ouverture, activez KoffeeLid sous « Activité des apps en arrière-plan »."
           }
         }
       }
@@ -1201,6 +1201,16 @@
         }
       }
     },
+    "Lets KoffeeLid come back by itself after a crash and give your Mac its normal sleep back. In System Settings › General › Login Items, turn KoffeeLid on under “Background App Activity”.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permet à KoffeeLid de revenir tout seul après un plantage et de rendre à votre Mac sa veille normale. Dans Réglages Système › Général › Ouverture, activez KoffeeLid sous « Activité des apps en arrière-plan »."
+          }
+        }
+      }
+    },
     "Lets KoffeeLid read the built-in keyboard's Fn key directly, so only that key arms the lid gesture and an external keyboard's Fn key does not.": {
       "localizations": {
         "fr": {
@@ -1217,16 +1227,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Permet à l’effet de fermeture d’afficher votre bureau qui se replie lorsque vous rabattez l’écran."
-          }
-        }
-      }
-    },
-    "Lets the watchdog relaunch KoffeeLid after a crash and restore lid sleep. Approve KoffeeLid in System Settings › General › Login Items.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Permet au chien de garde de relancer KoffeeLid après un plantage et de rétablir la veille à la fermeture. Approuvez KoffeeLid dans Réglages Système › Général › Ouverture."
           }
         }
       }
