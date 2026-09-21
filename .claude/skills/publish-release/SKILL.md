@@ -21,8 +21,8 @@ when the owner has asked for a release.
 1. **Refuses on a dirty tree, an existing tag, or a `HEAD` that differs from `origin`.** A release names a
    commit, so the commit must exist, be pushed, and be the one you mean. All three refusals come *before*
    the build, because none is worth five minutes of notarizing to discover.
-2. **Checks the version rule** (`script/version.sh`): the tree is one patch ahead of the newest release, so
-   the tree's version is the one being published.
+2. **Publishes exactly the tree's version** (`script/version.sh`): no requirement that it be ahead of what
+   is already published — bump it by hand first if this release should carry a new version.
 3. **Builds the real thing** — Release, Developer ID, Hardened Runtime, notarized, stapled, in its disk
    image. The same bytes for GitHub and for `/Applications`.
 4. **Tags and pushes**, then creates the GitHub release with the disk image attached. The tag is made only
@@ -59,12 +59,11 @@ Then check the release page the script printed, and confirm an installed copy se
 
 ## The version rule, and why publishing is the only thing that moves it
 
-The tree is **always one patch ahead of the newest GitHub release**. Publishing is what makes the tree's
-version the published one, and the script then raises the tree again. Nothing else changes the version —
-not a feature, not a fix, not a local install.
-
-That rule is what keeps this Mac's copy from ever being offered a downgrade: a locally installed build
-always carries a version no release can match.
+`script/version.sh` holds the version; nothing enforces the tree being ahead of what is published. A local
+install always carries exactly the tree's version (see `install-locally`). Publishing releases exactly that
+version, then raises the tree to the next patch, so the version just published is never built again by
+mistake — that is the only thing that ever changes the version, not a feature, not a fix, not a local
+install.
 
 ## Never do these
 
