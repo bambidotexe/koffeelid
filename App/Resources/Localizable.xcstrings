@@ -1851,12 +1851,12 @@
         }
       }
     },
-    "On, KoffeeLid unmutes your Mac and sets this volume just for the sound, then puts your volume back. Off, the sound plays at your current volume, and not at all if your Mac is muted.": {
+    "The sound plays on your Mac's speakers, and also in your headphones or other speaker when you listen on one. On, KoffeeLid unmutes both just for the sound: the speakers at this volume, the headphones at half of it, or at your own volume if it is louder. Off, it plays at your current volume, and not at all where the sound is muted.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Avec cette option, KoffeeLid réactive le son de votre Mac et règle ce volume le temps du son, puis rétablit le vôtre. Sans, le son joue à votre volume actuel, et pas du tout si votre Mac est muet."
+            "value": "Le son joue sur les haut-parleurs de votre Mac, et aussi dans vos écouteurs ou une autre enceinte quand vous écoutez dessus. Avec cette option, KoffeeLid réactive le son des deux le temps du son : les haut-parleurs à ce volume, les écouteurs à la moitié, ou à votre volume s’il est plus fort. Sans, il joue à votre volume actuel, et pas du tout là où le son est coupé."
           }
         }
       }

@@ -55,6 +55,9 @@
 
 ## Sound / volume
 - [ ] Mute Mac, enable Force volume 60 %, Preview → audible; afterwards muted again and previous volume restored
+- [ ] AirPods connected, music at 15 %, Force volume 60 %, Preview → the sound comes from the speakers and the AirPods as one sound, no echo; the music rises to about 30 % for the sound only, then back to 15 %; the log says `lid-close sound: speakers, device …, speakers delayed … ms`
+- [ ] AirPods at 45 %, Force volume 60 %, Preview → the AirPods volume does not move; muted AirPods → unmuted at 30 % for the sound, muted again after
+- [ ] Headphones in the jack, Preview → plays only in the headphones, at half the set volume at most raised; the speakers stay silent
 - [ ] Switch output device to one without software volume (HDMI TV, if available) → plays at current level, log notes it
 
 ## Safety rails

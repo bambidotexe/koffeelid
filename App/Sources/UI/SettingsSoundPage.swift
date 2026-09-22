@@ -18,7 +18,7 @@ struct SettingsSoundPage: View {
                          enabled: soundOn, label: Self.title)
             }
             SettingsGroup(title: L("Volume"),
-                          hint: L("On, KoffeeLid unmutes your Mac and sets this volume just for the sound, then puts your volume back. Off, the sound plays at your current volume, and not at all if your Mac is muted.")) {
+                          hint: L("The sound plays on your Mac's speakers, and also in your headphones or other speaker when you listen on one. On, KoffeeLid unmutes both just for the sound: the speakers at this volume, the headphones at half of it, or at your own volume if it is louder. Off, it plays at your current volume, and not at all where the sound is muted.")) {
                 ToggleRow(L("Play it at a set volume"), isOn: model.binding(\.forceVolumeEnabled), enabled: soundOn)
                 SliderRow(L("Volume"), value: volume, in: 0...1, step: 0.05,
                           enabled: soundOn && model.prefs.forceVolumeEnabled, format: SettingsFormat.percent)

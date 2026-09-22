@@ -10,40 +10,56 @@ public struct VolumeSnapshot: Equatable {
 public enum VolumeAction: Equatable {
     case apply(deviceID: UInt32, volume: Float, unmute: Bool)
     case restore(VolumeSnapshot)
-    case none
 }
 
-/// Decides what the CoreAudio layer should do around one lid-close sound playback.
+/// Decides what the CoreAudio layer should do around one lid-close sound playback. The speakers play at the set
+/// volume; the output the user listens on plays at `listeningShare` of it, or at the user's own volume when that
+/// is louder, so music in headphones rises a little for the sound and never to the speakers' level. Both are
+/// unmuted: a Mac shut in a bag has to be heard staying awake.
 public struct VolumeOverridePolicy {
+    public static let listeningShare: Float = 0.5
+
     public var enabled: Bool
     public var targetVolume: Float
-    private var saved: VolumeSnapshot?
+    private var saved: [VolumeSnapshot] = []
 
-    public var isOverriding: Bool { saved != nil }
+    public var isOverriding: Bool { !saved.isEmpty }
 
     public init(enabled: Bool, targetVolume: Float) {
         self.enabled = enabled; self.targetVolume = targetVolume
     }
 
-    public mutating func begin(snapshot: VolumeSnapshot?) -> VolumeAction {
-        guard enabled, let s = snapshot else { return .none }
-        saved = s
-        return .apply(deviceID: s.deviceID, volume: min(1, max(0, targetVolume)), unmute: true)
+    public mutating func begin(speakers: VolumeSnapshot?, listening: VolumeSnapshot?) -> [VolumeAction] {
+        guard enabled else { return [] }
+        let target = min(1, max(0, targetVolume))
+        var actions: [VolumeAction] = []
+        if let s = speakers {
+            saved.append(s)
+            actions.append(.apply(deviceID: s.deviceID, volume: target, unmute: true))
+        }
+        if let l = listening {
+            let share = target * Self.listeningShare
+            if l.muted || l.volume < share {
+                saved.append(l)
+                actions.append(.apply(deviceID: l.deviceID, volume: l.muted ? share : max(l.volume, share), unmute: true))
+            }
+        }
+        return actions
     }
 
     /// Begins an override only when none is in flight. Overlapping playbacks keep the first
-    /// snapshot so the single restore still returns the volume the user actually had.
-    public mutating func beginIfNeeded(snapshot: VolumeSnapshot?) -> VolumeAction {
-        guard !isOverriding else { return .none }
-        return begin(snapshot: snapshot)
+    /// snapshots so the single restore still returns the volumes the user actually had.
+    public mutating func beginIfNeeded(speakers: VolumeSnapshot?, listening: VolumeSnapshot?) -> [VolumeAction] {
+        guard !isOverriding else { return [] }
+        return begin(speakers: speakers, listening: listening)
     }
 
-    public mutating func playbackFinished() -> VolumeAction { takeRestore() }
-    public mutating func defaultDeviceChanged() -> VolumeAction { takeRestore() }
+    public mutating func playbackFinished() -> [VolumeAction] { takeRestore() }
+    public mutating func defaultDeviceChanged() -> [VolumeAction] { takeRestore() }
 
-    private mutating func takeRestore() -> VolumeAction {
-        guard let s = saved else { return .none }
-        saved = nil
-        return .restore(s)
+    private mutating func takeRestore() -> [VolumeAction] {
+        let restores = saved.map(VolumeAction.restore)
+        saved = []
+        return restores
     }
 }

@@ -285,6 +285,15 @@ between two `# ---------- KoffeeLid ----------` lines.
 
 ## Sounds
 
-Six clips in `App/Resources/Sounds/close-sound-<name>.mp3`, played with `AVAudioPlayer`. The forced volume
-writes the default output device's volume and mute through CoreAudio and restores them 0.25 s after the clip
-ends; a device without a settable volume plays at its current level.
+Six clips in `App/Resources/Sounds/close-sound-<name>.mp3`. The default output plays them with `AVAudioPlayer`,
+which always follows the default output; the speakers play them through an `AVAudioEngine` whose output unit
+is pinned to their device (`kAudioOutputUnitProperty_CurrentDevice`, set before the engine starts), so they
+sound whatever the default output is. The forced volume writes each device's volume and mute through CoreAudio
+and restores them 0.25 s after the clip ends; a device without a settable volume plays at its current level.
+
+- The speakers are the output device with transport `kAudioDeviceTransportTypeBuiltIn` and output data source
+  `'ispk'`. Measured on this Mac (macOS 27): "Haut-parleurs MacBook Pro", `bltn`, `ispk`. A built-in device with
+  any other source, or none, is headphones in the jack; everything else (AirPods are `blue`) is external.
+- An output's delay is its device latency, safety offset and first output stream's latency, in frames, over its
+  nominal sample rate. Measured: AirPods Pro 7680 frames at 48 kHz (160 ms), the speakers 108 frames (about
+  2 ms). The speakers start that difference later (`AVAudioPlayerNode.play(at:)`), capped at 0.5 s.

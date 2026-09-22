@@ -110,11 +110,20 @@ either hook from that page or from the onboarding turns it on.
 
 | Event while armed | What happens |
 |---|---|
-| Lid closes | the effect stops; the built-in panel's brightness goes to zero (previous level saved first; fallback `pmset displaysleepnow`); the lid-close sound plays if enabled, at the forced volume if enabled; Armed + screen on stops declaring user activity |
+| Lid closes | the effect stops; the built-in panel's brightness goes to zero (previous level saved first; fallback `pmset displaysleepnow`); the lid-close sound plays if enabled (below); Armed + screen on stops declaring user activity |
 | Lid opens | brightness restored; the display list is re-read; the screen locks (`SACLockScreenImmediate`, retried after 0.5, 1, 2, 4 and 8 s until macOS reports the session locked, then a notification if it never does); the effect is prepared again; the arm stands |
 | Lid opens, not armed | a saved brightness is restored |
 
 The lock on reopen is not a preference.
+
+**The lid-close sound** always plays on the Mac's speakers. When the user listens on something else (AirPods
+or any Bluetooth, USB or AirPlay output), it plays there too, and the speakers wait for that output's delay so
+both are heard as one sound. Headphones in the jack silence the speakers, so it plays only in them. With
+"Play it at a set volume" on, both are unmuted for the sound: the speakers at the set volume, the other output
+at half of it (`VolumeOverridePolicy.listeningShare`), or at the user's own volume when that is louder, and
+every volume and mute is put back 0.25 s after the sound ends, or at once if the default output changes.
+Unmuting is deliberate: a Mac shut in a bag has to be heard staying awake. Off, each output plays at its own
+volume and a muted one stays silent.
 
 ## External display
 
