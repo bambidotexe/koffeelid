@@ -63,16 +63,22 @@ answer, the last section says so; a new app follows the family's answer, which i
 - **System** is what the app needs from the OS and the controls that give it: permissions (each a status
   row, with its button and warning only while missing), conflicts with the OS's own features, compatibility
   switches, and **Start over** (Show Onboarding Again). A state with nothing to press beside it is on Health.
-- **Health** says at a glance whether the app is doing its job, **exhaustively**: an overview row summing
-  the page up (*Everything works*, *N things to look at*, *Not working: N problems*) with **Check Again**;
-  every permission; every mechanism, integration and OS conflict the feature rests on; compatibility; blue
-  readings that prove the app is alive (the last hook event, the last time the feature acted); the same
-  **App** group in every app (launch at login, running for, memory used, crashes in the last 7 days, where
-  it is installed); and **Copy Report**. It reports and changes nothing; each orange or red row says where
-  it is fixed. **The version and updates are never on it**: they are General's. The rows are built in Core
-  from plain values (`HealthFacts` → `HealthReport.groups(for:)`) and tested.
-- **One colour rule on every page**: green as it should be; blue a reading, or an app's own switch the user
-  turned off; orange not as it should be while the app still does its job (an optional permission or setup
+- **Health** says at a glance whether the app works, and it is **two tables and nothing else**. **Health**:
+  the checks, each green, orange or red and never blue, then **Check Again** as the card's last row, and
+  under the card the warnings of the lines that are orange or red. A check is something that has to be in
+  place or running for the app to work: every permission and every setup the wizard asks for (a hook, a
+  rule, an agent), the service, listener or sensor the feature rests on. A check with nothing to say while
+  it is fine (a flag that must hold while armed, a failure count, a crash in the last 7 days, the one line
+  every app ends with) is a line only while it is wrong. **Information**: at most 5 blue readings worth
+  having beside the checks (the last hook event, the lid angle, the last snap). **Never on it**: a
+  preference, whichever way it is set (launch at login, a feature's own switch, a macOS setting that does
+  not stop the app), the version and updates (General's), the battery, heat, memory, uptime, where the app
+  is installed or the macOS version, unless one of them is the app's own job. Usually about five checks,
+  never more than 10 with everything wrong at once (`HealthLimits`, held by a test). It reports and changes
+  nothing. The lines are built in Core from plain values (`HealthFacts` → `HealthReport.checks(for:)` and
+  `readings(for:)`) and tested.
+- **One colour rule on every page**: green as it should be; blue a reading, or a state that is the user's own
+  choice on the page that owns it (Health never shows one); orange not as it should be while the app still does its job (an optional permission or setup
   missing, a feature on that cannot work, a crash this week); red, with the stop sign, what stops the app
   from doing its job (a permission or setup the wizard marks `required`, the mechanism down). A grant reads
   the same on System and on Health (`HealthRules.grant(held:required:)`).
