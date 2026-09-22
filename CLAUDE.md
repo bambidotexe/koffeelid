@@ -105,7 +105,7 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 | the menu, the status item, the menu-bar glyph | `App/StatusItemController.swift`, `MugShape.swift`, `App/Resources/Glyphs` | `functional.md` § User interface; `development.md` § Icons |
 | the app icon | `App/Resources/AppIcon.icon` (Icon Composer document), its `type: file` source entry in `project.yml` | `development.md` § Icons; `architecture.md` § Build, signing, entitlements |
 | Settings (start with the `macos-building-settings-pages` skill) | `App/UI/SettingsWindow.swift` (pages, toolbar, height), `SettingsKit.swift` (the kit and every number), `SettingsModel.swift` (bindings, polled states), `Settings…Page.swift` (one per page); `Core/SettingsStatus.swift` (a state's colour: a missing grant is red when `SettingsGrant.isRequired`, orange otherwise, on every page) | `functional.md` § User interface, § Settings and defaults; `development.md` § How to add things (a settings control); the skill, if a rule of the window changes |
-| the Health page: a row, its colour, its words, a reading (start with the `macos-building-settings-pages` skill, *The Health page*) | `Core/HealthReport.swift` (`HealthFacts`, `sections(for:)`: which rows, their level, word, detail and fix), `Core/HealthRules.swift` (the level rules, `CrashReports`), `Core/Health.swift` (`HealthLevel`, `HealthRow`, `HealthGroup`, `HealthSummary`, `HealthConstants`); `App/UI/SettingsHealthPage.swift` (the view), `App/UI/HealthWords.swift` (every word), `App/UI/HealthCheck.swift` (the readings taken on show and on Check Again, the facts), `App/HealthReaders.swift` (`ProcessStats`, `InstallLocation`, `WatchdogProcess`); a coordinator state it reads is a read-only property on `KoffeeLidController` | `functional.md` § User interface (The Health page); `HealthTests` and `SettingsWordsTests`; `manual-test-checklist.md` § Settings UI |
+| the Health page: a check, a reading, its colour, its words (start with the `macos-building-settings-pages` skill, *The Health page*) | `Core/HealthReport.swift` (`HealthFacts`, `checks(for:)` and `readings(for:)`: which lines, their level, word, value, detail and fix), `Core/HealthRules.swift` (the level rules, `CrashReports`), `Core/Health.swift` (`HealthLevel`, `HealthRow`, `InfoRow`, `HealthLimits`, `HealthConstants`); `App/UI/SettingsHealthPage.swift` (the view: two tables), `App/UI/HealthWords.swift` (every word), `App/UI/HealthCheck.swift` (the readings taken on show and on Check Again, the facts), `App/HealthReaders.swift` (`WatchdogProcess`); a coordinator state it reads is a read-only property on `KoffeeLidController` | `functional.md` § User interface (The Health page); `HealthTests` and `SettingsWordsTests`; `manual-test-checklist.md` § Settings UI |
 | onboarding (start with the `macos-building-onboarding` skill) | `App/UI/OnboardingWindowController.swift`, `ControlActionHandler.swift`; `App/AppDelegate.swift` (`showOnboarding`, `applicationShouldHandleReopen`) | `functional.md` § User interface; `pitfalls.md` § Windows and permission grants; the skill, if a rule of the window changes |
 | the Tip page, the Ko-fi link | `App/UI/SettingsTipPage.swift`, `KoFiMark.swift`; `Core/SupportLink.swift` (the page and the smallest tip it takes) | `functional.md` § User interface; `manual-test-checklist.md` § Settings UI |
 | a preference and its default | `App/Preferences.swift`; `KoffeeLidController.preferenceChanged(_:)` | `functional.md` § Settings and defaults |
@@ -129,7 +129,7 @@ script/install.sh                                     # skill: macos-install-loc
 script/publish.sh <patch|minor|major> [--no-install]  # skill: macos-publish-release. The same, plus a version bump, tag, push, GitHub release
 # -------------------------------------------------------------------------------------------------
 
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (391); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (374); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -388,11 +388,12 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   it back when it quits. Every grant row is titled what System Settings titles the switch, quoted from the
   system's tables, and **nothing in the app asks for a permission without a click**. The rules and the traps
   are in the `macos-building-onboarding` skill; read it before touching that window or any permission row.
-- `swift test` is green (391 distinct cases: 369 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (374 distinct cases: 352 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-test-checklist.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-test-checklist.md` § Settings UI; the owner
-  approved its look and wording in the running app, before the Health page, the stop sign and the one colour rule
-  for grants, none of which the owner has seen yet), the dark-wake hold, the one-close hold, the late-display
+  approved its look and wording in the running app, before the stop sign and the one colour rule for grants, and
+  rejected the first Health page as far too long: the page is now two short tables, checks and readings, which the
+  owner has not seen yet), the dark-wake hold, the one-close hold, the late-display
   reopen lock, the arrow-key check, the built-in-keyboard Fn rule, and most of the auto-arm section. On the
   onboarding, what has not been seen is the last page's Finish and the Notifications row's own prompt on a Mac
   where that grant has never been asked for. The update

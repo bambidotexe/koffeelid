@@ -51,26 +51,6 @@
         }
       }
     },
-    "%d MB": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%d Mo"
-          }
-        }
-      }
-    },
-    "%d connected": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%d connectés"
-          }
-        }
-      }
-    },
     "%d d %d h": {
       "localizations": {
         "fr": {
@@ -121,62 +101,12 @@
         }
       }
     },
-    "%d things to look at": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%d points à vérifier"
-          }
-        }
-      }
-    },
     "%d%%": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "%d %%"
-          }
-        }
-      }
-    },
-    "%d%%, on battery": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%d %%, sur batterie"
-          }
-        }
-      }
-    },
-    "%d%%, plugged in": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%d %%, sur secteur"
-          }
-        }
-      }
-    },
-    "1 connected": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 connecté"
-          }
-        }
-      }
-    },
-    "1 thing to look at": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 point à vérifier"
           }
         }
       }
@@ -237,16 +167,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ajoute une ligne à ~/.zshrc pour que les commandes de plus de quelques secondes activent aussi KoffeeLid. Ouvrez ensuite un nouveau terminal."
-          }
-        }
-      }
-    },
-    "After a crash": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Après un plantage"
           }
         }
       }
@@ -327,16 +247,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Une autre app ou automatisation a mis votre Mac en veille alors que KoffeeLid était activé. Vérifiez vos réglages de charge, de programmation et d’automatisation avant de réessayer."
-          }
-        }
-      }
-    },
-    "App": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "App"
           }
         }
       }
@@ -491,16 +401,6 @@
         }
       }
     },
-    "Auto-arm": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activation auto"
-          }
-        }
-      }
-    },
     "Auto-armed while a command runs": {
       "localizations": {
         "fr": {
@@ -567,26 +467,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Activité des apps en arrière-plan"
-          }
-        }
-      }
-    },
-    "Battery": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batterie"
-          }
-        }
-      }
-    },
-    "Battery and heat": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batterie et chaleur"
           }
         }
       }
@@ -771,32 +651,12 @@
         }
       }
     },
-    "Console shows what happened, under “Crash Reports”. Copy the report below to send it along.": {
+    "Console shows what happened, under “Crash Reports”.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Console montre ce qui s’est passé, sous « Rapports de blocage ». Copiez le rapport ci-dessous pour l’envoyer avec."
-          }
-        }
-      }
-    },
-    "Copies everything on this page as text, to paste into a bug report.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copie tout le contenu de cette page sous forme de texte, à coller dans un rapport de bug."
-          }
-        }
-      }
-    },
-    "Copy Report": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copier le rapport"
+            "value": "Console montre ce qui s’est passé, sous « Rapports de blocage »."
           }
         }
       }
@@ -821,26 +681,6 @@
         }
       }
     },
-    "Critical": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Critique"
-          }
-        }
-      }
-    },
-    "Disk image": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Image disque"
-          }
-        }
-      }
-    },
     "Done": {
       "localizations": {
         "fr": {
@@ -851,42 +691,12 @@
         }
       }
     },
-    "Everything works": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tout fonctionne"
-          }
-        }
-      }
-    },
-    "External displays": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Écrans externes"
-          }
-        }
-      }
-    },
     "Health": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Santé"
-          }
-        }
-      }
-    },
-    "In System Settings › General › Login Items, turn KoffeeLid on under “Open at Login”.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dans Réglages Système › Général › Ouverture, activez KoffeeLid sous « Ouvrir avec la session »."
           }
         }
       }
@@ -921,12 +731,12 @@
         }
       }
     },
-    "Installed in": {
+    "Information": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Emplacement"
+            "value": "Informations"
           }
         }
       }
@@ -981,16 +791,6 @@
         }
       }
     },
-    "KoffeeLid was started with auto-arm turned off. Quit it and open it again from the Applications folder.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "KoffeeLid a été ouvert avec l’activation auto coupée. Quittez-le et rouvrez-le depuis le dossier Applications."
-          }
-        }
-      }
-    },
     "Last Claude Code event": {
       "localizations": {
         "fr": {
@@ -1007,16 +807,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le dernier le %@"
-          }
-        }
-      }
-    },
-    "Last reopened after a crash": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dernière réouverture après un plantage"
           }
         }
       }
@@ -1051,26 +841,6 @@
         }
       }
     },
-    "Lid effect": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Effet d’écran"
-          }
-        }
-      }
-    },
-    "Lid gesture and effect": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geste et effet de l’écran"
-          }
-        }
-      }
-    },
     "Lid sleep": {
       "localizations": {
         "fr": {
@@ -1091,32 +861,12 @@
         }
       }
     },
-    "Memory used": {
+    "Mac too hot": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mémoire utilisée"
-          }
-        }
-      }
-    },
-    "Mode": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mode"
-          }
-        }
-      }
-    },
-    "Moderate": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Modérée"
+            "value": "Mac trop chaud"
           }
         }
       }
@@ -1131,72 +881,12 @@
         }
       }
     },
-    "Normal": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Normale"
-          }
-        }
-      }
-    },
-    "Not working: %d problems": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ne fonctionne pas : %d problèmes"
-          }
-        }
-      }
-    },
-    "Not working: 1 problem": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ne fonctionne pas : 1 problème"
-          }
-        }
-      }
-    },
-    "On battery at this level, KoffeeLid does not arm. Plug in your Mac, or lower the battery level on the Arming page.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sur batterie à ce niveau, KoffeeLid ne s’active pas. Branchez votre Mac ou abaissez le niveau de batterie dans la page Activation."
-          }
-        }
-      }
-    },
     "One-time tip": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Don ponctuel"
-          }
-        }
-      }
-    },
-    "Overview": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vue d’ensemble"
-          }
-        }
-      }
-    },
-    "Quit KoffeeLid, drag it to the Applications folder, and open it from there. Where it runs now, it cannot update itself.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quittez KoffeeLid, glissez-le dans le dossier Applications et ouvrez-le depuis là. Là où il tourne, il ne peut pas se mettre à jour."
           }
         }
       }
@@ -1221,42 +911,12 @@
         }
       }
     },
-    "Report": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rapport"
-          }
-        }
-      }
-    },
     "Running": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Active"
-          }
-        }
-      }
-    },
-    "Running for": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En marche depuis"
-          }
-        }
-      }
-    },
-    "Serious": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Élevée"
           }
         }
       }
@@ -1291,22 +951,22 @@
         }
       }
     },
+    "State": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "État"
+          }
+        }
+      }
+    },
     "Stopped": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Arrêtée"
-          }
-        }
-      }
-    },
-    "Temporary copy": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copie temporaire"
           }
         }
       }
@@ -1331,32 +991,12 @@
         }
       }
     },
-    "Thermal pressure": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pression thermique"
-          }
-        }
-      }
-    },
     "This Mac has no lid angle sensor, so the lid gesture and the lid effect are not available. Everything else works.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Ce Mac n’a pas de capteur d’angle de l’écran : le geste et l’effet de l’écran ne sont pas disponibles. Tout le reste fonctionne."
-          }
-        }
-      }
-    },
-    "This Mac's own 🌐 Fn key": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Touche 🌐 Fn de ce Mac"
           }
         }
       }
@@ -1407,16 +1047,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rabattez l’écran et partez : Claude Code, vos builds, serveurs et téléchargements continuent sur un écran noir et silencieux. Rouvrez-le et votre Mac se verrouille."
-          }
-        }
-      }
-    },
-    "Compatibility": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Compatibilité"
           }
         }
       }
@@ -3347,16 +2977,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Travail en cours"
-          }
-        }
-      }
-    },
-    "Your Mac is too hot for KoffeeLid to arm. Let it cool down.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Votre Mac est trop chaud pour que KoffeeLid s’active. Laissez-le refroidir."
           }
         }
       }

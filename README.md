@@ -16,7 +16,7 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-391%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-374%20passing-2ea44f">
 </p>
 
 ## The problem
@@ -123,7 +123,8 @@ sleep lock (administrator password, once), Login Items (crash recovery), Screen 
 Input Monitoring (optional: only the built-in keyboard's 🌐 Fn key then arms the gesture), notifications (optional),
 and offers to set up the Claude Code hooks and the zsh snippet. Settings › Health then shows at a glance whether
 everything KoffeeLid relies on is in place and working, in green, orange or red, and says where to put right
-whatever is not.
+whatever is not, with a few readings beside it: what KoffeeLid is doing, the lid's angle, when each hook last
+reported.
 
 After that KoffeeLid keeps itself up to date. It looks for a newer release when it starts and once a week, and
 tells you with a notification. Click Update, there or in Settings › General, and a small window fetches the

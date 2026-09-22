@@ -156,8 +156,8 @@ the desktop at fold 0.
   rather than by path (`ProcWalk.isRunning`: `proc_listallpids`, `proc_pidpath`, `stat`), so a firmlinked path
   and a second copy of the app elsewhere can neither fool it nor be taken for it.
 - `SMAppService.mainApp.status` reads `requiresApproval` once the user switches KoffeeLid off under "Open at
-  Login" after it registered: a login that will not happen although the app asked for it. The Health page reports
-  it orange; the General page's switch simply reads off.
+  Login" after it registered: a login that will not happen although the app asked for it. The General page's
+  switch simply reads off; the Health page does not report it, since opening at login is a preference.
 - An `LSUIElement` app that is **already running** receives `applicationShouldHandleReopen(_:hasVisibleWindows:)`
   when it is opened again (Finder, Spotlight, `open`); no second process starts. A **cold** open receives
   `applicationDidFinishLaunching` only: it never becomes active (`NSApp.isActive` stays false, no

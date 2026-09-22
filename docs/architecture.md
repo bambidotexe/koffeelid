@@ -37,19 +37,18 @@ rules the pages apply are Core's: `SettingsStatus` colours a state (a missing gr
 `SettingsGrant.isRequired`, orange otherwise, through `HealthRules.grant`; `PermissionItem.required`, the
 onboarding's mark, is the same property) and `UpdatePanel` is the Updates group, whose state is the app's
 (`UpdateController.shared`) and not the page's. The Health page (`SettingsHealthPage`) is built the same way:
-`HealthReport.sections(for:)` (Core, tested in `HealthTests`) turns a `HealthFacts` of plain values into
-`HealthSection`s of `HealthItem`s, each with its level, a `HealthWord`, a `HealthDetail` and a `HealthFix`
-still out of any language, and `HealthWords` (`HealthWords.swift`) puts them in the catalog's words; the
-overview is `HealthSummary`, Copy Report `HealthReport.text`. The facts come from three places: the model's poll
-(the grants, the login item, the sensor, the lid angle, the activity counts), the coordinator's read-only state
-as the page draws (`mode`, `isArmed`, `armSource`, `statusLine()`, `lidSleepFlagSet`, `lidSleepRestorePending`,
-`sleepLockEngaged`, `builtInFnReaderState`, `lastSafetyStop`, and `ActivityMonitor.lastClaudeEvent` /
-`lastTerminalEventAt`), and `HealthCheck`, which the window asks to read when it opens on Health, when Health is
-picked and on Check Again, never on a timer: at once the process's age and memory (`ProcessStats`), where the
-bundle is (`InstallLocation`), the display list, the battery and the thermal state; off the main thread the
-crash reports (`CrashReports`), whether the watchdog runs (`ProcWalk.isRunning`, by file identity), the
-relaunch record (`RelaunchHistoryStore`) and `~/.claude/settings.json`'s hook count. The overview reads
-*Checking* until the slow half lands, and at least `HealthConstants.minimumBusy` after Check Again. The
+two tables and nothing else. `HealthReport.checks(for:)` and `HealthReport.readings(for:)` (Core, tested in
+`HealthTests`, which holds them to `HealthLimits`: ten checks, five readings) turn a `HealthFacts` of plain
+values into `HealthItem`s (a level, a `HealthWord`, a `HealthDetail`, a `HealthFix`) and `HealthReading`s (a
+`HealthValue`, a `HealthDetail`), still out of any language; `HealthWords` (`HealthWords.swift`) puts them in the
+catalog's words as `HealthRow`s and `InfoRow`s. The facts come from three places: the model's poll (the grants,
+the sensor, the lid angle), the coordinator's read-only state as the page draws (`mode`, `isArmed`, `armSource`,
+`statusLine()`, `lidSleepFlagSet`, `lidSleepRestorePending`, `sleepLockEngaged`, `builtInFnReaderState`,
+`lastSafetyStop`, and `ActivityMonitor.lastClaudeEvent` / `lastTerminalEventAt`), and `HealthCheck`, which the
+window asks to read when it opens on Health, when Health is picked and on Check Again, never on a timer, all off
+the main thread: the crash reports (`CrashReports`), whether the watchdog runs (`ProcWalk.isRunning`, by file
+identity) and `~/.claude/settings.json`'s hook count. Check Again shows a spinner until they land, and at least
+`HealthConstants.minimumBusy`. The
 onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. It is a normal window
 too, at the normal level and with the default collection behaviour, like the other two: `AppDelegate` activates
 the app once when it opens, and two things activate it again, both of them grant flows ending:

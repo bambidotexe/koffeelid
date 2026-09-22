@@ -17,12 +17,8 @@ final class SettingsModel: ObservableObject {
     let prefs = Preferences.shared
 
     /// `SMAppService` is the source of truth for the login item: the user can revoke it in System
-    /// Settings without the app ever hearing about it. It says one thing the General page's switch cannot
-    /// show, a login item switched off in System Settings while KoffeeLid asked for it, which the Health
-    /// page reports.
-    @Published private(set) var loginItem: LoginItemState = .disabled
-    /// The General page's switch: on only while the system would open KoffeeLid at login.
-    var launchAtLogin: Bool { loginItem == .enabled }
+    /// Settings without the app ever hearing about it.
+    @Published private(set) var launchAtLogin = false
     /// The grants and hooks that are there right now.
     @Published private(set) var held: Set<SettingsGrant> = []
     @Published private(set) var sensorPresent = false
@@ -106,10 +102,10 @@ final class SettingsModel: ObservableObject {
     func refresh() {
         objectWillChange.send()
 
-        let login = Self.loginItemState
-        if login != loginItem { loginItem = login }
+        let login = SMAppService.mainApp.status == .enabled
+        if login != launchAtLogin { launchAtLogin = login }
         // The preference mirrors the service: the coordinator registers the login item from it at launch.
-        if prefs.launchAtLogin != launchAtLogin { prefs.launchAtLogin = launchAtLogin }
+        if prefs.launchAtLogin != login { prefs.launchAtLogin = login }
 
         let now = Set((PermissionCatalog.items + HookCatalog.items).filter { $0.granted() }.map(\.id))
         if now != held { held = now }
@@ -128,16 +124,6 @@ final class SettingsModel: ObservableObject {
         if sensor != sensorPresent { sensorPresent = sensor }
 
         readLive()
-    }
-
-    /// What `SMAppService` says about KoffeeLid opening at login. Registered and then switched off in
-    /// System Settings is `requiresApproval`: the login will not happen although KoffeeLid asked for it.
-    private static var loginItemState: LoginItemState {
-        switch SMAppService.mainApp.status {
-        case .enabled: .enabled
-        case .requiresApproval: .needsApproval
-        default: .disabled
-        }
     }
 
     /// The two readings that move while the window is open.

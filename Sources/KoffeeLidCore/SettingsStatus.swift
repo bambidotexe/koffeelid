@@ -5,10 +5,9 @@ import Foundation
 public enum StatusSeverity: Equatable {
     case good, info, warning, failure, busy
 
-    /// The mark of one of the Health page's four levels, so a state reads the same on every page.
+    /// The mark of one of the Health table's three levels, so a state reads the same on every page.
     public init(_ level: HealthLevel) {
         switch level {
-        case .info: self = .info
         case .good: self = .good
         case .warning: self = .warning
         case .failure: self = .failure
