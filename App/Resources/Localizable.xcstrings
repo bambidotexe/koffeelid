@@ -1961,6 +1961,26 @@
         }
       }
     },
+    "Play it when the charger is unplugged": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le jouer quand le chargeur est débranché"
+          }
+        }
+      }
+    },
+    "Play it when the displays change": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le jouer quand les écrans externes changent"
+          }
+        }
+      }
+    },
     "Play it at a set volume": {
       "localizations": {
         "fr": {
@@ -1981,12 +2001,12 @@
         }
       }
     },
-    "Plays when the lid closes while KoffeeLid is armed, so you hear that your Mac stays awake.": {
+    "Plays while KoffeeLid is armed, so you hear that your Mac stays awake: when the lid closes, then, with the lid closed, when the charger is unplugged or the displays change. A display going to sleep or waking up can play it too.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Joué quand l’écran se ferme alors que KoffeeLid est activé : vous entendez que votre Mac reste éveillé."
+            "value": "Joué quand KoffeeLid est activé, pour que vous entendiez que votre Mac reste éveillé : quand l’écran se ferme, puis, écran fermé, quand le chargeur est débranché ou que les écrans externes changent. Un écran externe qui se met en veille ou se réveille peut aussi le jouer."
           }
         }
       }

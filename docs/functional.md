@@ -127,10 +127,22 @@ speakers' wait plus one second after the sound started (`VolumeOverridePolicy.re
 Unmuting is deliberate: a Mac shut in a bag has to be heard staying awake. Off, each output plays at its own
 volume and a muted one stays silent.
 
+**The same sound with the lid already closed.** While armed with the lid closed, the sound plays again, the same
+clip through the same outputs at the same volumes, when the charger is unplugged or the displays change (a display
+plugged or unplugged, and also one going to sleep or waking up), so a Mac taken off the desk is heard staying awake
+before it goes in a bag. Each has its own switch, both on by default, independent of the lid-close switch. They play
+while standing by on an external display too: behind a closed lid macOS keeps listing a display that is gone until
+the lid opens, but it does report that the displays changed. After any sound, the lid-close one included, nothing
+plays for 5 s (`ClosedLidReminder.quietSeconds`), so a dock unplugged with its displays and its charger plays once;
+display changes in the 5 s after the lid closes (`lidCloseSettleSeconds`) are the close itself and play nothing. Only
+the switch from the charger to the battery counts, not the charge dropping on battery. A low-battery disarm on the
+unplug plays nothing. The log says `closed-lid reminder: charger unplugged` or `… displays changed`.
+
 ## External display
 
-An arm is allowed and the kernel flag stays set, but darkening, the sound, the effect, the lock on reopen and
-the gesture **stand by** while any external display is online; the menu header and the tooltip say "Standing
+An arm is allowed and the kernel flag stays set, but darkening, the lid-close sound, the effect, the lock on reopen
+and the gesture **stand by** while any external display is online (the sound's closed-lid reminders do not, § Lid
+closed, lid open); the menu header and the tooltip say "Standing
 by: external display". Connecting a display while the lid is closed locks the screen at once. Connecting one
 ends a one-close arm that has not closed yet. Disconnecting restores the lid behaviours. A display that went
 away behind a closed lid still locks the reopen (the list is re-read at lid open, and a lock skipped for a
@@ -200,7 +212,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   | Arming | Lid gesture (the switch, the key to hold, the two travels); Menu bar and shortcuts (right-click, the two shortcuts); Low battery (the switch and its level) |
   | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
   | Lid Effect | Effect (the switch, and the Screen Recording grant while it is on); Lid angle (the live angle, the angle in the menu bar); When it starts; Look; Preview (reset to defaults, simulate a fold) |
-  | Sound | Lid-close sound (the switch, and the clip as a pop-up menu: picking one plays it); Volume (the forced volume and its level) |
+  | Sound | Lid-close sound (the switch, the charger and display switches of the closed-lid reminders, and the clip as a pop-up menu: picking one plays it); Volume (the forced volume and its level) |
   | System | Staying awake safely (sleep lock, Background App Activity, each with its button while missing); Permissions (Screen Recording, Input Monitoring, Notifications, each with its Allow button and a warning naming its switch in System Settings while denied); Diagnostics (the log's switch, open the log); Start over (show the onboarding again, reset everything). Only states with a control beside them: a bare verdict is on Health |
   | Health | whether KoffeeLid works, at a glance: a table of checks and a table of readings (below) |
   | Tip | a card with no title: the app icon beside the sentence saying every feature is free and stays free, and that a coffee is how the project is supported; One-time tip (the Ko-fi cup on its own red wash, "A cup of coffee" and what it is, and a button naming the smallest tip the page takes, `SupportLink.smallestTip`, 5 €). The button opens https://ko-fi.com/bambidotexe in the browser; the app sets nothing and reads nothing back, and nothing is paid inside it |
@@ -212,7 +224,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   button. A control that
   depends on a switch that is off is disabled and its label dims with it: the gesture's key and travels under the
   gesture switch, the battery level under its switch, the three auto-arm waits under the auto-arm switch, the
-  effect's start and look under the effect switch, the clip and the volume under the sound switch. The gesture
+  effect's start and look under the effect switch, the clip and the volume while none of the three sound switches is on. The gesture
   and effect switches are disabled on a Mac without a lid-angle sensor; right-click arming and the angle in the
   menu bar are disabled while the menu-bar cup is hidden. A number is a slider with its value beside it.
 - **States in Settings.** A state is one row: what is reported on the left, and on the right a symbol and a word
@@ -300,6 +312,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Auto-Arm › Terminal | Ignore commands shorter than | `activityJobArmAfterSeconds` | 5 s | 0–30 s |
 | Lid Effect | Show the desktop folding away as the lid closes, every slider of When it starts and Look, Show the lid angle in the menu bar | `effectParameters` (JSON) | enabled; start below 95° with the gesture / 75° otherwise; flatten again 0.5 s; zoom 80 %; perspective 40 %; blur 0.15×; soft edges 100 %; shading 100 %; responsiveness 70 %; angle in menu bar off | 30–120° / 30–90° (the second never above the first); 0.25–10 s; 0–200 %; 0–2×; 0–100 % |
 | Sound › Lid-close sound | Play a sound when the lid closes, Sound | `lidCloseSoundEnabled`, `lidCloseSoundName` | on, `blip-pop` | six clips; an unknown name falls back to the first |
+| Sound › Lid-close sound | Play it when the charger is unplugged / Play it when the displays change | `chargerUnplugSoundEnabled` / `displayChangeSoundEnabled` | on / on | armed, lid closed only |
 | Sound › Volume | Play it at a set volume, Volume | `forceVolumeEnabled`, `forceVolumeLevel` | on, 60 % | 0–100 % |
 | System › Diagnostics | Keep a diagnostics log | `diagnosticsEnabled` | on | |
 | (internal) | | `gestureAngleOpen`, `onboardingCompleted` | 120°, false | |

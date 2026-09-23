@@ -137,8 +137,10 @@ which `LocalInputMonitor` reads, does not see it.
 
 - Topology = `CGGetOnlineDisplayList` + `CGDisplayIsBuiltin`; changes arrive as
   `NSApplication.didChangeScreenParametersNotification`.
-- macOS posts no screen-parameter change while the lid is shut and no display is left to reconfigure. A display
-  that goes away behind a closed lid is reported about 130 ms **after** the lid-open notification.
+- Behind a shut lid the display list keeps a display that went away until the lid opens: it is reported about
+  130 ms **after** the lid-open notification. A single charger-fed display unplugged that way posted no
+  screen-parameter change at all; a dock carrying two displays and the charger, unplugged that way, posted two
+  within 0.25 s, the power-source change following 0.9 s later, with the list still showing the displays.
 - The effect's overlay sits at `NSWindow.Level.screenSaver`: above the menu bar and status items, below the
   lock screen and shielding windows.
 

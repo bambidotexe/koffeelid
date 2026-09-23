@@ -16,7 +16,7 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-386%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-398%20passing-2ea44f">
 </p>
 
 ## The problem
@@ -68,6 +68,8 @@ until the lid actually moves. It is drawn live from the lid's own angle sensor, 
 
 And it has a **sound**. Six short clips to choose from (a blip, a bloop, a chime, a tick…), played at the moment
 the lid shuts. Optionally at a fixed volume, so the close sounds the same whether the Mac was muted or blaring.
+It plays again when you unplug the charger or a display from a closed, armed Mac, so a Mac leaving the desk
+for a bag tells you it is still awake.
 
 **🌐 Fn + close** arms for a single close without changing anything else: hold 🌐 Fn, tilt the lid, and the
 fold appears as it passes the inner screen's angle. Change your mind before the lid shuts (reopen it a little,

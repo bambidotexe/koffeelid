@@ -62,6 +62,11 @@
 - [ ] Mute Mac, Force volume 60 %, pick the *notification* clip (1.9 s), Preview and quit KoffeeLid from the menu while it plays → the Mac is muted again at its previous volume once the app is gone; the log has `volume override: restored … muted` before `clean termination`
 - [ ] AirPods at an odd level (5 %), Force volume 60 %, Preview → no `volume override: device … holds …% after the restore` line in the log; if there is one, the AirPods keep their own volume steps: record it in `docs/macOS.md` § Sounds
 
+- [ ] Armed, lid closed on the dock (displays and charger), unplug the dock → one sound, not three; the log has one `closed-lid reminder: …` line
+- [ ] Armed, lid closed, on the charger with no display, unplug the charger → the sound plays, `closed-lid reminder: charger unplugged`; the battery ticking down afterwards plays nothing
+- [ ] Armed, lid closed on an external display → no sound at the close; plug or unplug a display 10 s later → `closed-lid reminder: displays changed`
+- [ ] Settings › Sound, both reminder switches off → the same unplugs play nothing; the clip and volume stay enabled while any of the three sound switches is on
+
 ## Safety rails
 - [ ] Plug an external display while Off → arming still allowed; the log says `armed (…); standing by: external display connected`, menu header and tooltip show "Standing by", the flag reads `No`
 - [ ] Plug an external display while Armed with the lid open → `external display connected while armed; standing by`, effect retracts, no lock when the lid is then opened/closed at the desk; unplug → `external display disconnected; lid behaviours active again`, effect starts, next close darkens and next reopen locks

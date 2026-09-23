@@ -1,10 +1,13 @@
 import SwiftUI
 
-/// The one sound KoffeeLid makes, and how loud it plays.
+/// The one sound KoffeeLid makes, when it plays, and how loud.
 struct SettingsSoundPage: View {
     @ObservedObject var model: SettingsModel
 
-    private var soundOn: Bool { model.prefs.lidCloseSoundEnabled }
+    /// The clip and the volume matter while any of the three switches plays the sound.
+    private var soundOn: Bool {
+        model.prefs.lidCloseSoundEnabled || model.prefs.chargerUnplugSoundEnabled || model.prefs.displayChangeSoundEnabled
+    }
 
     /// The clips' names as the user reads them, in the order of `LidCloseSoundPlayer.soundNames`.
     private static let titles = [L("Blip pop"), L("Bloop"), L("Chime blip"), L("Enter"), L("Notification"), L("Tick")]
@@ -12,8 +15,10 @@ struct SettingsSoundPage: View {
     var body: some View {
         SettingsPage {
             SettingsGroup(title: L("Lid-close sound"),
-                          hint: L("Plays when the lid closes while KoffeeLid is armed, so you hear that your Mac stays awake.")) {
+                          hint: L("Plays while KoffeeLid is armed, so you hear that your Mac stays awake: when the lid closes, then, with the lid closed, when the charger is unplugged or the displays change. A display going to sleep or waking up can play it too.")) {
                 ToggleRow(L("Play a sound when the lid closes"), isOn: model.binding(\.lidCloseSoundEnabled))
+                ToggleRow(L("Play it when the charger is unplugged"), isOn: model.binding(\.chargerUnplugSoundEnabled))
+                ToggleRow(L("Play it when the displays change"), isOn: model.binding(\.displayChangeSoundEnabled))
                 PopUpRow(L("Sound"), options: LidCloseSoundPlayer.soundNames, selection: soundName,
                          enabled: soundOn, label: Self.title)
             }

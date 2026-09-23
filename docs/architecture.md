@@ -82,6 +82,7 @@ and calls `setMode`, `perform`, `resetEverything`, `sleepLockRuleChanged`.
 | `reopenWatch: ReopenCancelWatch?` | alive from a gesture arm until the lid shuts |
 | `gestureHold: GestureArmHold` | keeps a one-close arm across the lid opening until login |
 | `reopenLock: ReopenLockDecision` | a reopen lock skipped for a display that may already be gone |
+| `closedLidReminder: ClosedLidReminder` | the last sound, the last lid close and the last power source, for the closed-lid reminders |
 | `flagClearPending`, `flagRetryTimer` | a failed kernel-flag clear and its 30 s retry |
 | `overrideGuard: SleepOverrideGuard` | limits dark-wake holds to 3 per 120 s |
 
@@ -152,8 +153,8 @@ The launch and quit clears are conditional because other lid-sleep utilities dri
 | Gesture modifier | `GestureController.readModifier` (`FnKeyReading`) | `CGEventSource.flagsState`, `NSEvent.modifierFlags`, `CGEventSource.keyState(63)`, `BuiltInFnKeyReader.fnDown`, read per sample | inside `handleAngle` |
 | Built-in keyboard's Fn key | `BuiltInFnKeyReader` | `IOHIDDeviceOpen` on the keyboard whose `Built-In` property is set (Input Monitoring), input values of the Fn element on the main run loop; reopened on `didBecomeActiveNotification`, `didWakeNotification` and from the permission row | read by `GestureController` |
 | Gesture | `GestureController` (`OptionGateFilter`, `LidProgressDriver`) | fed by `handleAngle` while `gestureWanted` | `handleGesture` |
-| Displays | `DisplayTopologyMonitor` | `didChangeScreenParametersNotification`, `CGGetOnlineDisplayList` | `handleDisplays` |
-| Battery | `BatteryMonitor` | `IOPSNotificationCreateRunLoopSource`, `IOPSCopyPowerSourcesInfo` | `handleBattery` (`LowBatteryPolicy`) |
+| Displays | `DisplayTopologyMonitor` | `didChangeScreenParametersNotification`, `CGGetOnlineDisplayList` | `remindIfClosed(.displaysChanged)`, then `handleDisplays` |
+| Battery | `BatteryMonitor` | `IOPSNotificationCreateRunLoopSource`, `IOPSCopyPowerSourcesInfo` | `handleBattery` (`LowBatteryPolicy`), then `remindIfClosed(.chargerUnplugged)` on the switch to battery |
 | Thermal | `ThermalMonitor` | `ProcessInfo.thermalStateDidChangeNotification` | `handleThermal` |
 | Sleep behind the arm | `SleepInterruptionMonitor` | `NSWorkspace.willSleepNotification` while armed | `handleExternalSleep` (`SleepInterruptionPolicy`) |
 | Screen lock | `ScreenLockObserver` | `com.apple.screenIsLocked` / `…Unlocked`, `CGSessionCopyCurrentDictionary` | `applyGestureHold` |

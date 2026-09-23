@@ -11,6 +11,7 @@ final class Preferences {
         d.register(defaults: [
             "armWithRightClick": true, "armWithShortcut": true, "armWithCaffeinateShortcut": true, "armWithOption": true, "gestureModifier": "fn",
             "lidCloseSoundEnabled": true, "lidCloseSoundName": "blip-pop",
+            "chargerUnplugSoundEnabled": true, "displayChangeSoundEnabled": true,
             "forceVolumeEnabled": true, "forceVolumeLevel": 0.6,
             "lowBatteryDisarm": true, "lowBatteryDisarmPercent": 10,
             "onboardingCompleted": false, "launchAtLogin": true, "showInMenuBar": true, "diagnosticsEnabled": true,
@@ -43,6 +44,9 @@ final class Preferences {
     /// Which key is held while closing the lid: "fn" (Globe) or "option".
     var gestureModifier: GestureModifier { get { GestureModifier(rawValue: d.string(forKey: "gestureModifier") ?? "fn") ?? .fn } set { set("gestureModifier", newValue.rawValue) } }
     var lidCloseSoundEnabled: Bool { get { d.bool(forKey: "lidCloseSoundEnabled") } set { set("lidCloseSoundEnabled", newValue) } }
+    /// The same sound, with the lid already closed and armed, when the charger is unplugged or the displays change.
+    var chargerUnplugSoundEnabled: Bool { get { d.bool(forKey: "chargerUnplugSoundEnabled") } set { set("chargerUnplugSoundEnabled", newValue) } }
+    var displayChangeSoundEnabled: Bool { get { d.bool(forKey: "displayChangeSoundEnabled") } set { set("displayChangeSoundEnabled", newValue) } }
     /// Falls back to the first bundled sound when the stored name is not one of the bundled sounds.
     var lidCloseSoundName: String {
         get { let n = d.string(forKey: "lidCloseSoundName") ?? ""; return LidCloseSoundPlayer.soundNames.contains(n) ? n : LidCloseSoundPlayer.soundNames[0] }

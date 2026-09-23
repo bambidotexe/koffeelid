@@ -45,6 +45,8 @@ final class KoffeeLidController {
     private var reopenWatch: ReopenCancelWatch?
     /// Holds a reopen lock that `standingBy` skipped, in case the topology was one event out of date.
     private var reopenLock = ReopenLockDecision()
+    /// Plays the lid-close sound again when the closed, armed Mac is unplugged or its displays change.
+    private var closedLidReminder = ClosedLidReminder()
     /// Keeps a one-close gesture arm alive across the lid opening, until the user logs back in.
     private var gestureHold = GestureArmHold()
     /// How the current arm was requested. Option + close arms one close; every other source stays armed until disarmed.
@@ -168,13 +170,20 @@ final class KoffeeLidController {
         }
 
         externalDisplay = displays.current.standsBy
-        displays.onChange = { [weak self] t in self?.handleDisplays(t) }; displays.start()
+        displays.onChange = { [weak self] t in self?.remindIfClosed(.displaysChanged); self?.handleDisplays(t) }; displays.start()
         screenLock.onChange = { [weak self] locked in
             guard let self else { return }
             applyGestureHold(gestureHold.observed(locked: locked))
         }
         screenLock.start()
-        battery.onChange = { [weak self] b in self?.handleBattery(b) }; battery.start()
+        _ = closedLidReminder.powerSource(battery.current)
+        battery.onChange = { [weak self] b in
+            guard let self else { return }
+            let unplugged = closedLidReminder.powerSource(b)
+            handleBattery(b)
+            if unplugged { remindIfClosed(.chargerUnplugged) }
+        }
+        battery.start()
         thermal.onChange = { [weak self] t in self?.handleThermal(t) }; thermal.start()
         sleepMonitor.onExternalSleep = { [weak self] in self?.handleExternalSleep() }; sleepMonitor.start()
 
@@ -460,6 +469,7 @@ final class KoffeeLidController {
     private func handleLid(_ t: LidTransition) {
         switch t {
         case .closed:
+            closedLidReminder.lidClosed(now: ProcessInfo.processInfo.systemUptime)
             guard isArmed else { return }
             state = .armedClosed
             reopenWatch = nil
@@ -469,7 +479,10 @@ final class KoffeeLidController {
             applyCaffeinate()
             if standingBy { log.log("lid closed on an external display; macOS closed-lid mode, nothing to darken"); return }
             if !brightness.darken() { InternalDisplayBrightnessController.displaySleepNow(onLog: log.log) }
-            if prefs.lidCloseSoundEnabled { soundPlayer.play() }
+            if prefs.lidCloseSoundEnabled {
+                soundPlayer.play()
+                closedLidReminder.soundPlayed(now: ProcessInfo.processInfo.systemUptime)
+            }
         case .opened:
             guard isArmed else { brightness.restoreIfNeeded(reason: "lid opened"); return }
             brightness.restoreIfNeeded(reason: "lid opened")
@@ -603,6 +616,18 @@ final class KoffeeLidController {
                 lock.requestLock()
             }
         }
+    }
+
+    /// The closed, armed Mac is being taken off the desk: play the lid-close sound so nobody puts it in a bag
+    /// without hearing that it stays awake. Plays while standing by too, since the display list is stale
+    /// behind a closed lid.
+    private func remindIfClosed(_ trigger: ClosedLidReminder.Trigger) {
+        let switches = ClosedLidReminder.Switches(chargerUnplugged: prefs.chargerUnplugSoundEnabled,
+                                                  displaysChanged: prefs.displayChangeSoundEnabled)
+        guard closedLidReminder.shouldPlay(trigger, armed: isArmed, lidClosed: lidObserver.isClosed == true,
+                                           switches: switches, now: ProcessInfo.processInfo.systemUptime) else { return }
+        log.log("closed-lid reminder: \(trigger.rawValue)")
+        soundPlayer.play()
     }
 
     private func handleBattery(_ b: BatteryState?) {
