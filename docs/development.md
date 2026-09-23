@@ -79,7 +79,9 @@ external display keeping the desktop up (`status` carries the warning `quitting 
 `KoffeeLidController.quitWouldSleepTheMac`); no override. An open lid, an external display, or an unarmed app
 are all safe to quit over: the script quits the app and its watchdog, installs, relaunches, and puts the
 manual mode back itself (`caffeinate` / `arm`), so the Mac is unarmed only for the seconds between the quit
-and the relaunch. With a Claude Code session working, a fresh launch auto-arms at once (`launched` then
+and the relaunch; with the sudoers rule in place it holds the sleep lock itself across those seconds
+(`sleep lock held across the relaunch`) and hands it to the relaunched copy, letting go only if that copy ends
+up not armed. With a Claude Code session working, a fresh launch auto-arms at once (`launched` then
 `armed (activity, armed)`) regardless. `script/run.sh` installs and tails the log.
 
 **A Debug build is never installed, and never made without the owner asking for one.** It exists only to read

@@ -21,12 +21,19 @@ source "$ROOT/script/no-leftovers.sh"
 DEST="/Applications/$APP_NAME.app"
 MOUNT=""
 
+# The sleep lock (`pmset disablesleep`), run under the app's own sudoers rule; fails, harmlessly, without it.
+# BRIDGE=1 while this script holds it for the relaunch (below).
+BRIDGE=0
+sleep_lock() { [ -f /etc/sudoers.d/koffeelid ] && sudo -n /usr/bin/pmset disablesleep "$1" >/dev/null 2>&1; }
+
 # Whatever happens — a failed build, a refused install, an interrupt — the repository is left with nothing
-# launchable in it. This runs on the way out of every path through the script.
+# launchable in it, and a sleep lock held for a copy that is not armed is let go. This runs on the way out of
+# every path through the script.
 cleanup() {
   [ -n "$MOUNT" ] && [ -d "$MOUNT" ] && /usr/bin/hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true
   rm -rf "$ROOT/dist" "$ROOT/build/Build" "$ROOT/DerivedData/Build/Products"
   no_leftovers "$ROOT"
+  if [ "$BRIDGE" = 1 ]; then sleep_lock 0 && echo "sleep lock released: $APP_NAME is not armed" >&2; fi
 }
 trap cleanup EXIT INT TERM
 
@@ -84,6 +91,14 @@ MOUNT="$(mktemp -d)"
 
 osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
 sleep 1
+# ---------------------------------------------------------------------------------------------------------
+# From here until the mode is back, nothing holds the Mac: the old copy cleared the kernel flag under its
+# sleep lock (so the kernel's clamshell evaluation could not start a sleep) and then released the lock. With
+# the lid shut on an external display, a charger or display event in these seconds would sleep the Mac and
+# lock the session, so the lock is held here across them, under the same sudoers rule, and handed to the new
+# copy: its arm engages it again, with its own marker. Let go on the way out only if that copy is not armed.
+# ---------------------------------------------------------------------------------------------------------
+if [ -n "$RESTORE" ] && sleep_lock 1; then BRIDGE=1; echo "sleep lock held across the relaunch" >&2; fi
 # Scoped to our own bundle path, never a bare process name.
 pkill -f "$DEST/Contents/MacOS/${APP_NAME}Watchdog" 2>/dev/null || true
 
@@ -132,6 +147,10 @@ if [ -n "$RESTORE" ]; then
   else
     echo "WARNING: could not restore mode '$RESTORE' — the Mac is not armed. Set it from the menu." >&2
   fi
+  # An armed copy holds the lock itself now (its arm wrote it, with its marker); the bridge is its to keep.
+  case "$("$DEST/Contents/MacOS/$APP_NAME" status 2>/dev/null || true)" in
+    *"mode: armed"*|*"auto-armed"*) BRIDGE=0 ;;
+  esac
 fi
 
 echo "$DEST"

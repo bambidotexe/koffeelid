@@ -232,18 +232,13 @@ final class KoffeeLidController {
         flagRetryTimer?.invalidate(); flagRetryTimer = nil
         soundPlayer.stop()                        // a forced volume never outlives the process
         let wasArmed = isArmed
+        if isArmed { lock.cancel(); effect.stop() }
+        brightness.restoreIfNeeded(reason: "quit")
 
-        if isArmed {
-            lock.cancel()
-            effect.stop()
-            releaseSleepLock()
-            power?.releaseAssertions()
-            brightness.restoreIfNeeded(reason: "quit")
-            state = .idle
-        } else {
-            brightness.restoreIfNeeded(reason: "quit")
-        }
-
+        // The flag goes first, while the sleep lock still holds, as in `disarm`. Clearing it with the lid shut
+        // makes the kernel evaluate the clamshell inside the same call, and powerd's own closed-display
+        // protection (an external display on AC power) lives in that same bit and goes with it: only the lock
+        // keeps that evaluation from starting a sleep, which turns the displays off and locks the session.
         // Never clear a flag this instance did not set: a second KoffeeLid build may own it.
         if let power, wasArmed || flagClearPending || power.lidSleepDisabled {
             var cleared = false
@@ -260,6 +255,7 @@ final class KoffeeLidController {
             if cleared {
                 flagClearPending = false
                 NotificationsController.shared.clear(id: "restore")
+                log.log("quit: kernel lid-sleep flag cleared")
             } else {
                 flagClearPending = true
                 log.log("quit: kernel lid-sleep flag clear FAILED after 3 attempts; restart the Mac to restore lid sleep")
@@ -267,6 +263,11 @@ final class KoffeeLidController {
             }
         } else {
             log.log("quit: flag never set by this instance; left untouched")
+        }
+        if wasArmed {
+            releaseSleepLock()
+            power?.releaseAssertions()
+            state = .idle
         }
 
         lidAngleObserver?.removeConsumer("gesture")

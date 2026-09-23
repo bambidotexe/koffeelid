@@ -118,9 +118,12 @@ and calls `setMode`, `perform`, `resetEverything`, `sleepLockRuleChanged`.
 - `applyAuto(_:)`: the auto level changed. `.on` arms only an idle Mac (`arm(source: .activity)`; a refusal
   calls `armFailed()`). `.off(releaseManual:)` disarms only when `mode == .off`.
 - `shutdown()`: stops the activity monitor, the screen-lock observer, the built-in Fn reader and the timers; puts
-  back any volume the lid-close sound forced (`LidCloseSoundPlayer.stop`); if armed, cancels the lock, stops the effect, releases
-  the sleep lock and assertions, restores brightness; clears the flag (three attempts, 0.3 s apart) only if
-  `wasArmed || flagClearPending || power.lidSleepDisabled`; removes the pid file.
+  back any volume the lid-close sound forced (`LidCloseSoundPlayer.stop`); if armed, cancels the lock and stops
+  the effect; restores brightness; clears the flag (three attempts, 0.3 s apart) only if
+  `wasArmed || flagClearPending || power.lidSleepDisabled`, **while the sleep lock still holds**, as `disarm`
+  does; then releases the sleep lock and the assertions; removes the pid file. The order matters: clearing the
+  flag with the lid shut makes the kernel evaluate the clamshell at once, and only the lock stops that
+  evaluation from starting a sleep (`docs/pitfalls.md` § Sleep and the kernel flag).
 - `start()`: opens the root domain; clears the flag only when a stale pid file or brightness-recovery file
   proves an unclean exit; releases a marked sleep lock; restores a saved brightness; writes the pid file,
   registers and kickstarts the watchdog; wires every collaborator; starts the activity monitor last, after
@@ -134,8 +137,8 @@ and calls `setMode`, `perform`, `resetEverything`, `sleepLockRuleChanged`.
 | Arm | `arm()` | always sets |
 | Re-apply | `reapplyFlag(reason:)` | armed, and `AppleClamshellCausesSleep` does not read `No` |
 | Lid-sleep override | `handleExternalSleep()` | armed; sets again immediately |
-| Disarm | `disarm()` | always clears; failure → retry every 30 s |
-| Quit | `shutdown()` | three attempts, only if this instance set it or a clear is pending |
+| Disarm | `disarm()` | always clears, before the sleep lock is released; failure → retry every 30 s |
+| Quit | `shutdown()` | three attempts, only if this instance set it or a clear is pending; before the sleep lock is released |
 
 The launch and quit clears are conditional because other lid-sleep utilities drive the same flag.
 

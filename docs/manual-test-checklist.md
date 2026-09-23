@@ -70,6 +70,7 @@
 - [ ] Same setup but unplug **only the monitor** while the lid is open and the Mac has been at the desk a while → no lock (the grace window is long past); reopening later at the desk with the monitor still attached → still no lock
 - [ ] Armed + screen on with an external display → the display assertion is still held (`pmset -g assertions`) while the rest stands by
 - [ ] Fn + close with an external display connected does nothing (gesture detector off; `gesture:` lines absent)
+- [ ] Armed + screen on, lid closed, an external display, charger connected: `script/install.sh` → the displays do not blink and the session stays unlocked; the log shows `quit: kernel lid-sleep flag cleared` before `sleep lock released`, the script prints `sleep lock held across the relaunch` then `restored mode: caffeinate`, and `pmset -g | grep SleepDisabled` reads 1 with the new copy armed
 - [x] Armed, lid genuinely closed, an external display connected: `script/install.sh` does not refuse (`status`
   carries no `quitting would sleep the Mac` warning); it quits, installs, relaunches and restores the mode.
   Verified 2026-09-21. With no external display connected, the same closed lid does refuse, with no override.

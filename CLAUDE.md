@@ -218,7 +218,8 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   warning `quitting would sleep the Mac`, with no override, and it checks again after the build because the
   state may have changed during it. Otherwise it installs over any arm and puts the manual mode back itself
   (`caffeinate` / `arm`), so the Mac is unarmed only for the seconds between the quit and the relaunch — the
-  build and the notarizing are already done by then. The auto level needs no restoring: a launch while a
+  build and the notarizing are already done by then — and, with the sudoers rule in place, it holds the sleep
+  lock itself across those seconds and hands it to the relaunched copy. The auto level needs no restoring: a launch while a
   session is working arms at once by itself. Never send `off` while the lid is closed on an armed session
   with no external display. Any other utility that sets the same kernel flag will fight the arm;
   quit it before testing.
@@ -260,8 +261,11 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 1. **Idle means the flag is clear.** Any code path that returns the coordinator to `.idle` (disarm, quit,
    rails, crash recovery at launch) must have attempted `setLidSleepDisabled(false)` **and**
-   `releaseSleepLock()` (`pmset disablesleep 0` survives reboots). Do not add an early return between
-   setting the flag and updating `state`.
+   `releaseSleepLock()` (`pmset disablesleep 0` survives reboots), **in that order: the flag while the lock
+   still holds, then the lock.** Clearing the flag with the lid shut makes the kernel evaluate the clamshell at
+   once, and only the lock keeps that evaluation from starting a sleep that darkens the displays and locks the
+   session (`docs/pitfalls.md` § Sleep and the kernel flag). Do not add an early return between setting the
+   flag and updating `state`.
 2. **Do not clear the flag on evidence you did not create.** Launch/quit clears are conditional (stale pid
    file, brightness-recovery file, `isArmed || flagClearPending || power.lidSleepDisabled`) because other
    lid-sleep utilities drive the same kernel flag. Keep them conditional.
@@ -342,7 +346,9 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 1. **powerd rewrites the kernel flag under you.** Selector 12 sets the same bit powerd owns; a charger plug, a
    display hot-plug or leaving desktop mode can bring the mask to 0 and start a clamshell sleep inside the same
-   call. The sleep lock is what actually holds a closed Mac; `reapplyFlag` is the second line.
+   call. The sleep lock is what actually holds a closed Mac; `reapplyFlag` is the second line. The same bit is
+   powerd's closed-display protection: the app's own clear, with the lid shut on an external display, starts a
+   clamshell sleep unless the lock still holds, so the flag is always cleared before the lock is released.
 2. **`AppleClamshellCausesSleep` lies for a while.** It is refreshed only by the kernel's own clamshell
    notifications, never by a selector-12 write. `koffeelid status`, the log and `pmset -g assertions` are the
    reliable views.
@@ -396,7 +402,8 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   owner has not seen yet), the dark-wake hold, the one-close hold, the late-display
   reopen lock, the arrow-key check, the built-in-keyboard Fn rule, most of the auto-arm section, and the two volume-restore
   guarantees of the lid-close sound (put back at quit, and on a deadline when the audio system never reports the
-  end of the clip; `docs/manual-test-checklist.md` § Sound / volume). On the
+  end of the clip; `docs/manual-test-checklist.md` § Sound / volume), and the quit that clears the flag under the
+  sleep lock with `script/install.sh` holding the lock across the relaunch (§ Safety rails). On the
   onboarding, what has not been seen is the last page's Finish and the Notifications row's own prompt on a Mac
   where that grant has never been asked for. The update
   feature has been run through its unit tests, through a real install and a real roll-back of a stand-in app by

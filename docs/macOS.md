@@ -44,6 +44,15 @@ frameworks, `sudo` and `pmset` are incompatible with the sandbox. Hardened Runti
   for about a second and its release flips powerd's result), and so do display hot-plug and leaving desktop
   mode. Signature in the unified log, within one millisecond: powerd `EvaluateClamshell. Disable : 0`, kernel
   `PMRD: setClamShellSleepDisable(2->0)`, `PMRD: sleep reason Clamshell Sleep`.
+- **The bit is also macOS's closed-display mode.** With the lid shut on an external display and AC power, powerd's
+  own policy keeps the bit set, and the kernel's own desktop-mode check does not hold on this Mac: a clear of
+  the bit by the app with two external displays and the charger connected made the kernel evaluate the
+  clamshell inside the call and start a `Clamshell Sleep` (powerd: `Turning off display for Clamshell Sleep`),
+  on which loginwindow locked the session (`kLWLockFromDisplayDim`). The sleep is cut short within a second
+  (WindowServer's `DMGrace` assertion, powerd re-disabling clamshell sleep on `kIOMessageSystemWillSleep`) and
+  the displays come back, with the lock screen up. `SleepDisabled` (the sleep lock) is the only thing that makes
+  the kernel refuse that sleep: `disarm` and `shutdown` clear the bit while the lock still holds, and
+  `script/install.sh` holds the lock across its relaunch.
 - That sleep goes full wake → dark wake first, with `kIOMessageSystemWillSleep` (`NSWorkspace.willSleepNotification`)
   sent on that step, then `checkSystemCanSleep`, which honours the CPU assertion bit powerd raises for an
   active `PreventSystemSleep` (on AC power only; powerd disables that assertion type on battery). Holding the

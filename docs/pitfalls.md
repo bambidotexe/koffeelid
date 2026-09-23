@@ -22,6 +22,18 @@ Format: **Symptom** / **Why** (on current macOS, for this app) / **What the code
 - **Do not** treat every `willSleep` as an external sleep request. Do not force a full wake from the hold with
   `IOPMAssertionDeclareUserActivity`: raising it makes powerd recompute and write 0 again.
 
+### Clearing the flag with the lid shut starts a clamshell sleep unless the lock still holds
+- **Symptom.** A quit or a reinstall with the lid shut on an external display: the displays go dark for a
+  second and the session comes back locked.
+- **Why.** Clearing the bit makes the kernel evaluate the clamshell inside the same call, and the bit is also
+  powerd's closed-display protection (an external display on AC power), so the evaluation finds nothing
+  keeping the Mac awake and starts a `Clamshell Sleep`; loginwindow locks the session on the display sleep
+  before the sleep is cut short. Only `SleepDisabled` (the sleep lock) makes the kernel refuse that sleep.
+- **What the code does.** `disarm` and `shutdown` clear the flag first and release the lock after it;
+  `script/install.sh` holds the lock across the relaunch when the sudoers rule exists and hands it to the new
+  copy.
+- **Do not** release the sleep lock before the flag, or add a return to `.idle` that does.
+
 ### `pmset disablesleep 1` survives a crash and a reboot
 - **Symptom.** The Mac never sleeps again, lid open or closed, app not running.
 - **Why.** The setting is stored in `/Library/Preferences/com.apple.PowerManagement.plist`.

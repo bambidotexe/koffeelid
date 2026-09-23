@@ -146,7 +146,7 @@ display that disappears within 2 s is issued after all).
 | macOS starts a lid sleep behind the arm (charger plugged, display change) | with the sleep lock set up this never starts. Without it the session is held in dark wake, the flag is re-applied and a notification explains; more than 3 such holds in 120 s disarms |
 | Kernel flag cannot be cleared on disarm | the cup turns orange, a notification is posted, the clear is retried every 30 s |
 | Crash or kill | the watchdog relaunches the app (at most 3 times in 10 min); the launch clears the flag, restores brightness and releases the sleep lock |
-| Quit | everything is released; the flag clear is attempted three times |
+| Quit | the flag is cleared (three attempts) while the sleep lock still holds, then the lock and the assertions are released; the order is what keeps a closed lid on an external display from being slept and the session from being locked by the quit |
 
 There is no maximum arm duration. The rails end the manual mode and the auto level together.
 
