@@ -16,7 +16,7 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-384%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-386%20passing-2ea44f">
 </p>
 
 ## The problem

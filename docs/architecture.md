@@ -117,7 +117,8 @@ and calls `setMode`, `perform`, `resetEverything`, `sleepLockRuleChanged`.
   attempt and `state = .idle`.
 - `applyAuto(_:)`: the auto level changed. `.on` arms only an idle Mac (`arm(source: .activity)`; a refusal
   calls `armFailed()`). `.off(releaseManual:)` disarms only when `mode == .off`.
-- `shutdown()`: stops the activity monitor, the screen-lock observer, the built-in Fn reader and the timers; if armed, cancels the lock, stops the effect, releases
+- `shutdown()`: stops the activity monitor, the screen-lock observer, the built-in Fn reader and the timers; puts
+  back any volume the lid-close sound forced (`LidCloseSoundPlayer.stop`); if armed, cancels the lock, stops the effect, releases
   the sleep lock and assertions, restores brightness; clears the flag (three attempts, 0.3 s apart) only if
   `wasArmed || flagClearPending || power.lidSleepDisabled`; removes the pid file.
 - `start()`: opens the root domain; clears the flag only when a stale pid file or brightness-recovery file

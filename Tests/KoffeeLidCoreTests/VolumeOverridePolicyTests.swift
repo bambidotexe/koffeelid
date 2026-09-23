@@ -41,6 +41,17 @@ final class VolumeOverridePolicyTests: XCTestCase {
         XCTAssertEqual(p.begin(speakers: speakers, listening: nil), [.apply(deviceID: 42, volume: 1.0, unmute: true)])
     }
 
+    // The volumes go back on a deadline as well, in case the audio system never reports the end of the clip.
+
+    func testRestoreDeadlineIsTheClipTheSpeakersWaitAndAMargin() {
+        XCTAssertEqual(VolumeOverridePolicy.restoreDeadline(clipSeconds: 1.88, speakersDelay: 0.143),
+                       1.88 + 0.143 + VolumeOverridePolicy.restoreMargin, accuracy: 0.0001)
+        XCTAssertEqual(VolumeOverridePolicy.restoreDeadline(clipSeconds: 0, speakersDelay: 0), VolumeOverridePolicy.restoreMargin)
+    }
+    func testRestoreDeadlineIgnoresNegativeInputs() {
+        XCTAssertEqual(VolumeOverridePolicy.restoreDeadline(clipSeconds: -1, speakersDelay: -1), VolumeOverridePolicy.restoreMargin)
+    }
+
     // The output the user listens on: half the set volume, raised only.
 
     func testQuietHeadphonesRiseToHalfTheSetVolume() {

@@ -91,11 +91,17 @@ final class OutputVolumeOverride {
         guard AudioObjectHasProperty(dev, &vAddr), AudioObjectIsPropertySettable(dev, &vAddr, &settable) == noErr, settable.boolValue else {
             onLog?("volume override: output device \(dev) has no software volume; playing at current level"); return nil
         }
-        var volume: Float32 = 0; var vSize = UInt32(MemoryLayout<Float32>.size)
-        guard AudioObjectGetPropertyData(dev, &vAddr, 0, nil, &vSize, &volume) == noErr else { return nil }
+        guard let volume = readVolume(dev) else { return nil }
         var muted: UInt32 = 0; var mSize = UInt32(MemoryLayout<UInt32>.size)
         if AudioObjectHasProperty(dev, &mAddr) { _ = AudioObjectGetPropertyData(dev, &mAddr, 0, nil, &mSize, &muted) }
         return VolumeSnapshot(deviceID: dev, volume: volume, muted: muted != 0)
+    }
+
+    private func readVolume(_ dev: AudioDeviceID) -> Float? {
+        var addr = volumeAddress
+        var volume: Float32 = 0; var size = UInt32(MemoryLayout<Float32>.size)
+        guard AudioObjectGetPropertyData(dev, &addr, 0, nil, &size, &volume) == noErr else { return nil }
+        return volume
     }
 
     func perform(_ actions: [VolumeAction]) {
@@ -107,6 +113,10 @@ final class OutputVolumeOverride {
             case .restore(let s):
                 setVolume(s.deviceID, s.volume); setMute(s.deviceID, s.muted)
                 onLog?("volume override: restored \(Int((s.volume * 100).rounded()))%\(s.muted ? " muted" : "") on device \(s.deviceID)")
+                // A device that keeps its own volume steps may not hold the exact value written back: say so.
+                if let held = readVolume(s.deviceID), abs(held - s.volume) > 0.005 {
+                    onLog?("volume override: device \(s.deviceID) holds \(Int((held * 100).rounded()))% after the restore")
+                }
             }
         }
     }

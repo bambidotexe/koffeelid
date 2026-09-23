@@ -129,7 +129,7 @@ script/install.sh                                     # skill: macos-install-loc
 script/publish.sh <patch|minor|major> [--no-install]  # skill: macos-publish-release. The same, plus a version bump, tag, push, GitHub release
 # -------------------------------------------------------------------------------------------------
 
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (384); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (386); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -388,13 +388,15 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   it back when it quits. Every grant row is titled what System Settings titles the switch, quoted from the
   system's tables, and **nothing in the app asks for a permission without a click**. The rules and the traps
   are in the `macos-building-onboarding` skill; read it before touching that window or any permission row.
-- `swift test` is green (384 distinct cases: 362 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (386 distinct cases: 364 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-test-checklist.md` is its verification.
 - Not walked on hardware: the Settings window's checklist (`docs/manual-test-checklist.md` § Settings UI; the owner
   approved its look and wording in the running app, before the stop sign and the one colour rule for grants, and
   rejected the first Health page as far too long: the page is now two short tables, checks and readings, which the
   owner has not seen yet), the dark-wake hold, the one-close hold, the late-display
-  reopen lock, the arrow-key check, the built-in-keyboard Fn rule, and most of the auto-arm section. On the
+  reopen lock, the arrow-key check, the built-in-keyboard Fn rule, most of the auto-arm section, and the two volume-restore
+  guarantees of the lid-close sound (put back at quit, and on a deadline when the audio system never reports the
+  end of the clip; `docs/manual-test-checklist.md` § Sound / volume). On the
   onboarding, what has not been seen is the last page's Finish and the Notifications row's own prompt on a Mac
   where that grant has never been asked for. The update
   feature has been run through its unit tests, through a real install and a real roll-back of a stand-in app by

@@ -19,6 +19,13 @@ public enum VolumeAction: Equatable {
 public struct VolumeOverridePolicy {
     public static let listeningShare: Float = 0.5
 
+    /// The volumes go back no later than this after a playback starts, whatever the audio system reports of
+    /// the clip: its length, the speakers' wait behind a slower output, and a margin for the device to drain.
+    public static let restoreMargin: TimeInterval = 1
+    public static func restoreDeadline(clipSeconds: TimeInterval, speakersDelay: TimeInterval) -> TimeInterval {
+        max(0, clipSeconds) + max(0, speakersDelay) + restoreMargin
+    }
+
     public var enabled: Bool
     public var targetVolume: Float
     private var saved: [VolumeSnapshot] = []

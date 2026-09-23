@@ -121,7 +121,9 @@ or any Bluetooth, USB or AirPlay output), it plays there too, and the speakers w
 both are heard as one sound. Headphones in the jack silence the speakers, so it plays only in them. With
 "Play it at a set volume" on, both are unmuted for the sound: the speakers at the set volume, the other output
 at half of it (`VolumeOverridePolicy.listeningShare`), or at the user's own volume when that is louder, and
-every volume and mute is put back 0.25 s after the sound ends, or at once if the default output changes.
+every volume and mute is put back 0.25 s after the sound ends, at once if the default output changes or the
+app quits, and, should the audio system never report the end, no later than the clip's length plus the
+speakers' wait plus one second after the sound started (`VolumeOverridePolicy.restoreDeadline`).
 Unmuting is deliberate: a Mac shut in a bag has to be heard staying awake. Off, each output plays at its own
 volume and a muted one stays silent.
 

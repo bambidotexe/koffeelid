@@ -59,6 +59,8 @@
 - [ ] AirPods at 45 %, Force volume 60 %, Preview → the AirPods volume does not move; muted AirPods → unmuted at 30 % for the sound, muted again after
 - [ ] Headphones in the jack, Preview → plays only in the headphones, at half the set volume at most raised; the speakers stay silent
 - [ ] Switch output device to one without software volume (HDMI TV, if available) → plays at current level, log notes it
+- [ ] Mute Mac, Force volume 60 %, pick the *notification* clip (1.9 s), Preview and quit KoffeeLid from the menu while it plays → the Mac is muted again at its previous volume once the app is gone; the log has `volume override: restored … muted` before `clean termination`
+- [ ] AirPods at an odd level (5 %), Force volume 60 %, Preview → no `volume override: device … holds …% after the restore` line in the log; if there is one, the AirPods keep their own volume steps: record it in `docs/macOS.md` § Sounds
 
 ## Safety rails
 - [ ] Plug an external display while Off → arming still allowed; the log says `armed (…); standing by: external display connected`, menu header and tooltip show "Standing by", the flag reads `No`

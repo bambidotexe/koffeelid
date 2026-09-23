@@ -4,7 +4,9 @@ import AudioToolbox
 import KoffeeLidCore
 
 /// Plays the lid-close sound on the Mac's speakers, and also on the output the user listens on when that is
-/// something else (`LidSoundRoute`), at the volumes `VolumeOverridePolicy` decides.
+/// something else (`LidSoundRoute`), at the volumes `VolumeOverridePolicy` decides. Every volume and mute it
+/// forces goes back: when the clip ends, on a deadline if the audio system never says so, and at once on
+/// `stop()`.
 final class LidCloseSoundPlayer: NSObject, AVAudioPlayerDelegate {
     static let soundNames = ["blip-pop", "bloop", "chime-blip", "enter", "notification", "tick"]
     private let prefs: Preferences
@@ -52,19 +54,31 @@ final class LidCloseSoundPlayer: NSObject, AVAudioPlayerDelegate {
         if let s = route.speakers, let l = route.listening {
             delay = LidSoundRoute.speakersDelay(listeningLatency: volume.latency(of: l), speakersLatency: volume.latency(of: s))
         }
-        let onSpeakers = route.speakers.map { startSpeakers(url, device: $0, delay: delay) } ?? false
+        let file = try? AVAudioFile(forReading: url)
+        let onSpeakers = route.speakers.map { startSpeakers(file, device: $0, delay: delay) } ?? false
         if route.listening != nil || !onSpeakers { startDefaultOutput(url) }
         onLog?("lid-close sound: \(onSpeakers ? "speakers" : "no speakers")"
                + (route.listening.map { ", device \($0)" } ?? "")
                + (onSpeakers && delay > 0 ? ", speakers delayed \(Int((delay * 1000).rounded())) ms" : ""))
-        if sounding == 0 { finish() }
+        guard sounding > 0 else { finish(); return }
+        // The audio system may never say the clip ended (an output gone mid-clip, an engine stopped by a
+        // configuration change): the volumes go back on a deadline as well.
+        let clip = file.map { Double($0.length) / $0.processingFormat.sampleRate } ?? listeningPlayer?.duration ?? 0
+        let deadline = VolumeOverridePolicy.restoreDeadline(clipSeconds: clip, speakersDelay: delay)
+        let gen = generation
+        DispatchQueue.main.asyncAfter(deadline: .now() + deadline) { [weak self] in
+            guard let self, gen == self.generation, self.sounding > 0 else { return }
+            self.onLog?("lid-close sound: no end reported within \(Int((deadline * 1000).rounded())) ms; putting the volumes back")
+            self.sounding = 0
+            self.finish()
+        }
     }
 
     func preview(named name: String) { play(named: name) }
 
-    private func startSpeakers(_ url: URL, device: AudioDeviceID, delay: TimeInterval) -> Bool {
+    private func startSpeakers(_ file: AVAudioFile?, device: AudioDeviceID, delay: TimeInterval) -> Bool {
+        guard let file else { onLog?("lid-close sound: speakers unavailable (unreadable clip)"); return false }
         do {
-            let file = try AVAudioFile(forReading: url)
             let engine = AVAudioEngine()
             guard let unit = engine.outputNode.audioUnit else { onLog?("lid-close sound: speakers unavailable (no output unit)"); return false }
             var dev = device
@@ -121,9 +135,19 @@ final class LidCloseSoundPlayer: NSObject, AVAudioPlayerDelegate {
         // small tail so the device does not clip the last samples when volume snaps back
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
             guard let self, gen == self.generation else { return }
-            if var p = self.policy { self.volume.perform(p.playbackFinished()) }
-            self.policy = nil
-            self.volume.stopListening(); self.stopOutputs()
+            self.restoreAndStop()
         }
+    }
+
+    /// A quit: every volume and mute goes back now, and nothing waits for the clip to end.
+    func stop() { restoreAndStop() }
+
+    /// Ends the playback: the volumes and mutes go back, the outputs are dropped, and whatever the audio
+    /// system still reports of the clip carries an older generation.
+    private func restoreAndStop() {
+        generation += 1; sounding = 0
+        if var p = policy { volume.perform(p.playbackFinished()) }
+        policy = nil
+        volume.stopListening(); stopOutputs()
     }
 }

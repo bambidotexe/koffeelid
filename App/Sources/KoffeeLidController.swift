@@ -230,6 +230,7 @@ final class KoffeeLidController {
         screenLock.stop(); builtInFn.stop()
         fnReaderObservers.forEach { NotificationCenter.default.removeObserver($0); NSWorkspace.shared.notificationCenter.removeObserver($0) }; fnReaderObservers = []
         flagRetryTimer?.invalidate(); flagRetryTimer = nil
+        soundPlayer.stop()                        // a forced volume never outlives the process
         let wasArmed = isArmed
 
         if isArmed {
