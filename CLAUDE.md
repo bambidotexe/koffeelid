@@ -126,7 +126,7 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 ```bash
 # ---- the two actions. A build of this app reaches a Mac by one of these and by nothing else. ----
 script/install.sh                                     # skill: macos-install-locally. Production build → /Applications; leaves no .app or .dmg behind
-script/publish.sh <patch|minor|major> [--no-install]  # skill: macos-publish-release. The same, plus a version bump, tag, push, GitHub release
+script/publish.sh <patch|minor|major> --notes=<file> [--no-install]  # skill: macos-publish-release. The same, plus a version bump, tag, push, GitHub release
 # -------------------------------------------------------------------------------------------------
 
 swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (386); needs the Claude Code sandbox off, like xcodebuild
@@ -164,7 +164,9 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
   (`docs/pitfalls.md` § Working on this Mac). No linter is configured.
 - XCTest's summary line undercounts here; count the per-case `passed` lines
   (`swift test 2>&1 | grep -E "^Test Case '.*' passed" | sort -u | wc -l`).
-- A release is `script/publish.sh <patch|minor|major>` and nothing else: it refuses on a dirty tree, computes
+- A release is `script/publish.sh <patch|minor|major> --notes=<file>` and nothing else: it refuses without
+  release notes written from every commit since the last tag (skill `macos-publish-release`, *Release
+  notes*), on a dirty tree, computes
   the new version and refuses if that tag already exists, then bumps the version, commits and pushes that
   bump, builds the notarized image, tags, pushes, creates the GitHub release and installs the same bundle in
   `/Applications`. Nothing bumps the tree again afterward — it sits at exactly what was published.

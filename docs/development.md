@@ -302,7 +302,7 @@ cp /tmp/AppIcon.iconset/icon_128x128@2x.png docs/assets/icon.png
 
 ## Release checklist
 
-The release itself is one command, `script/publish.sh <patch|minor|major>`. The list is what to have done
+The release itself is one command, `script/publish.sh <patch|minor|major> --notes=<file>`. The list is what to have done
 before running it.
 
 1. `swift test` green, `xcodebuild` warning-free; adjust the README test badge if the count changed.
@@ -310,8 +310,10 @@ before running it.
    refuses on a dirty tree before it does anything else, because that is not this script's to resolve.
 3. `script/install.sh`, approve Login Items and grant Screen Recording if asked, quit and reopen.
 4. Walk `docs/manual-test-checklist.md` with any other lid-sleep utility quit.
-5. Decide the level — patch for a fix, minor for a new feature, major for a breaking change — and run
-   `script/publish.sh <level>`. It computes the new version and refuses if that tag already exists, then
+5. Read every commit since the last tag and write the release notes from them, for the people who install
+   the app (skill `macos-publish-release`, *Release notes*), in a file outside the repository.
+6. Decide the level — patch for a fix, minor for a new feature, major for a breaking change — and run
+   `script/publish.sh <level> --notes=<file>`. It computes the new version and refuses if that tag already exists, then
    bumps the version by that level, commits and pushes the bump, builds the notarized image, tags, pushes,
    creates the GitHub release with the image attached, and installs the same bundle in `/Applications`.
    Nothing is left to commit afterward: the version bump was already committed and pushed before the build
