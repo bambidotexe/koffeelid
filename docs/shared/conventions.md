@@ -180,6 +180,8 @@ One pipeline, carried whole:
   `scripts/dmg-volume-icon.swift`, the layout in `scripts/dmg-settings.py`.
 - `scripts/release.sh` — build → verify the signature, the runtime flag and the entitlements → notarize
   the app → staple → image → sign and notarize the image → staple → `spctl` on both. Publishes nothing.
+- `scripts/publish.sh <patch|minor|major> --notes=<file>` — refuses before the version bump without
+  release notes, and publishes the file as the release's description, as it is.
 - `scripts/install.sh` / `scripts/publish.sh` — **the only two ways a build reaches a Mac**, and neither
   leaves a `.app` or a `.dmg` anywhere under the repository, on any exit path (`scripts/no-leftovers.sh`).
   `install.sh` stops the running copy (`pkill`; an app with state to put back, or a launch agent, stops

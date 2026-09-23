@@ -78,6 +78,11 @@ and the newer of a request and a written rule wins only after the owner has said
   it again.
 - **The version is not chosen.** `scripts/version.sh` holds the rule; a local install always builds
   exactly the tree's own version, and publishing is the only thing that moves it.
+- **A release says what changed, and says it from the commits.** `scripts/publish.sh` refuses without
+  `--notes=<file>`; the file is written fresh for every release from every commit since the last tag, in
+  the words of someone who installs the app: what is new, what changed, what was fixed. No stock sentence,
+  no list of commits, nothing about signing or notarization (skill `macos-publish-release`, *Release
+  notes*).
 - **`docs/functional.md` is kept in sync with every behaviour change, in the same commit, and never
   carries an outdated rule.** A rule the owner has overruled is replaced, not annotated. "It was like that
   before" is not a sentence that belongs in any document or comment in the repository.
