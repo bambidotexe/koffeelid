@@ -106,8 +106,10 @@ final class CodexRolloutTailTests: XCTestCase {
     // MARK: The decision
 
     let lastEvent = Date(timeIntervalSince1970: 1_790_000_000)
-    func decide(_ verdict: CodexRolloutTail.Verdict, lastTurn: String? = "t1") -> CodexRolloutTail.Decision {
-        CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: lastEvent, lastMainTurnId: lastTurn)
+    var checkedAt: Date { lastEvent.addingTimeInterval(30) }
+    func decide(_ verdict: CodexRolloutTail.Verdict, lastTurn: String? = "t1", writtenAt: Date? = nil) -> CodexRolloutTail.Decision {
+        CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: lastEvent, lastMainTurnId: lastTurn,
+                                  writtenAt: writtenAt ?? lastEvent.addingTimeInterval(25), now: checkedAt)
     }
     func testAnEndMarkerAfterOurLastEventEndsTheTurn() {
         XCTAssertEqual(decide(.complete(at: lastEvent.addingTimeInterval(1), turnId: "t9")), .turnOver(reason: "finished", at: lastEvent.addingTimeInterval(1)), "the decision carries the marker's stamp")
@@ -129,8 +131,24 @@ final class CodexRolloutTailTests: XCTestCase {
         XCTAssertEqual(decide(.complete(at: lastEvent, turnId: "t0")), .nothing, "not after our last event")
     }
     func testARunningMarkerIsBusy() {
-        XCTAssertEqual(decide(.running(turnId: "t1")), .busy)
-        XCTAssertEqual(decide(.running(turnId: nil), lastTurn: nil), .busy)
+        let written = lastEvent.addingTimeInterval(25)
+        XCTAssertEqual(decide(.running(turnId: "t1")), .busy(writtenAt: written))
+        XCTAssertEqual(decide(.running(turnId: nil), lastTurn: nil), .busy(writtenAt: written))
+    }
+    func testAFreshlyWrittenRunningRolloutKeepsIt() {
+        let justWritten = checkedAt.addingTimeInterval(-1)
+        XCTAssertEqual(decide(.running(turnId: "t1"), writtenAt: justWritten), .busy(writtenAt: justWritten))
+        let almostStale = checkedAt.addingTimeInterval(1 - ActivityConstants.staleSeconds)
+        XCTAssertEqual(decide(.running(turnId: "t1"), writtenAt: almostStale), .busy(writtenAt: almostStale), "written within 2 h")
+        XCTAssertEqual(CodexRolloutTail.decision(verdict: .running(turnId: "t1"), lastMainEventAt: lastEvent, lastMainTurnId: "t1", writtenAt: nil, now: checkedAt),
+                       .busy(writtenAt: nil), "a file whose date could not be read is taken at its word")
+    }
+    func testARolloutSilentForTwoHoursNoLongerKeepsTheSessionAlive() {
+        let stale = checkedAt.addingTimeInterval(-ActivityConstants.staleSeconds)
+        XCTAssertEqual(decide(.running(turnId: "t1"), writtenAt: stale), .nothing, "Codex stopped writing 2 h ago: staleness decides")
+        XCTAssertEqual(decide(.running(turnId: "t1"), writtenAt: stale.addingTimeInterval(-3600)), .nothing)
+        let marker = lastEvent.addingTimeInterval(1)
+        XCTAssertEqual(decide(.complete(at: marker, turnId: "t1"), writtenAt: stale), .turnOver(reason: "finished", at: marker), "the date never keeps an end from ending the turn")
     }
     func testAnUnreadableTailDecidesNothing() {
         XCTAssertEqual(decide(.unreadable), .nothing)

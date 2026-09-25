@@ -11,16 +11,17 @@ enum CodexRollout {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions").path
     }
 
-    /// The last `CodexRolloutTail.tailBytes` of the regular file at `path`, or nil when it cannot be read. A
-    /// FIFO or a device is never opened: opening one could block the main thread.
-    static func read(path: String) -> Data? {
-        guard (try? FileManager.default.attributesOfItem(atPath: path))?[.type] as? FileAttributeType == .typeRegular,
+    /// The last `CodexRolloutTail.tailBytes` of the regular file at `path` and when it was last written, or nil
+    /// when it cannot be read. A FIFO or a device is never opened: opening one could block the main thread.
+    static func read(path: String) -> (tail: Data, writtenAt: Date?)? {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              attributes[.type] as? FileAttributeType == .typeRegular,
               let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? handle.close() }
         guard let size = try? handle.seekToEnd() else { return nil }
         let start = size > UInt64(CodexRolloutTail.tailBytes) ? size - UInt64(CodexRolloutTail.tailBytes) : 0
-        guard (try? handle.seek(toOffset: start)) != nil else { return nil }
-        return try? handle.readToEnd()
+        guard (try? handle.seek(toOffset: start)) != nil, let tail = try? handle.readToEnd() else { return nil }
+        return (tail, attributes[.modificationDate] as? Date)
     }
 
     /// The newest `~/.codex/sessions/<y>/<m>/<d>/rollout-*-<sessionId>.jsonl`, for a session whose lines

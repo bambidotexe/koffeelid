@@ -34,10 +34,14 @@ public struct ActivitySession: Equatable {
     public var lastMainTurnId: String?
     /// The last `ActivitySessionStore.closedTurnsKept` turns closed by an Interrupt or a verdict.
     public var closedTurnIds: [String] = []
+    /// The ids in `closedTurnIds` an `Interrupt` closed: only a prompt opens one of them again. A turn a verdict
+    /// closed is opened again by a prompt or by a main-agent `PreToolUse`.
+    public var interruptedTurnIds: Set<String> = []
     /// When the last turn was closed by an `Interrupt`; starts the quarantine for lines without a turn id.
     public var interruptedAt: Date?
-    /// The state a `PreCompact` found the session in: `PostCompact` restores it. A compaction is work
-    /// while it runs and changes nothing once it ends.
+    /// The state the first `PreCompact` since the last turn boundary found the session in: `PostCompact`
+    /// restores it, and a prompt, a `Stop`, an `Interrupt` or a `SessionStart` not from a compaction forgets
+    /// it. A compaction is work while it runs and changes nothing once it ends.
     public var stateBeforeCompaction: ActivitySessionState?
 
     public init(id: String, at now: Date) { self.id = id; stateSince = now; lastEventAt = now; lastMainEventAt = now }
@@ -99,7 +103,15 @@ public struct ActivitySessionStore {
 
         if let turn = e.turnId { s.lastMainTurnId = turn }
         if let path = e.transcriptPath { s.transcriptPath = path }
-        if e.event == .userPromptSubmit { s.closedTurnIds.removeAll { $0 == e.turnId }; s.interruptedAt = nil }
+        if e.event == .userPromptSubmit { reopen(&s, e.turnId); s.interruptedAt = nil }
+        // `changesNothing` let it through: its turn is open, or a verdict closed it.
+        if e.event == .preToolUse { reopen(&s, e.turnId) }
+
+        // A turn boundary forgets a compaction's snapshot: a PostCompact lost, or set aside with its closed turn,
+        // must not hand a later compaction the state an earlier one found.
+        if [.userPromptSubmit, .stop, .interrupt].contains(e.event) || (e.event == .sessionStart && e.source != "compact") {
+            s.stateBeforeCompaction = nil
+        }
 
         switch e.event {
         case .sessionStart:
@@ -111,8 +123,9 @@ public struct ActivitySessionStore {
         case .userPromptSubmit, .postToolUse, .postToolUseFailure, .permissionDenied:
             clearPending(&s); set(&s, .working, now)
         case .preCompact:
-            // A compaction is work while it runs: PostCompact puts the session back to what this remembers.
-            s.stateBeforeCompaction = s.state
+            // A compaction is work while it runs: PostCompact puts the session back to what this remembers. The
+            // first PreCompact since the last turn boundary remembers; a second one would remember its working.
+            if s.stateBeforeCompaction == nil { s.stateBeforeCompaction = s.state }
             clearPending(&s); set(&s, .working, now)
         case .postCompact:
             let restored = s.stateBeforeCompaction ?? .working
@@ -167,24 +180,36 @@ public struct ActivitySessionStore {
     static let lateToolEvents: Set<ActivityEventName> = [.preToolUse, .postToolUse, .postToolUseFailure, .permissionRequest, .permissionDenied]
 
     /// An event that only proves the hook alive: a main-agent event of a closed turn (a prompt or a start always
-    /// counts; `apply` removes the session at an end before asking), a helper event of a closed turn, or a
-    /// main-agent tool or permission event without a turn id inside the quarantine after an `Interrupt`.
+    /// counts; `apply` removes the session at an end before asking; a `PreToolUse` counts when a verdict, not an
+    /// `Interrupt`, closed the turn), a helper event of a closed turn, or a main-agent tool or permission event
+    /// without a turn id inside the quarantine after an `Interrupt`.
     static func changesNothing(_ e: ActivityEvent, in s: ActivitySession) -> Bool {
         let ofClosedTurn = e.turnId.map(s.closedTurnIds.contains) ?? false
         if e.agentId != nil { return ofClosedTurn }
         if [.sessionStart, .userPromptSubmit].contains(e.event) { return false }
-        if ofClosedTurn { return true }
+        // A new tool call is never an aborted tool's straggler, and a verdict can close a turn that waits on a
+        // dialog whose hook lines were lost: its next tool call is the turn at work.
+        if ofClosedTurn { return e.event != .preToolUse || e.turnId.map(s.interruptedTurnIds.contains) ?? false }
         guard e.turnId == nil, lateToolEvents.contains(e.event), let interruptedAt = s.interruptedAt else { return false }
         return e.loggedAt.timeIntervalSince(interruptedAt) < ActivityConstants.abortQuarantineSeconds
     }
     /// An Interrupt or a verdict that the turn is over closes the turn the last main-agent event carrying an id
-    /// named (an Interrupt's own id among them); only a prompt of that id opens it again.
+    /// named (an Interrupt's own id among them). A prompt of that id opens it again, and so does a main-agent
+    /// `PreToolUse` of it when a verdict closed it.
     private func closeTurn(_ s: inout ActivitySession, byInterrupt: Bool, now: Date) {
-        if let turn = s.lastMainTurnId, !s.closedTurnIds.contains(turn) {
-            s.closedTurnIds.append(turn)
-            if s.closedTurnIds.count > Self.closedTurnsKept { s.closedTurnIds.removeFirst(s.closedTurnIds.count - Self.closedTurnsKept) }
+        if let turn = s.lastMainTurnId {
+            if !s.closedTurnIds.contains(turn) { s.closedTurnIds.append(turn) }
+            if byInterrupt { s.interruptedTurnIds.insert(turn) }
+            if s.closedTurnIds.count > Self.closedTurnsKept {
+                s.closedTurnIds.removeFirst(s.closedTurnIds.count - Self.closedTurnsKept)
+                s.interruptedTurnIds.formIntersection(s.closedTurnIds)
+            }
         }
         s.interruptedAt = byInterrupt ? now : nil
+    }
+    private func reopen(_ s: inout ActivitySession, _ turn: String?) {
+        guard let turn else { return }
+        s.closedTurnIds.removeAll { $0 == turn }; s.interruptedTurnIds.remove(turn)
     }
     /// The finish line, shared by Stop and the lost-Stop rescues: done if nothing is still out, held otherwise.
     func applyStopVerdict(_ s: inout ActivitySession, now: Date) {

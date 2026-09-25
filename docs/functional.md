@@ -89,7 +89,8 @@ up any of the three hooks from that page or from the onboarding turns it on.
   turn running until they finish or fall silent (240 s per helper, 90 s grace, 30 min cap). A compaction is work
   while it runs and changes nothing once it ends: `PreCompact` counts as working, the `SessionStart` of source
   `compact` in between changes nothing, and `PostCompact` puts the session back to the state `PreCompact` found
-  it in — working if the compaction ran inside a turn, idle or finished if it ran at the prompt.
+  it in — working if the compaction ran inside a turn, idle or finished if it ran at the prompt; a compaction
+  whose `PostCompact` never came is forgotten at the next prompt, `Stop`, `Interrupt` or new `SessionStart`.
 - **Codex**: 12 hook events in `~/.codex/hooks.json` run `KoffeeLidHook hook codex`, which appends the same
   kind of line. Codex runs a hook of the user's only once it is trusted, so the set-up also writes each hook's
   trust (its key and the hash Codex computes for it) under `[hooks.state]` in `~/.codex/config.toml`; both files
@@ -100,9 +101,12 @@ up any of the three hooks from that page or from the onboarding turns it on.
   does not count. Helpers hold a `Stop` as they do for Claude Code.
 - **A closed turn stays closed.** Every event of a turn carries the turn's id: Claude Code's `prompt_id`,
   Codex's `turn_id`. An `Interrupt`, or a verdict that the turn is over (§ Without an end event), closes the
-  turn. Any event that arrives for a closed turn, but a prompt, a `SessionStart` or a `SessionEnd`, only proves
-  the hook alive and changes nothing, as the end of a tool Codex aborted does seconds or minutes later; a
-  helper's events are among them. A `Stop` ends the turn but does not close it: a Stop hook that blocks it keeps
+  turn. Any event that arrives for a closed turn, but a prompt, a `SessionStart`, a `SessionEnd` or a tool call
+  of a turn a verdict closed, only proves the hook alive and changes nothing, as the end of a tool Codex aborted
+  does seconds or minutes later; a helper's events are among them. A main-agent tool call (`PreToolUse`) of a
+  turn a verdict closed opens it again and counts, as a prompt does, since a new tool call is never the
+  straggler of an aborted tool and the registry can close a Claude Code turn that waits on a dialog whose hook
+  lines were lost; a turn an `Interrupt` closed opens again only with a prompt. A `Stop` ends the turn but does not close it: a Stop hook that blocks it keeps
   the turn running, and its later events count. The turn closed is the one named by the last main-agent event
   that carried an id. A prompt always opens a turn, whatever id it carries, a closed one included. For 120 s
   after an `Interrupt`, a tool or permission event without a turn id changes nothing either. A line without a
@@ -148,15 +152,18 @@ up any of the three hooks from that page or from the onboarding turns it on.
   `task_complete` or `turn_aborted` that is stamped after the last main-agent event, or that names the turn
   that event belonged to, ends the turn, however it ended, and closes it (the late `PostToolUse` of a tool
   Codex aborted arrives after the `turn_aborted`, under the same turn id); an end of an earlier turn stamped
-  before that event decides nothing; a `task_started` with no end keeps it alive; a rollout that cannot be
-  read decides nothing, and only a path under `~/.codex/sessions/` that names the session's own rollout is
+  before that event decides nothing; a `task_started` with no end keeps it alive while Codex still writes to
+  the rollout; a rollout silent for 2 h no longer does; a rollout that cannot be read decides nothing, and a
+  rollout that decided nothing is read again 15 s later at the earliest, however much else the journal
+  receives, and only a path under `~/.codex/sessions/` that names the session's own rollout is
   read. When Codex's managed daemon is running, it is asked first (`thread/read`): a thread it has not
   loaded, or has idle, has nothing running; an active one keeps the session alive; the rollout decides when
   the daemon does not answer. Only a session the managed daemon hosts is asked: the desktop app's `codex` is
   never asked, and its sessions are decided by the rollout alone; a status other than these three decides
   nothing either, and every question has 1 s to be answered. At launch the managed daemon is asked which
   threads it holds (`thread/loaded/list`): a working session it hosts whose thread is not among them has
-  nothing running, and nothing counts before that answer. The launch checks only end turns, but for a Claude Code dialog the
+  nothing running, and nothing counts before that answer, or before 2 s without one (an answer later than
+  that is dropped). An answer about a thread other than the one asked about decides nothing. The launch checks only end turns, but for a Claude Code dialog the
   registry says was answered, which counts again as it would at the first check. A session silent for 2 h is
   dropped; a command is asked of its shell instead (Terminal, above).
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source

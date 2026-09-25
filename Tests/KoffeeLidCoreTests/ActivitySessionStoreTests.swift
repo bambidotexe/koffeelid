@@ -40,6 +40,28 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.apply(ev(.sessionStart, at: 2, source: "compact")); XCTAssertEqual(state(), .working)
         store.apply(ev(.postCompact, at: 3)); XCTAssertEqual(state(), .working)
     }
+    func testAStaleCompactionSnapshotIsForgottenAtTheNextTurn() {
+        // A mid-turn compaction whose PostCompact was lost, then the turn's Stop.
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preCompact, at: 1, turn: "p1"))
+        store.apply(ev(.stop, at: 2, turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.preCompact, at: 3)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.postCompact, at: 4)); XCTAssertEqual(state(), .done, "the state this compaction found, not the lost one's")
+
+        // Each boundary forgets it: a prompt, an Interrupt, a SessionStart that is not a compaction's.
+        for boundary in [ev(.userPromptSubmit, "c1", at: 12, by: .codex, turn: "t2"), ev(.interrupt, "c1", at: 12, by: .codex, turn: "t1"),
+                         ev(.sessionStart, "c1", at: 12, source: "resume", by: .codex)] {
+            store = ActivitySessionStore()
+            store.apply(ev(.userPromptSubmit, "c1", at: 10, by: .codex, turn: "t1")); store.apply(ev(.preCompact, "c1", at: 11, by: .codex, turn: "t1"))
+            store.apply(boundary)
+            XCTAssertNil(store.sessions["c1"]?.stateBeforeCompaction, "\(boundary.event) is a turn boundary")
+        }
+
+        // Between two PreCompacts with no boundary, the first snapshot wins.
+        store = ActivitySessionStore()
+        store.apply(ev(.sessionStart, source: "startup")); XCTAssertEqual(state(), .idle)
+        store.apply(ev(.preCompact, at: 1)); store.apply(ev(.preCompact, at: 2)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.postCompact, at: 3)); XCTAssertEqual(state(), .idle, "a second PreCompact does not snapshot the first one's working")
+    }
     func testACompactSessionStartAloneChangesNothing() {
         store.apply(ev(.sessionStart, source: "startup")); XCTAssertEqual(state(), .idle)
         store.apply(ev(.sessionStart, at: 1, source: "compact")); XCTAssertEqual(state(), .idle)
@@ -279,6 +301,43 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
         store.apply(ev(.postToolUse, at: 31, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
     }
+    func testAToolCallAfterARegistryVerdictReopensTheTurn() {
+        // A dialog whose hook lines were lost: the registry's idle closes the turn while Claude Code waits.
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
+        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
+        store.apply(ev(.preToolUse, at: 40, tool: "Bash", turn: "p1"))
+        XCTAssertEqual(state(), .working, "a new tool call is never an aborted tool's straggler")
+        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, [], "the tool call opens the turn again, as a prompt does")
+        store.apply(ev(.postToolUse, at: 41, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .working)
+        XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0.addingTimeInterval(41), "the reopened turn's work counts")
+        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(70)); XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["p1"], "and a verdict closes it again")
+        store.apply(ev(.preToolUse, at: 80, tool: "AskUserQuestion", turn: "p1")); XCTAssertEqual(state(), .waiting, "a dialog's tool call reopens it into the dialog")
+    }
+    func testAToolCallAfterAnInterruptDoesNotReopenTheTurn() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.interrupt, "c1", at: 10, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.preToolUse, "c1", at: 12, tool: "Bash", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.preToolUse, "c1", at: 200, tool: "Bash", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done, "past the quarantine too: the id names the aborted turn")
+        XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1"]); XCTAssertEqual(store.sessions["c1"]?.lastMainEventAt, t0.addingTimeInterval(10))
+        // Only a prompt opens it; closed afterwards by a verdict, a tool call opens it again.
+        store.apply(ev(.userPromptSubmit, "c1", at: 210, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .working)
+        store.turnOver(sessionId: "c1", now: t0.addingTimeInterval(240)); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.preToolUse, "c1", at: 250, tool: "Bash", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .working, "the verdict's close is not the Interrupt's")
+    }
+    func testALatePostToolUseAfterAVerdictStillChangesNothing() {
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
+        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
+        store.apply(ev(.postToolUse, at: 31, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.postToolUseFailure, at: 32, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.permissionRequest, at: 33, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.permissionDenied, at: 34, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.stop, at: 35, turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.notification, at: 36, notif: "permission_prompt", turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.preCompact, at: 37, turn: "p1")); store.apply(ev(.postCompact, at: 38, turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.preToolUse, at: 39, tool: "Bash", agent: "h1", turn: "p1")); XCTAssertEqual(state(), .done, "a helper's tool call does not reopen it")
+        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["p1"]); XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0.addingTimeInterval(1))
+        XCTAssertEqual(store.sessions["s1"]?.lastEventAt, t0.addingTimeInterval(39), "the hook is alive")
+    }
     func testTheLostStopRescueEndsTheTurnWithoutClosingIt() {
         store.apply(ev(.userPromptSubmit, turn: "p1"))
         store.apply(ev(.notification, at: 60, notif: "idle_prompt", turn: "p1")); XCTAssertEqual(state(), .done)
@@ -362,6 +421,16 @@ final class ActivitySessionStoreTests: XCTestCase {
         (dialog + [verdict("dialog-answered", "s2", at: 40)]).forEach { replayDialog.apply($0) }
         XCTAssertEqual(replayDialog.sessions["s2"], liveDialog.sessions["s2"])
         XCTAssertEqual(replayDialog.sessions["s2"]?.state, .working); XCTAssertEqual(replayDialog.sessions["s2"]?.lastEventAt, t0.addingTimeInterval(5))
+    }
+    func testAVerdictThenALaterPromptReplaysInFileOrder() {
+        // The journal holds the live verdict, then the next prompt: replayed in that order, the prompt opens its turn.
+        let lines = [ev(.userPromptSubmit, turn: "p1"), ev(.preToolUse, at: 5, tool: "Bash", turn: "p1"),
+                     verdict("turn-over", at: 8), ev(.userPromptSubmit, at: 40, turn: "p2")]
+        lines.forEach { store.apply($0) }
+        XCTAssertEqual(state(), .working); XCTAssertEqual(store.sessions["s1"]?.lastMainTurnId, "p2")
+        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["p1"], "the verdict closed its own turn; the prompt's is open")
+        store.apply(ev(.postToolUse, at: 41, tool: "Bash", turn: "p2")); XCTAssertEqual(state(), .working)
+        store.apply(ev(.postToolUse, at: 42, tool: "Bash", turn: "p1")); XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0.addingTimeInterval(41), "the closed turn's straggler still changes nothing")
     }
     func testAVerdictForAnUnknownSessionIsIgnored() {
         store.apply(verdict("turn-over", "ghost", at: 10)); XCTAssertTrue(store.sessions.isEmpty, "a verdict never creates a session")

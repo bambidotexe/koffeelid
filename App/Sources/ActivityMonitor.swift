@@ -63,10 +63,16 @@ final class ActivityMonitor {
     /// answer that decided nothing: until then its rollout decides.
     private var askingDaemon: Set<String> = []
     private var daemonAskAgainAt: [String: Date] = [:]
+    /// When each Codex session's rollout was last read: with no event since, it is read again
+    /// `abandonRecheckSeconds` later at the earliest, however often the journal delivers other lines.
+    private var rolloutCheckedAt: [String: Date] = [:]
     private var warnedDaemonSilent = false
     private var warnedDaemonStatuses: Set<String> = []
     /// False until the launch checks have answered: nothing is counted or published before them.
     private var launched = false
+    /// How long launch waits for the daemon's `thread/loaded/list` before counting without it: twice the call's
+    /// own deadline, for a completion that never arrives.
+    private static let launchAnswerFallbackSeconds = 2 * CodexDaemonClient.deadlineSeconds
     private var launchGeneration = 0
     private var wakeObserver: NSObjectProtocol?
 
@@ -111,18 +117,27 @@ final class ActivityMonitor {
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
-        // The daemon answers within `CodexDaemonClient.deadlineSeconds`, or with nil.
+        // The daemon answers within `CodexDaemonClient.deadlineSeconds`, or with nil; should the answer never
+        // arrive, launch goes on without it after `launchAnswerFallbackSeconds`, and a later answer is dropped.
         guard !hosted.isEmpty, CodexDaemonClient.socketExists else { return finishLaunch() }
         let generation = launchGeneration
         CodexDaemonClient.loadedThreadIds { [weak self] loaded in
-            guard let self, self.started, self.launchGeneration == generation else { return }
+            guard let self, self.started, self.launchGeneration == generation, !self.launched else { return }
             self.daemonListed(loaded, asked: hosted)
             self.finishLaunch()
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.launchAnswerFallbackSeconds) { [weak self] in
+            Task { @MainActor in
+                guard let self, self.started, self.launchGeneration == generation, !self.launched else { return }
+                self.noteDaemonSilent()
+                self.finishLaunch()
+            }
+        }
     }
 
-    /// The rollout check of every working Codex session, then the first count.
+    /// The rollout check of every working Codex session, then the first count. Runs once per launch.
     private func finishLaunch() {
+        guard !launched else { return }
         checkCodex(now: Date(), atLaunch: true)
         launched = true
         sync()
@@ -136,7 +151,7 @@ final class ActivityMonitor {
         timer?.invalidate(); timer = nil
         if let o = wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(o) }
         // A question still out is answered into a stopped monitor and dropped; the next start asks afresh.
-        askingDaemon.removeAll(); daemonAskAgainAt.removeAll()
+        askingDaemon.removeAll(); daemonAskAgainAt.removeAll(); rolloutCheckedAt.removeAll()
     }
 
     /// Re-run every time rule against the wall clock (wake, preference change).
@@ -314,9 +329,11 @@ final class ActivityMonitor {
     /// is asked about there first (`thread/read`); the daemon's answer arrives later, on main. Every other
     /// session (the desktop app's included), and one the daemon could not decide, is read from its rollout.
     /// At launch every working Codex session is read from its rollout, without the quiet gate, the daemon
-    /// having answered `thread/loaded/list` already. Only ends turns.
+    /// having answered `thread/loaded/list` already. Live, a rollout read with no event since is read again
+    /// `abandonRecheckSeconds` later at the earliest. Only ends turns.
     private func checkCodex(now: Date, atLaunch: Bool) {
         daemonAskAgainAt = daemonAskAgainAt.filter { sessions.sessions[$0.key] != nil }
+        rolloutCheckedAt = rolloutCheckedAt.filter { sessions.sessions[$0.key] != nil }
         let daemonUp = !atLaunch && CodexDaemonClient.socketExists
         for (sid, recorded) in sessions.codexCandidates(at: now, quietSeconds: atLaunch ? 0 : ActivityConstants.abandonQuietSeconds) {
             guard let session = sessions.sessions[sid], !askingDaemon.contains(sid) else { continue }
@@ -328,6 +345,8 @@ final class ActivityMonitor {
                 }
                 continue
             }
+            if !atLaunch, let checked = rolloutCheckedAt[sid], session.lastEventAt <= checked,
+               now.timeIntervalSince(checked) < ActivityConstants.abandonRecheckSeconds { continue }
             checkRollout(sid: sid, recorded: recorded, now: now)
         }
     }
@@ -395,11 +414,14 @@ final class ActivityMonitor {
     /// named, each only where Codex keeps rollouts and named after the session; else the newest found.
     private func checkRollout(sid: String, recorded: String?, daemonPath: String? = nil, now: Date) {
         guard let session = sessions.sessions[sid] else { return }
+        rolloutCheckedAt[sid] = now
         let path = [recorded, daemonPath].compactMap { $0 }.first {
             CodexRolloutTail.isInSessions($0, sessionsDirectory: CodexRollout.sessionsDirectory) && CodexRolloutTail.isRollout(path: $0, ofSession: sid)
         } ?? CodexRollout.locate(sessionId: sid)
-        let verdict = path.flatMap(CodexRollout.read(path:)).map { CodexRolloutTail.verdict(tail: $0) } ?? .unreadable
-        switch CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt, lastMainTurnId: session.lastMainTurnId) {
+        let read = path.flatMap(CodexRollout.read(path:))
+        let verdict = read.map { CodexRolloutTail.verdict(tail: $0.tail) } ?? .unreadable
+        switch CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt, lastMainTurnId: session.lastMainTurnId,
+                                         writtenAt: read?.writtenAt, now: now) {
         case .turnOver(let reason, let endedAt):
             onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says \(reason), turn over")
             endTurn(sid, endedAt: endedAt, now: now)
@@ -410,7 +432,7 @@ final class ActivityMonitor {
             sessions.noteBusy(sessionId: sid, now: now)
         case .nothing:
             if verdict == .unreadable, warnedNoRollout.insert(sid).inserted {
-                onLog?("activity: no rollout for Codex session \(sid.prefix(8)); only staleness can end it")
+                onLog?("activity: no rollout for Codex session \(sid.prefix(8)); the daemon or staleness ends it")
             }
         }
     }

@@ -323,8 +323,8 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   launch prune read `<config>/sessions/<pid>.json`. `~/.claude` is the fallback for a session no line has
   named a path for (lines from before the field, tracking begun on a tool line); the `no registry record` line
   is then the sign it missed, and only staleness (2 h) ends such a session.
-- **Do not** read the process's environment for it (`ProcWalk.environmentValue` returns nil for another
-  process), and do not take the folder from a fixed depth: a helper's transcript sits deeper in the same folder.
+- **Do not** read the process's environment for it (macOS withholds another process's, even from `ps -E`), and
+  do not take the folder from a fixed depth: a helper's transcript sits deeper in the same folder.
 
 ### Hooks fire while the app is down
 - **What the code does.** The hook appends to a file with one `O_APPEND` write; the app replays this boot's
@@ -458,7 +458,8 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   64 KB (`CodexRollout`, `CodexRolloutTail`) for a working session quiet for 20 s, every 15 s, and for every
   working Codex session once at launch before anything counts. A `task_complete` or `turn_aborted` stamped
   after the last main-agent event, or naming that event's turn, is `turnOver` (`CodexRolloutTail.decision`);
-  a `task_started` with no end is `noteBusy`; anything else decides nothing. The kqueue stays: a host's own
+  a `task_started` with no end is `noteBusy` while the file was written within 2 h, and decides nothing once it
+  was not, so staleness ends a session whose Codex went quiet; anything else decides nothing. The kqueue stays: a host's own
   death still drops every session it hosted.
 - **Do not** treat every `codex app-server` as the managed daemon: the desktop app's `codex` carries the same
   argument, and the managed daemon, asked about a desktop-app thread, answers `notLoaded` and would end a live
@@ -485,8 +486,8 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   `thread/read` and `thread/loaded/list`, each call with 1 s overall from the moment it is asked, on a
   utility queue, non-blocking, the deadline checked before every read however many frames keep arriving. A
   ping or pong is read past; a refusal, a timeout, an `error`, a close, a masked frame, a fragment, an
-  over-long frame, an `initialize` answer without `userAgent`, a list with a `nextCursor`, or an answer of any
-  other shape is nil (`WebSocketFrame`, `CodexDaemonRPC`, `CodexThreadRecord` pin the shapes), and the rollout
+  over-long frame, an `initialize` answer without `userAgent`, a list with a `nextCursor`, a record whose
+  `thread.id` is not the thread asked about, or an answer of any other shape is nil (`WebSocketFrame`, `CodexDaemonRPC`, `CodexThreadRecord` pin the shapes), and the rollout
   decides. Only `notLoaded`, `idle` and `active` decide; any other status is the rollout's. Only a
   `hostedByManagedDaemon` session is asked, and an answer that arrives after the session changed is dropped.
 - **Do not** call any other method: the same socket starts turns, answers approvals and writes config. **Do

@@ -8,16 +8,6 @@ final class ProcWalkTests: XCTestCase {
         XCTAssertEqual(chain.dropFirst().first?.pid, getppid())
         XCTAssertTrue(chain.count >= 2)
     }
-    func testEnvironmentValueReadsTheExecTimeEnvironment() {
-        // KERN_PROCARGS2 holds the environment as it was at exec, and macOS withholds it for other
-        // processes (even `ps -E` shows none), so the parser is checked on our own process with a
-        // variable the runner inherited at launch. Callers treat nil as "unknown" and fall back.
-        let home = ProcessInfo.processInfo.environment["HOME"]
-        XCTAssertNotNil(home)
-        XCTAssertEqual(ProcWalk.environmentValue("HOME", forPid: getpid()), home)
-        XCTAssertNil(ProcWalk.environmentValue("KOFFEELID_NOT_SET_ANYWHERE", forPid: getpid()))
-        XCTAssertNil(ProcWalk.environmentValue("HOME", forPid: 2_000_000), "no such process reads as nil")
-    }
     func testARunningExecutableIsFoundByTheFileItIs() throws {
         // This test's own process is the one executable certain to be running.
         let own = try XCTUnwrap(ProcWalk.info(for: getpid())?.path)

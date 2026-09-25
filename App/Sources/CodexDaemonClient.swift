@@ -21,7 +21,7 @@ enum CodexDaemonClient {
     static var socketExists: Bool { resolvedSocket != nil }
 
     static func readThread(id: String, completion: @escaping @MainActor (CodexThreadRecord?) -> Void) {
-        call(CodexDaemonRPC.threadRead(threadId: id), read: CodexThreadRecord.parse, completion: completion)
+        call(CodexDaemonRPC.threadRead(threadId: id), read: { CodexThreadRecord.parse($0, expecting: id) }, completion: completion)
     }
 
     static func loadedThreadIds(completion: @escaping @MainActor (Set<String>?) -> Void) {

@@ -272,7 +272,9 @@ session among them; a session on a shared Codex host kept) → the jobs' shell p
 `checkRegistry(quietSeconds: 0)`, the registry rescue on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
 `thread/loaded/list` has ended each working session on the managed daemon whose thread the daemon does not
 hold (asked only when the managed daemon hosts one and its socket exists) → the first `sync()`. All of it comes before the first
-publish (`launched` holds `sync` back until the daemon's answer, at most 1 s) and only ends turns, but for a
+publish (`launched` holds `sync` back until the daemon's answer, at most 1 s; a 2 s fallback,
+`launchAnswerFallbackSeconds`, runs `finishLaunch` once should the answer never arrive, and a later answer is
+dropped) and only ends turns, but for a
 dialog the registry says was answered; the tailer starts at the byte offset the replay consumed. A separate
 tiny binary, not the app: it runs inside every Claude Code turn, every Codex turn and every shell command, so
 it must start fast, never launch the app and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
@@ -299,25 +301,29 @@ pid's path and arguments once and marks its sessions `hostedBySharedCodex` (`Pro
 |---|---|
 | `SessionStart` | `idle`, helpers and background ids cleared; unchanged when `source == "compact"` (helpers and background ids kept too) |
 | `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionDenied` | `working` |
-| `PreCompact` | `working`, remembering the state it found (`stateBeforeCompaction`) |
+| `PreCompact` | `working`, remembering the state it found (`stateBeforeCompaction`) unless an earlier `PreCompact` since the last turn boundary already did; a prompt, `Stop`, `Interrupt` or non-`compact` `SessionStart` forgets it |
 | `PostCompact` | restores `stateBeforeCompaction` (`working` if none was recorded) |
 | `PreToolUse` | `working`; `waiting` for `AskUserQuestion`, `ExitPlanMode` (Claude Code) and `request_user_input` (Codex) |
 | `PermissionRequest`, `StopFailure`; `Notification` of type `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog` | `waiting` |
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |
 | `Interrupt` (Codex only) | `done`, helpers and background ids cleared: Esc ended everything |
 | `Notification` `idle_prompt` / `agent_needs_input`, state `working`, 50 s of main-agent quiet | treated as a lost `Stop` |
-| any event of a turn an `Interrupt` or a verdict closed (`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`, `Stop`, …; a helper's too), but a prompt or a `SessionStart` | unchanged (liveness only) |
+| any event of a turn an `Interrupt` or a verdict closed (`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`, `Stop`, …; a helper's too), but a prompt, a `SessionStart`, or a main-agent `PreToolUse` of a turn a verdict closed | unchanged (liveness only) |
+| main-agent `PreToolUse` of a turn a verdict closed (not in `interruptedTurnIds`) | the turn opens again (its id leaves `closedTurnIds`), then as `PreToolUse` above |
 | helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`), and the next helper event ends that wait; a helper active after `done` reopens it |
 | `SessionEnd`, process exit | session removed |
 
 Turns: every main-agent event that carries a turn id, a prompt included, records it as `lastMainTurnId`. An
-`Interrupt` and `turnOver` close that turn (`closeTurn`: the id joins `closedTurnIds`, the last 8;
-`interruptedAt` records an `Interrupt`'s close). A main-agent `UserPromptSubmit` opens its turn whatever id it
-carries: it removes that id from `closedTurnIds` and clears `interruptedAt`. A `Stop` and the lost-`Stop`
+`Interrupt` and `turnOver` close that turn (`closeTurn`: the id joins `closedTurnIds`, the last 8, and an
+`Interrupt`'s id joins `interruptedTurnIds` too; `interruptedAt` records an `Interrupt`'s close). A main-agent
+`UserPromptSubmit` opens its turn whatever id it carries: it removes that id from `closedTurnIds` and
+`interruptedTurnIds` and clears `interruptedAt`. A main-agent `PreToolUse` of a turn `turnOver` closed opens it
+the same way: a new tool call is never an aborted tool's straggler, and the registry can close a turn waiting on
+a dialog whose hook lines were lost. A `Stop` and the lost-`Stop`
 notification end the turn without closing it: a Stop hook that blocks the Stop keeps the same turn running.
 Before the table applies, `changesNothing` sets aside, after refreshing `lastEventAt` and before
-`lastMainEventAt`: every main-agent event of a closed turn but a `SessionStart` or a prompt (`SessionEnd`
-removes the session before); every helper event of a closed turn; and, for 120 s after an `Interrupt`
+`lastMainEventAt`: every main-agent event of a closed turn but a `SessionStart`, a prompt, or a `PreToolUse`
+of a turn not in `interruptedTurnIds` (`SessionEnd` removes the session before); every helper event of a closed turn; and, for 120 s after an `Interrupt`
 (`abortQuarantineSeconds`), a main-agent tool or permission event with no turn id. A line without a turn id
 otherwise meets the table as it is.
 
@@ -346,17 +352,20 @@ session's `transcriptPath`'s config directory (`ClaudeRegistryRecord.configDir(f
 same gate and cadence, no pid needed, and no gate at launch). A `hostedByManagedDaemon` session is asked about at the
 daemon first while its socket exists (`CodexDaemonClient.readThread`, not at launch, one question out per
 session): the answer arrives on main and applies only if the session is still `working` with the same
-`lastMainEventAt` as when it was asked; `CodexThreadRecord.verdict` maps `notLoaded` and `idle` to
+`lastMainEventAt` as when it was asked; an answer whose `thread.id` is not the thread asked about is nil
+(`CodexThreadRecord.parse(_:expecting:)`); `CodexThreadRecord.verdict` maps `notLoaded` and `idle` to
 `turnOver`, `active` to `noteBusy` (the same 5 min warning), anything else to the rollout, as is a nil answer;
 after one of those two the daemon is not asked about that session again for 15 s, and the rollout decides
 meanwhile. The rollout check (every other session, and those): the session's `transcriptPath` when it sits
 under `~/.codex/sessions/<y>/<m>/<d>/` and names the session's own rollout (`CodexRolloutTail.isInSessions`,
 `isRollout`), else the daemon's `path` under the same rule, else the newest `~/.codex/sessions/*/*/*/rollout-*-<session id>.jsonl` (`CodexRollout.locate`);
-`CodexRollout.read` hands the last 64 KB of that regular file to `CodexRolloutTail.verdict`, which reads only
+`CodexRollout.read` hands the last 64 KB of that regular file, and its modification date, to `CodexRolloutTail.verdict`, which reads only
 the `event_msg` turn markers' type, stamp and turn id, and `CodexRolloutTail.decision` weighs it against the
 session: `task_complete` or `turn_aborted` stamped after the last main event, or naming `lastMainTurnId` →
-`turnOver`; `task_started` with no end → `noteBusy` (the same 5 min warning); an earlier turn's end, or
-unreadable → nothing, unreadable logged once per session. `nextDeadline` schedules both. `pruneDead` keeps a
+`turnOver`; `task_started` with no end, the file written less than 2 h before (`staleSeconds`) → `noteBusy`
+(the same 5 min warning), written earlier → nothing, so staleness ends the session; an earlier turn's end, or
+unreadable → nothing, unreadable logged once per session. A rollout read with no event since is read again 15 s
+later at the earliest (`rolloutCheckedAt`), however often `sync()` runs. `nextDeadline` schedules both. `pruneDead` keeps a
 `hostedBySharedCodex` session without asking about its pid; the kqueue on the host still drops them all when
 it exits. For a Claude Code session with a live pid, `pruneDead` asks `registrySession` for the session the pid's
 record names (read from the same directory as the rescues) and drops the session when it is another. Only `working` counts as running, and the snapshot counts it per agent (`claudeSessions`,

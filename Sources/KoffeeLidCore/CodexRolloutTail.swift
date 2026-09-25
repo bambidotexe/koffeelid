@@ -61,22 +61,27 @@ public enum CodexRolloutTail {
     public enum Decision: Equatable {
         /// The turn is over; `reason` is `finished` or `aborted`, and `at` is the end marker's stamp.
         case turnOver(reason: String, at: Date)
-        /// Codex is still working the turn.
-        case busy
+        /// Codex is still working the turn, and last wrote the rollout at `writtenAt` (nil when the file's date
+        /// could not be read).
+        case busy(writtenAt: Date?)
         case nothing
     }
     /// An end marker ends the turn when it is stamped after our last main-agent event, or when it names the
     /// turn that event belonged to: an aborted tool's `PostToolUse` can arrive after the `turn_aborted` it
     /// belongs to, so its stamp alone would keep the session working. An end of an earlier turn, stamped
-    /// before our last event, is that turn's; an unreadable tail decides nothing.
-    public static func decision(verdict: Verdict, lastMainEventAt: Date, lastMainTurnId: String?) -> Decision {
+    /// before our last event, is that turn's; an unreadable tail decides nothing. A start with no end is busy
+    /// only while Codex still writes the file: one last written `ActivityConstants.staleSeconds` or more before
+    /// `now` decides nothing, and staleness ends the session. The file's date never ends a turn.
+    public static func decision(verdict: Verdict, lastMainEventAt: Date, lastMainTurnId: String?, writtenAt: Date?, now: Date) -> Decision {
         func ends(_ at: Date, _ turn: String?) -> Bool {
             at > lastMainEventAt || (turn != nil && turn == lastMainTurnId)
         }
         switch verdict {
         case .complete(let at, let turn): return ends(at, turn) ? .turnOver(reason: "finished", at: at) : .nothing
         case .aborted(let at, let turn): return ends(at, turn) ? .turnOver(reason: "aborted", at: at) : .nothing
-        case .running: return .busy
+        case .running:
+            if let writtenAt, now.timeIntervalSince(writtenAt) >= ActivityConstants.staleSeconds { return .nothing }
+            return .busy(writtenAt: writtenAt)
         case .unreadable: return .nothing
         }
     }

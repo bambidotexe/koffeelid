@@ -98,30 +98,6 @@ public enum ProcWalk {
         return out
     }
 
-    /// One variable from a same-user process's environment (CLAUDE_CONFIG_DIR: the registry dir is per account).
-    public static func environmentValue(_ name: String, forPid pid: Int32) -> String? {
-        guard let buffer = procArgs(pid) else { return nil }
-        var argc: Int32 = 0
-        withUnsafeMutableBytes(of: &argc) { $0.copyBytes(from: buffer.prefix(MemoryLayout<Int32>.size)) }
-        var index = MemoryLayout<Int32>.size
-        while index < buffer.count, buffer[index] != 0 { index += 1 }   // exec path
-        while index < buffer.count, buffer[index] == 0 { index += 1 }   // padding
-        var remaining = argc
-        while remaining > 0, index < buffer.count {                      // argv[0]…argv[argc-1]
-            while index < buffer.count, buffer[index] != 0 { index += 1 }
-            index += 1; remaining -= 1
-        }
-        let prefix = Array("\(name)=".utf8)
-        while index < buffer.count {
-            var end = index
-            while end < buffer.count, buffer[end] != 0 { end += 1 }
-            if end == index { break }                                    // double NUL: past the environment
-            if buffer[index..<end].starts(with: prefix) { return String(decoding: buffer[(index + prefix.count)..<end], as: UTF8.self) }
-            index = end + 1
-        }
-        return nil
-    }
-
     /// Both real install shapes: the launcher `~/.local/bin/claude` and the versioned target
     /// `~/.local/share/claude/versions/<version>` (whose p_comm is the version string).
     public static func isClaudePath(_ path: String) -> Bool {

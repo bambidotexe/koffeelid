@@ -67,6 +67,8 @@ public enum ActivityTrim {
         if data.count > cap {
             var minimal = ActivityEvent(loggedAt: event.loggedAt, event: event.event)
             minimal.sessionId = event.sessionId.map { String($0.prefix(64)) }
+            // The turn id says whether the line belongs to a closed turn.
+            minimal.turnId = event.turnId.map { String($0.prefix(ActivityConstants.metadataMaxChars)) }
             minimal.jobId = event.jobId.map { String($0.prefix(64)) }
             data = try ActivityCodec.encodeLine(minimal)
         }

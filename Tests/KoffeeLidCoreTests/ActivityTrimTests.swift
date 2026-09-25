@@ -54,6 +54,19 @@ final class ActivityTrimTests: XCTestCase {
         XCTAssertLessThanOrEqual(line.count, ActivityConstants.journalLineMaxBytes)
         XCTAssertEqual(ActivityCodec.decodeLine(line)?.event, .stop)
     }
+    func testTheMinimalLineKeepsTheTurnId() throws {
+        var e = ActivityEvent(loggedAt: now, event: .postToolUse)
+        e.sessionId = String(repeating: "s", count: 5_000)
+        e.turnId = String(repeating: "t", count: 5_000)
+        e.jobId = "j1"
+        let line = try ActivityTrim.cappedLine(e)
+        XCTAssertLessThanOrEqual(line.count, ActivityConstants.journalLineMaxBytes)
+        let decoded = try XCTUnwrap(ActivityCodec.decodeLine(line))
+        XCTAssertEqual(decoded.event, .postToolUse)
+        XCTAssertEqual(decoded.sessionId?.count, 64); XCTAssertEqual(decoded.jobId, "j1")
+        XCTAssertEqual(decoded.turnId, String(repeating: "t", count: ActivityConstants.metadataMaxChars),
+                       "the turn id decides whether the line belongs to a closed turn")
+    }
     func testAnAgentOnlyPassesItsOwnEvents() {
         let interrupt = payload(["hook_event_name": "Interrupt", "session_id": "c1", "turn_id": "t1"])
         let codex = ActivityTrim.event(fromHookPayload: interrupt, agent: .codex, loggedAt: now)
