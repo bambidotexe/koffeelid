@@ -410,8 +410,12 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   (`SessionStart`, `UserPromptSubmit`, `Stop`, `Interrupt`), and `ActivityMonitor.checkCodex` reads its last
   64 KB (`CodexRollout`, `CodexRolloutTail`) for a working session quiet for 20 s, every 15 s, and for every
   working Codex session once at launch before anything counts. A `task_complete` or `turn_aborted` stamped
-  after the last main-agent event is `turnOver`; a `task_started` with no end is `noteBusy`; anything else
-  decides nothing. The kqueue stays: the daemon's own death still drops every session it hosted.
+  after the last main-agent event, or naming that event's turn, is `turnOver` (`CodexRolloutTail.decision`);
+  a `task_started` with no end is `noteBusy`; anything else decides nothing. The kqueue stays: the daemon's
+  own death still drops every session it hosted.
+- **Do not** judge an end marker by its stamp alone: when the `Interrupt` hook is lost, the aborted tool's
+  late `PostToolUse` becomes the last main-agent event, stamped after the `turn_aborted` it belongs to, and
+  the session would stay working for 2 h. Its turn id is the same as the marker's.
 - **Do not** read the rollout's modification time as an end: a tool that sleeps for half an hour writes
   nothing for half an hour. **Do not** count an `item_completed` as a turn marker: Codex writes one for an
   aborted call after the abort. **Do not** keep, log or return anything of a rollout line but its type, its

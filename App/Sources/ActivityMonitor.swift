@@ -77,9 +77,11 @@ final class ActivityMonitor {
         sessions.pruneDead { pid, agent in ProcWalk.isAlive(pid: pid) && ProcWalk.looksLike(agent, pid: pid) }
         for job in jobs.jobs.values { if let pid = job.ownerPid, !ProcWalk.isAlive(pid: pid) { jobs.processExited(pid: pid) } }
         onLog?("activity: replayed \(replayed.count) events, \(sessions.sessions.count) sessions, \(jobs.jobs.count) jobs")
-        // Before anything counts: a replayed Codex turn that ended while the app was down ends here. This
-        // check only ends turns; nothing replayed is started by it.
-        checkCodex(now: Date(), atLaunch: true)
+        // Before anything counts: the time rules drop what went stale while the app was down, then a replayed
+        // Codex turn that ended meanwhile ends here. This check only ends turns; nothing replayed is started by it.
+        let launch = Date()
+        sessions.tick(now: launch); jobs.tick(now: launch)
+        checkCodex(now: launch, atLaunch: true)
         rotateIfNeeded()
         // Live: replay consumed currentData.count bytes of the current journal; the tailer begins exactly
         // there, so nothing already replayed is applied twice and anything appended since is still delivered.
@@ -226,24 +228,23 @@ final class ActivityMonitor {
     private func checkCodex(now: Date, atLaunch: Bool) {
         for (sid, recorded) in sessions.codexCandidates(at: now, quietSeconds: atLaunch ? 0 : ActivityConstants.abandonQuietSeconds) {
             guard let session = sessions.sessions[sid] else { continue }
-            let path = recorded.flatMap { CodexRolloutTail.isRollout(path: $0, ofSession: sid) ? $0 : nil } ?? CodexRollout.locate(sessionId: sid)
+            let path = recorded.flatMap {
+                CodexRolloutTail.isInSessions($0, sessionsDirectory: CodexRollout.sessionsDirectory) && CodexRolloutTail.isRollout(path: $0, ofSession: sid) ? $0 : nil
+            } ?? CodexRollout.locate(sessionId: sid)
             let verdict = path.flatMap(CodexRollout.read(path:)).map { CodexRolloutTail.verdict(tail: $0) } ?? .unreadable
-            switch verdict {
-            case .complete(let at) where at > session.lastMainEventAt:
-                onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says finished, turn over")
+            switch CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt, lastMainTurnId: session.lastMainTurnId) {
+            case .turnOver(let reason):
+                onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says \(reason), turn over")
                 sessions.turnOver(sessionId: sid, now: now)
-            case .aborted(let at) where at > session.lastMainEventAt:
-                onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says aborted, turn over")
-                sessions.turnOver(sessionId: sid, now: now)
-            case .running:
+            case .busy:
                 if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                     onLog?("activity: hooks look dead for \(sid.prefix(8)) — rollout says running, no hook for 5 min")
                 }
                 sessions.noteBusy(sessionId: sid, now: now)
-            case .unreadable:
-                if warnedNoRollout.insert(sid).inserted { onLog?("activity: no rollout for Codex session \(sid.prefix(8)); only staleness can end it") }
-            case .complete, .aborted:
-                break // an end stamped before our last event is the previous turn's
+            case .nothing:
+                if verdict == .unreadable, warnedNoRollout.insert(sid).inserted {
+                    onLog?("activity: no rollout for Codex session \(sid.prefix(8)); only staleness can end it")
+                }
             }
         }
     }

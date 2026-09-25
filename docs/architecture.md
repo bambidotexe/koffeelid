@@ -265,8 +265,8 @@ zsh preexec/precmd ┴▶ KoffeeLidHook ─▶ activity.jsonl ─▶ ActivityJou
 
 A file, not a socket: hooks fire while the app is down or being relaunched, and the journal is replayed at
 launch (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`; dead or recycled pids pruned,
-but a session on Codex's daemon kept; then the rollout check runs on every working Codex session, before the
-first publish, and can only end turns; the tailer starts at the byte offset the replay consumed). A separate
+but a session on Codex's daemon kept; then the time rules run, so a stale session is dropped, and the rollout
+check runs on every working Codex session, before the first publish, and can only end turns; the tailer starts at the byte offset the replay consumed). A separate
 tiny binary, not the app: it runs inside every Claude Code turn, every Codex turn and every shell command, so
 it must start fast, never launch the app and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
 Codex), never the payload: both agents send the same event names.
@@ -318,12 +318,14 @@ for 2 h is removed. Registry rescues (`ActivityMonitor.checkRegistry`), for Clau
 `idle` stamped after the last main event → `turnOver`; registry `busy` → `noteBusy` (and one warning after
 5 min without a hook); a `waiting` session whose registry says `busy` stamped 2 s after the wait began →
 `dialogAnswered`. Rollout checks (`ActivityMonitor.checkCodex`), for Codex sessions (`codexCandidates`, the
-same gate and cadence, no pid needed, and no gate at launch): the session's `transcriptPath` when it names
-the session's own rollout, else the newest `~/.codex/sessions/*/*/*/rollout-*-<session id>.jsonl`
-(`CodexRollout.locate`); `CodexRollout.read` hands its last 64 KB to `CodexRolloutTail.verdict`, which reads
-only the `event_msg` turn markers' type, stamp and turn id; `task_complete` or `turn_aborted` stamped after
-the last main event → `turnOver`; `task_started` with no end → `noteBusy` (the same 5 min warning);
-unreadable → nothing, logged once per session. `nextDeadline` schedules both. `pruneDead` keeps a
+same gate and cadence, no pid needed, and no gate at launch): the session's `transcriptPath` when it sits
+under `~/.codex/sessions/<y>/<m>/<d>/` and names the session's own rollout (`CodexRolloutTail.isInSessions`,
+`isRollout`), else the newest `~/.codex/sessions/*/*/*/rollout-*-<session id>.jsonl` (`CodexRollout.locate`);
+`CodexRollout.read` hands the last 64 KB of that regular file to `CodexRolloutTail.verdict`, which reads only
+the `event_msg` turn markers' type, stamp and turn id, and `CodexRolloutTail.decision` weighs it against the
+session: `task_complete` or `turn_aborted` stamped after the last main event, or naming `lastMainTurnId` →
+`turnOver`; `task_started` with no end → `noteBusy` (the same 5 min warning); an earlier turn's end, or
+unreadable → nothing, unreadable logged once per session. `nextDeadline` schedules both. `pruneDead` keeps a
 `hostedByDaemon` session without asking about its pid; the kqueue on the daemon still drops them all when it
 exits. Only `working` counts as running, and the snapshot counts it per agent (`claudeSessions`,
 `codexSessions`).

@@ -120,11 +120,13 @@ up any of the three hooks from that page or from the onboarding turns it on.
   pid its hooks record is the daemon's, so only the daemon's death drops its sessions. `codex exec` and the
   desktop app record their own process, and their death drops their sessions. Every Codex hook names the
   session's rollout file (`transcript_path`), and a working Codex session quiet for 20 s with nothing out is
-  checked against it every 15 s, and once at launch before anything counts: a `task_complete` or
-  `turn_aborted` stamped after the last main-agent event ends the turn, however it ended, and closes it; a
-  `task_started` with no end keeps it alive; a rollout that cannot be read decides nothing, and a path that
-  names another session's rollout is never read. The launch check only ends turns. Anything silent for 2 h is
-  dropped.
+  checked against it every 15 s, and once at launch before anything counts, after the 2 h rule below: a
+  `task_complete` or `turn_aborted` that is stamped after the last main-agent event, or that names the turn
+  that event belonged to, ends the turn, however it ended, and closes it (the late `PostToolUse` of a tool
+  Codex aborted arrives after the `turn_aborted`, under the same turn id); an end of an earlier turn stamped
+  before that event decides nothing; a `task_started` with no end keeps it alive; a rollout that cannot be
+  read decides nothing, and only a path under `~/.codex/sessions/` that names the session's own rollout is
+  read. The launch check only ends turns. Anything silent for 2 h is dropped.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after

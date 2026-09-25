@@ -9,10 +9,10 @@ public enum CodexRolloutTail {
     public enum Verdict: Equatable {
         /// The last turn marker is a start with no end: Codex is working.
         case running(turnId: String?)
-        /// The last turn finished at `at`, however it ended.
-        case complete(at: Date)
-        /// The last turn was aborted at `at` (Esc, Ctrl-C).
-        case aborted(at: Date)
+        /// The last turn, `turnId`, finished at `at`, however it ended.
+        case complete(at: Date, turnId: String?)
+        /// The last turn, `turnId`, was aborted at `at` (Esc, Ctrl-C).
+        case aborted(at: Date, turnId: String?)
         /// No turn marker could be read: nothing is decided.
         case unreadable
     }
@@ -44,6 +44,43 @@ public enum CodexRolloutTail {
         return name.hasPrefix("rollout-") && name.hasSuffix("-\(sessionId).jsonl")
     }
 
+    /// Whether `path` sits where Codex keeps rollouts: `<sessionsDirectory>/<yyyy>/<mm>/<dd>/<file>`, absolute,
+    /// with no `.` or `..` component. A recorded path is read only then, so a forged journal line cannot point
+    /// the reader at another file.
+    public static func isInSessions(_ path: String, sessionsDirectory: String) -> Bool {
+        let root = sessionsDirectory.split(separator: "/", omittingEmptySubsequences: true)
+        let parts = path.split(separator: "/", omittingEmptySubsequences: true)
+        guard path.hasPrefix("/"), sessionsDirectory.hasPrefix("/"), !root.isEmpty,
+              !parts.contains(where: { $0 == "." || $0 == ".." }), !root.contains(where: { $0 == "." || $0 == ".." }),
+              parts.count == root.count + 4 else { return false }
+        return Array(parts.prefix(root.count)) == root
+    }
+
+    /// What a verdict means for a quiet working session whose last main-agent event is `lastMainEventAt`,
+    /// carrying the turn id `lastMainTurnId`.
+    public enum Decision: Equatable {
+        /// The turn is over; `reason` is `finished` or `aborted`.
+        case turnOver(reason: String)
+        /// Codex is still working the turn.
+        case busy
+        case nothing
+    }
+    /// An end marker ends the turn when it is stamped after our last main-agent event, or when it names the
+    /// turn that event belonged to: an aborted tool's `PostToolUse` can arrive after the `turn_aborted` it
+    /// belongs to, so its stamp alone would keep the session working. An end of an earlier turn, stamped
+    /// before our last event, is that turn's; an unreadable tail decides nothing.
+    public static func decision(verdict: Verdict, lastMainEventAt: Date, lastMainTurnId: String?) -> Decision {
+        func ends(_ at: Date, _ turn: String?) -> Bool {
+            at > lastMainEventAt || (turn != nil && turn == lastMainTurnId)
+        }
+        switch verdict {
+        case .complete(let at, let turn): return ends(at, turn) ? .turnOver(reason: "finished") : .nothing
+        case .aborted(let at, let turn): return ends(at, turn) ? .turnOver(reason: "aborted") : .nothing
+        case .running: return .busy
+        case .unreadable: return .nothing
+        }
+    }
+
     private static let eventMessage = Data("\"event_msg\"".utf8)
     private static let markerTypes: Set<String> = ["task_started", "task_complete", "turn_aborted"]
 
@@ -57,8 +94,8 @@ public enum CodexRolloutTail {
         else { return nil }
         switch kind {
         case "task_started": return .running(turnId: payload["turn_id"] as? String)
-        case "task_complete": return .complete(at: at)
-        default: return .aborted(at: at)
+        case "task_complete": return .complete(at: at, turnId: payload["turn_id"] as? String)
+        default: return .aborted(at: at, turnId: payload["turn_id"] as? String)
         }
     }
 }

@@ -23,7 +23,7 @@ final class CodexRolloutTailTests: XCTestCase {
             line("response_item", "custom_tool_call_output", at: "2026-09-25T18:52:34.665Z"),
             line("event_msg", "turn_aborted", at: "2026-09-25T18:52:34.702Z", turn: "t1", extra: "\"reason\":\"interrupted\""),
         ])
-        XCTAssertEqual(CodexRolloutTail.verdict(tail: rollout), .aborted(at: date("2026-09-25T18:52:34.702Z")))
+        XCTAssertEqual(CodexRolloutTail.verdict(tail: rollout), .aborted(at: date("2026-09-25T18:52:34.702Z"), turnId: "t1"))
     }
     func testATaskCompleteIsAFinish() {
         let rollout = tail([
@@ -32,7 +32,7 @@ final class CodexRolloutTailTests: XCTestCase {
             line("event_msg", "task_complete", at: "2026-09-25T19:00:09.250Z", turn: "t1"),
             line("event_msg", "token_count", at: "2026-09-25T19:00:09.300Z"),
         ])
-        XCTAssertEqual(CodexRolloutTail.verdict(tail: rollout), .complete(at: date("2026-09-25T19:00:09.250Z")))
+        XCTAssertEqual(CodexRolloutTail.verdict(tail: rollout), .complete(at: date("2026-09-25T19:00:09.250Z"), turnId: "t1"))
     }
     func testAStrayItemCompletedAfterTheAbortIsNotATurnMarker() {
         let rollout = tail([
@@ -41,7 +41,7 @@ final class CodexRolloutTailTests: XCTestCase {
             line("event_msg", "item_completed", at: "2026-09-25T18:52:47.344Z", turn: "t1"),
             line("event_msg", "thread_settings_applied", at: "2026-09-25T18:52:48.000Z"),
         ])
-        XCTAssertEqual(CodexRolloutTail.verdict(tail: rollout), .aborted(at: date("2026-09-25T18:52:34.702Z")))
+        XCTAssertEqual(CodexRolloutTail.verdict(tail: rollout), .aborted(at: date("2026-09-25T18:52:34.702Z"), turnId: "t1"))
     }
     func testTaskStartedWithoutAnEndIsStillRunning() {
         let rollout = tail([
@@ -88,5 +88,52 @@ final class CodexRolloutTailTests: XCTestCase {
         XCTAssertFalse(CodexRolloutTail.isRollout(path: "/Users/x/.claude/projects/p/\(sid).jsonl", ofSession: sid), "not a rollout file")
         XCTAssertFalse(CodexRolloutTail.isRollout(path: "/Users/x/rollout-\(sid).jsonl.bak", ofSession: sid))
         XCTAssertFalse(CodexRolloutTail.isRollout(path: "/Users/x/rollout-\(sid).jsonl", ofSession: ""))
+    }
+    func testARecordedPathOutsideCodexsSessionsIsNotRead() {
+        let sessions = "/Users/x/.codex/sessions"
+        XCTAssertTrue(CodexRolloutTail.isInSessions("/Users/x/.codex/sessions/2026/09/25/rollout-a.jsonl", sessionsDirectory: sessions))
+        XCTAssertTrue(CodexRolloutTail.isInSessions("/Users/x/.codex/sessions/2026/09/25/rollout-a.jsonl", sessionsDirectory: sessions + "/"))
+        XCTAssertFalse(CodexRolloutTail.isInSessions("/tmp/fifo/rollout-a.jsonl", sessionsDirectory: sessions))
+        XCTAssertFalse(CodexRolloutTail.isInSessions("/Users/x/.codex/sessions-old/2026/09/25/rollout-a.jsonl", sessionsDirectory: sessions))
+        XCTAssertFalse(CodexRolloutTail.isInSessions("/Users/x/.codex/sessions/2026/../../../../etc/rollout-a.jsonl", sessionsDirectory: sessions), "no way out")
+        XCTAssertFalse(CodexRolloutTail.isInSessions("/Users/x/.codex/sessions/./2026/09/rollout-a.jsonl", sessionsDirectory: sessions))
+        XCTAssertFalse(CodexRolloutTail.isInSessions("/Users/x/.codex/sessions/rollout-a.jsonl", sessionsDirectory: sessions), "a rollout sits three folders down")
+        XCTAssertFalse(CodexRolloutTail.isInSessions("/Users/x/.codex/sessions/2026/09/25/26/rollout-a.jsonl", sessionsDirectory: sessions))
+        XCTAssertFalse(CodexRolloutTail.isInSessions("Users/x/.codex/sessions/2026/09/25/rollout-a.jsonl", sessionsDirectory: sessions), "absolute only")
+        XCTAssertFalse(CodexRolloutTail.isInSessions("/Users/x/.codex/sessions/2026/09/25/rollout-a.jsonl", sessionsDirectory: ""))
+    }
+
+    // MARK: The decision
+
+    let lastEvent = Date(timeIntervalSince1970: 1_790_000_000)
+    func decide(_ verdict: CodexRolloutTail.Verdict, lastTurn: String? = "t1") -> CodexRolloutTail.Decision {
+        CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: lastEvent, lastMainTurnId: lastTurn)
+    }
+    func testAnEndMarkerAfterOurLastEventEndsTheTurn() {
+        XCTAssertEqual(decide(.complete(at: lastEvent.addingTimeInterval(1), turnId: "t9")), .turnOver(reason: "finished"))
+        XCTAssertEqual(decide(.aborted(at: lastEvent.addingTimeInterval(0.001), turnId: nil), lastTurn: nil), .turnOver(reason: "aborted"))
+    }
+    func testAnEndMarkerNamingOurTurnEndsItEvenWhenStampedEarlier() {
+        // The Interrupt hook lost: the aborted tool's late PostToolUse, of the same turn, is our last main
+        // event, 13 s after the rollout's turn_aborted.
+        let marker = lastEvent.addingTimeInterval(-13)
+        XCTAssertEqual(decide(.aborted(at: marker, turnId: "t1")), .turnOver(reason: "aborted"))
+        XCTAssertEqual(decide(.complete(at: marker, turnId: "t1")), .turnOver(reason: "finished"))
+        XCTAssertEqual(decide(.aborted(at: lastEvent, turnId: "t1")), .turnOver(reason: "aborted"), "the same instant, the same turn")
+    }
+    func testAnEndMarkerOfAnEarlierTurnStampedEarlierDecidesNothing() {
+        let earlier = lastEvent.addingTimeInterval(-30)
+        XCTAssertEqual(decide(.complete(at: earlier, turnId: "t0")), .nothing, "the previous turn's end, before our prompt")
+        XCTAssertEqual(decide(.aborted(at: earlier, turnId: nil)), .nothing, "a marker without an id proves its stamp only")
+        XCTAssertEqual(decide(.complete(at: earlier, turnId: "t1"), lastTurn: nil), .nothing, "no turn of ours to name")
+        XCTAssertEqual(decide(.complete(at: lastEvent, turnId: "t0")), .nothing, "not after our last event")
+    }
+    func testARunningMarkerIsBusy() {
+        XCTAssertEqual(decide(.running(turnId: "t1")), .busy)
+        XCTAssertEqual(decide(.running(turnId: nil), lastTurn: nil), .busy)
+    }
+    func testAnUnreadableTailDecidesNothing() {
+        XCTAssertEqual(decide(.unreadable), .nothing)
+        XCTAssertEqual(decide(CodexRolloutTail.verdict(tail: Data("garbage".utf8))), .nothing)
     }
 }

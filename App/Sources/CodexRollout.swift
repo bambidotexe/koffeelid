@@ -6,9 +6,16 @@ import KoffeeLidCore
 /// `CodexRolloutTail.tailBytes` are read, and the bytes go nowhere but the parser: the file holds the
 /// whole conversation.
 enum CodexRollout {
-    /// The last `CodexRolloutTail.tailBytes` of the file at `path`, or nil when it cannot be read.
+    /// `~/.codex/sessions`, where Codex keeps every rollout.
+    static var sessionsDirectory: String {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions").path
+    }
+
+    /// The last `CodexRolloutTail.tailBytes` of the regular file at `path`, or nil when it cannot be read. A
+    /// FIFO or a device is never opened: opening one could block the main thread.
     static func read(path: String) -> Data? {
-        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        guard (try? FileManager.default.attributesOfItem(atPath: path))?[.type] as? FileAttributeType == .typeRegular,
+              let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? handle.close() }
         guard let size = try? handle.seekToEnd() else { return nil }
         let start = size > UInt64(CodexRolloutTail.tailBytes) ? size - UInt64(CodexRolloutTail.tailBytes) : 0
@@ -20,7 +27,7 @@ enum CodexRollout {
     /// named no path. A session id that is not a plain id (letters, digits, dashes) finds nothing.
     static func locate(sessionId: String) -> String? {
         guard !sessionId.isEmpty, sessionId.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }) else { return nil }
-        let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions").path
+        let root = sessionsDirectory
         var matches = glob_t()
         defer { globfree(&matches) }
         guard glob("\(root)/*/*/*/rollout-*-\(sessionId).jsonl", 0, nil, &matches) == 0 else { return nil }
