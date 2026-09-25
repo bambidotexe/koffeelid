@@ -424,8 +424,8 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 
 ### The daemon's protocol is undocumented and versioned
 - **Symptom.** After a Codex update, a quiet TUI session is decided by its rollout only, and the log carries
-  `activity: Codex daemon not answering; using the rollout` or `activity: Codex daemon reports an unknown
-  thread status …` once per launch.
+  `activity: Codex daemon not answering; using the rollout` (once per launch) or `activity: Codex daemon
+  reports an unknown thread status …` (once per status value).
 - **Why.** The control socket is Codex's app-server `v2` protocol over a WebSocket on a unix socket, meant for
   Codex's own clients, with no documentation or stability promise; a token, a renamed method, a reshaped
   answer or a new status would each break the reading. It also runs only the TUI's threads: a `codex exec`
@@ -433,8 +433,9 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   it `notLoaded` or leave it out of its list while it works.
 - **What the code does.** Fails closed. `CodexDaemonClient` sends only `initialize`, `initialized`,
   `thread/read` and `thread/loaded/list`, each call with 1 s overall from the moment it is asked, on a
-  utility queue, non-blocking. A refusal, a timeout, an `error`, a frame that is not a final unmasked text or
-  binary frame, an `initialize` answer without `userAgent`, a list with a `nextCursor`, or an answer of any
+  utility queue, non-blocking, the deadline checked before every read however many frames keep arriving. A
+  ping or pong is read past; a refusal, a timeout, an `error`, a close, a masked frame, a fragment, an
+  over-long frame, an `initialize` answer without `userAgent`, a list with a `nextCursor`, or an answer of any
   other shape is nil (`WebSocketFrame`, `CodexDaemonRPC`, `CodexThreadRecord` pin the shapes), and the rollout
   decides. Only `notLoaded`, `idle` and `active` decide; any other status is the rollout's. Only a
   `hostedByDaemon` session is asked, and an answer that arrives after the session changed is dropped.

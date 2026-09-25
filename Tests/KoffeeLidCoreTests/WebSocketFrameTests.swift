@@ -33,33 +33,50 @@ final class WebSocketFrameTests: XCTestCase {
 
     func testAServerTextFrameDecodes() {
         let hello = Data([0x81, 0x05]) + Data("hello".utf8) + Data([0x81])
-        let decoded = WebSocketFrame.decode(hello)
-        XCTAssertEqual(decoded?.payload, Data("hello".utf8))
-        XCTAssertEqual(decoded?.consumed, 7, "the next frame's first byte is left in the buffer")
+        XCTAssertEqual(WebSocketFrame.decode(hello), .frame(payload: Data("hello".utf8), consumed: 7),
+                       "the next frame's first byte is left in the buffer")
 
         let medium = Data(repeating: 0x62, count: 300)
-        let sixteen = Data([0x81, 126, 0x01, 0x2C]) + medium
-        XCTAssertEqual(WebSocketFrame.decode(sixteen)?.payload, medium)
-        XCTAssertEqual(WebSocketFrame.decode(sixteen)?.consumed, 304)
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x81, 126, 0x01, 0x2C]) + medium), .frame(payload: medium, consumed: 304))
 
         let large = Data(repeating: 0x63, count: 70_000)
         let sixtyFour = Data([0x82, 127, 0, 0, 0, 0, 0, 0x01, 0x11, 0x70]) + large
-        XCTAssertEqual(WebSocketFrame.decode(sixtyFour)?.payload, large, "a binary frame decodes too")
-        XCTAssertEqual(WebSocketFrame.decode(sixtyFour)?.consumed, 70_010)
+        XCTAssertEqual(WebSocketFrame.decode(sixtyFour), .frame(payload: large, consumed: 70_010), "a binary frame decodes too")
     }
 
     func testAShortFragmentDecodesToNil() {
-        XCTAssertNil(WebSocketFrame.decode(Data()))
-        XCTAssertNil(WebSocketFrame.decode(Data([0x81])))
-        XCTAssertNil(WebSocketFrame.decode(Data([0x81, 0x05]) + Data("hel".utf8)), "shorter than its length")
-        XCTAssertNil(WebSocketFrame.decode(Data([0x81, 126, 0x01])), "its 16-bit length is cut")
-        XCTAssertNil(WebSocketFrame.decode(Data([0x81, 127, 0, 0, 0])), "its 64-bit length is cut")
+        XCTAssertEqual(WebSocketFrame.decode(Data()), .incomplete)
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x81])), .incomplete)
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x81, 0x05]) + Data("hel".utf8)), .incomplete, "shorter than its length")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x81, 126, 0x01])), .incomplete, "its 16-bit length is cut")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x81, 127, 0, 0, 0])), .incomplete, "its 64-bit length is cut")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x89, 0x04, 0x01])), .incomplete, "a ping still arriving")
     }
 
-    func testAFrameThatIsNotAWholeServerAnswerDecodesToNil() {
-        XCTAssertNil(WebSocketFrame.decode(Data([0x81, 0x85, 1, 2, 3, 4]) + Data("hello".utf8)), "a server frame is never masked")
-        XCTAssertNil(WebSocketFrame.decode(Data([0x01, 0x05]) + Data("hello".utf8)), "a fragment of a longer message")
-        XCTAssertNil(WebSocketFrame.decode(Data([0x88, 0x02, 0x03, 0xE8])), "a close frame carries no answer")
-        XCTAssertNil(WebSocketFrame.decode(Data([0x81, 127, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])), "a length no answer has")
+    func testAPingBeforeTheReplyIsSkipped() {
+        let reply = Data([0x81, 0x02]) + Data("{}".utf8)
+        let stream = Data([0x89, 0x04]) + Data("ping".utf8) + reply
+        XCTAssertEqual(WebSocketFrame.decode(stream), .skip(consumed: 6))
+        XCTAssertEqual(WebSocketFrame.decode(stream.dropFirst(6)), .frame(payload: Data("{}".utf8), consumed: 4))
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x8A, 0x00]) + reply), .skip(consumed: 2), "a pong is skipped too")
+    }
+
+    func testACloseEndsTheCall() {
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x88, 0x02, 0x03, 0xE8])), .closed)
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x88, 0x00])), .closed)
+    }
+
+    func testAMaskedFrameIsInvalid() {
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x81, 0x85, 1, 2, 3, 4]) + Data("hello".utf8)), .invalid, "a server frame is never masked")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x81, 0x85])), .invalid, "known from its second byte, before the rest arrives")
+    }
+
+    func testAFrameThatCanNeverBeAnAnswerIsInvalid() {
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x01, 0x05]) + Data("hello".utf8)), .invalid, "the first fragment of a longer message")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x80, 0x05]) + Data("hello".utf8)), .invalid, "a continuation")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x83, 0x00])), .invalid, "a reserved opcode")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x09, 0x00])), .invalid, "a fragmented control frame")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x89, 126, 0x00, 0x7E])), .invalid, "a control frame longer than 125 bytes")
+        XCTAssertEqual(WebSocketFrame.decode(Data([0x81, 127, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])), .invalid, "a length no answer has")
     }
 }

@@ -128,6 +128,8 @@ final class ActivityMonitor {
         tailer.stop()
         timer?.invalidate(); timer = nil
         if let o = wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(o) }
+        // A question still out is answered into a stopped monitor and dropped; the next start asks afresh.
+        askingDaemon.removeAll(); daemonAskAgainAt.removeAll()
     }
 
     /// Re-run every time rule against the wall clock (wake, preference change).
@@ -279,7 +281,7 @@ final class ActivityMonitor {
         guard started, launched, let session = sessions.sessions[sid], session.state == .working, !session.pendingDone,
               session.lastMainEventAt == asked else { return }
         let now = Date()
-        let verdict = record?.verdict(lastMainEventAt: session.lastMainEventAt) ?? .undecided
+        let verdict = record?.verdict ?? .undecided
         if record == nil { noteDaemonSilent() }
         switch verdict {
         case .over:

@@ -108,6 +108,7 @@ enum CodexDaemonClient {
         mutating func head() -> String? {
             let blank = Data("\r\n\r\n".utf8)
             while true {
+                guard !expired else { return nil }
                 if let end = buffer.range(of: blank) {
                     let head = String(decoding: buffer[buffer.startIndex..<end.lowerBound], as: UTF8.self)
                     buffer = Data(buffer[end.upperBound...])
@@ -117,26 +118,38 @@ enum CodexDaemonClient {
             }
         }
 
-        /// The payload of the frame answering `id`, reading past notifications; nil for an error, a frame
-        /// that is not an answer, the end of the stream or the deadline.
+        /// The payload of the frame answering `id`, reading past notifications, pings and pongs; nil for an
+        /// error, a close, a frame that can never be an answer, the end of the stream or the deadline, which
+        /// holds however many frames keep arriving.
         mutating func answer(to id: Int) -> Data? {
             while true {
-                if let frame = WebSocketFrame.decode(buffer) {
-                    buffer = Data(buffer.dropFirst(frame.consumed))
-                    switch CodexDaemonRPC.answer(frame.payload, to: id) {
+                guard !expired else { return nil }
+                switch WebSocketFrame.decode(buffer) {
+                case .frame(let payload, let consumed):
+                    buffer = Data(buffer.dropFirst(consumed))
+                    switch CodexDaemonRPC.answer(payload, to: id) {
                     case .unrelated: continue
-                    case .result: return frame.payload
+                    case .result: return payload
                     case .failed: return nil
                     }
+                case .skip(let consumed):
+                    buffer = Data(buffer.dropFirst(consumed))
+                case .closed, .invalid:
+                    return nil
+                case .incomplete:
+                    guard fill() else { return nil }
                 }
-                guard buffer.count <= WebSocketFrame.maxPayloadBytes + 14, fill() else { return nil }
             }
         }
 
-        /// Reads what has arrived, waiting for it until the deadline; false at the end of the stream.
+        var expired: Bool { DispatchTime.now().uptimeNanoseconds >= deadline }
+
+        /// Reads what has arrived, waiting for it until the deadline; false at the end of the stream or past
+        /// the deadline, even while bytes keep coming.
         mutating func fill() -> Bool {
             var chunk = [UInt8](repeating: 0, count: 16 * 1024)
             while true {
+                guard !expired else { return false }
                 let n = Darwin.read(fd, &chunk, chunk.count)
                 if n > 0 { buffer.append(contentsOf: chunk[0..<n]); return true }
                 guard n < 0, errno == EAGAIN || errno == EINTR, wait(for: Int16(POLLIN)) else { return false }

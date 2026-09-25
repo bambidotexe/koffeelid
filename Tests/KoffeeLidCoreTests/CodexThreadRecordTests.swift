@@ -7,25 +7,24 @@ final class CodexThreadRecordTests: XCTestCase {
     func answer(status: String, extra: String = "") -> Data {
         Data(#"{"id":2,"result":{"thread":{"id":"019a0000-0000-7000-8000-000000000001","status":{"type":"\#(status)"\#(extra)},"path":"/Users/someone/.codex/sessions/2026/09/25/rollout-2026-09-25T21-20-43-019a0000-0000-7000-8000-000000000001.jsonl","updatedAt":"2026-09-25T19:20:43.962Z","cwd":"/tmp"}}}"#.utf8)
     }
-    let lastEvent = Date(timeIntervalSince1970: 1_790_000_000)
 
     func testNotLoadedMeansNothingRuns() {
         let record = CodexThreadRecord.parse(answer(status: "notLoaded"))
         XCTAssertEqual(record?.status, "notLoaded")
-        XCTAssertEqual(record?.verdict(lastMainEventAt: lastEvent), .over)
-        XCTAssertEqual(CodexThreadRecord.parse(answer(status: "idle"))?.verdict(lastMainEventAt: lastEvent), .over,
+        XCTAssertEqual(record?.verdict, .over)
+        XCTAssertEqual(CodexThreadRecord.parse(answer(status: "idle"))?.verdict, .over,
                        "a loaded thread with no turn has nothing running either")
     }
 
     func testAnActiveThreadIsBusy() {
         let record = CodexThreadRecord.parse(answer(status: "active", extra: #","activeFlags":["waitingOnApproval"]"#))
         XCTAssertEqual(record?.status, "active")
-        XCTAssertEqual(record?.verdict(lastMainEventAt: lastEvent), .busy)
+        XCTAssertEqual(record?.verdict, .busy)
     }
 
     func testAnUnknownStatusDecidesNothing() {
-        XCTAssertEqual(CodexThreadRecord.parse(answer(status: "systemError"))?.verdict(lastMainEventAt: lastEvent), .undecided)
-        XCTAssertEqual(CodexThreadRecord.parse(answer(status: "Active"))?.verdict(lastMainEventAt: lastEvent), .undecided, "the vocabulary is exact")
+        XCTAssertEqual(CodexThreadRecord.parse(answer(status: "systemError"))?.verdict, .undecided)
+        XCTAssertEqual(CodexThreadRecord.parse(answer(status: "Active"))?.verdict, .undecided, "the vocabulary is exact")
         XCTAssertNil(CodexThreadRecord.parse(Data(#"{"id":2,"error":{"code":-32600,"message":"no such thread"}}"#.utf8)), "a refusal is no record")
         XCTAssertNil(CodexThreadRecord.parse(Data(#"{"id":2,"result":{"thread":{"status":"idle"}}}"#.utf8)), "a status of another shape is no record")
         XCTAssertNil(CodexThreadRecord.parse(Data("{\"id\":2,\"result\":{\"thr".utf8)), "a cut answer is no record")

@@ -349,9 +349,10 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
   WebSocket over the unix socket, with no token: an HTTP/1.1 `GET /` with `Host: localhost`, `Upgrade:
   websocket`, `Connection: Upgrade`, a 16-byte base64 `Sec-WebSocket-Key` and `Sec-WebSocket-Version: 13` is
   answered `101 Switching Protocols` (with an `x-codex-websocket-max-unfragmented-message-bytes` header), then
-  JSON-RPC 2.0 in text frames, masked from the client, unmasked from the daemon. The daemon's answers carry
-  `id` and `result` (or `error`) and no `jsonrpc` field, and it sends notifications (a `method` and
-  `params`, no `id`) between them: one came between the `initialize` answer and the next. KoffeeLid sends only three methods and one
+  JSON-RPC 2.0 in text frames, masked from the client, unmasked from the daemon. KoffeeLid does not check
+  `Sec-WebSocket-Accept`: the socket is the user's own, `0600`, local, and a `101` is all it needs. The
+  daemon's answers carry `id` and `result` (or `error`) and no `jsonrpc` field, and it sends notifications (a
+  `method` and `params`, no `id`) between them: one came between the `initialize` answer and the next. KoffeeLid sends only three methods and one
   notification: `initialize` `{clientInfo: {name, title, version}}`, answered `{userAgent, codexHome,
   platformFamily, platformOs}`; then `initialized`; then either `thread/read` `{threadId, includeTurns:
   false}`, answered `{thread: {id, status: {type}, path, createdAt, updatedAt, recencyAt, cwd, originator,

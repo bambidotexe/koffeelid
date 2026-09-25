@@ -23,8 +23,8 @@ public struct CodexThreadRecord: Equatable, Sendable {
 
     /// `notLoaded` (the daemon does not hold the thread) and `idle` (it holds it, with no turn) have nothing
     /// running; `active` is a turn at work, a dialog included. Every other status decides nothing. The status
-    /// is the daemon's present, not a stamp: `lastMainEventAt` changes none of it.
-    public func verdict(lastMainEventAt: Date) -> Verdict {
+    /// is the daemon's present, not a stamp, so it is weighed against nothing of ours.
+    public var verdict: Verdict {
         switch status {
         case "notLoaded", "idle": return .over
         case "active": return .busy
