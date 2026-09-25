@@ -26,7 +26,7 @@ public struct ActivityBadge: Hashable, Comparable, Sendable {
 
     /// Claude Code's work wears the Claude desktop app's icon.
     public static let claude = ActivityBadge(kind: .claude, app: .bundleIdentifier("com.anthropic.claudefordesktop"))
-    /// Codex's work wears the OpenAI desktop app's Codex icon (`docs/macOS.md` § Codex).
+    /// Codex's work wears the icon of the app that owns Codex's identifier (`docs/macOS.md` § Codex).
     public static let codex = ActivityBadge(kind: .codex, app: .bundleIdentifier("com.openai.codex"))
     /// A command whose shell no app hosts (over ssh, from launchd): Terminal stands for it.
     public static let terminal = ActivityBadge(kind: .terminal, app: .bundleIdentifier("com.apple.Terminal"))

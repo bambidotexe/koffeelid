@@ -323,11 +323,9 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
   what a lost `Stop` costs Claude Code, Codex covers with `Interrupt` and `SessionEnd`.
 - **`CODEX_HOME`.** Relocates the whole folder. Like `CLAUDE_CONFIG_DIR`, it is invisible from another
   process, so the installer and the Health page use `~/.codex`.
-- **The desktop app and its icons.** LaunchServices answers `com.openai.codex` with the OpenAI desktop app
-  (named ChatGPT on this Mac, an Electron bundle), whose Finder icon is the OpenAI mark. The Codex icon is
-  inside it, `Contents/Resources/icon-codex-light.png` and `icon-codex-dark-color.png` (1024 px, a white
-  and a dark square around the same blue cloud), and that is the badge Codex's work wears on the cup: the
-  dark square on a light bar, the light one on a dark bar; without them the app's own icon serves. Claude Code has no app of its
+- **The desktop app.** LaunchServices answers `com.openai.codex` with the OpenAI desktop app (named ChatGPT
+  on this Mac, an Electron bundle), whose icon is the OpenAI mark: that is the badge Codex's work wears on
+  the cup, read like every other badge through the system's icon service. Claude Code has no app of its
   own: its badge is the Claude desktop app's, `com.anthropic.claudefordesktop`.
 
 ## zsh

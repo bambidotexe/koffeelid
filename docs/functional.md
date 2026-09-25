@@ -199,7 +199,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 - **Menu-bar cup.** Three glyphs: empty (Off), closed eyes (Armed), round eyes (Armed + screen on). Auto-armed
   is the closed-eyes cup wearing, hung off its bottom-right corner and clear of the eyes, without widening the
   item or moving the cup, the icon of each app at work:
-  the Claude desktop app for Claude Code, the OpenAI desktop app's Codex icon for Codex, and for a command the
+  the Claude desktop app for Claude Code, the OpenAI desktop app for Codex, and for a command the
   terminal app hosting its shell (Terminal, iTerm, an editor's terminal…; Terminal's icon when no app hosts it,
   as over ssh). Several stack up and to the right, front to back Claude Code, Codex, then the terminals, three
   at most. The icons are the installed apps' own, nothing is bundled: an app that is not installed gives no
