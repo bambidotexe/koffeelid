@@ -265,12 +265,15 @@ zsh preexec/precmd ┴▶ KoffeeLidHook ─▶ activity.jsonl ─▶ ActivityJou
 ```
 
 A file, not a socket: hooks fire while the app is down or being relaunched, and the journal is replayed at
-launch (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`; dead or recycled pids pruned,
-but a session on Codex's daemon kept; then the time rules run, so a stale session is dropped; then, when the
-daemon hosts a working session and its socket exists, `thread/loaded/list` ends each such session whose thread
-it does not hold; then the rollout check runs on every working Codex session. All of it comes before the first
-publish (`launched` holds `sync` back until the daemon's answer, at most 1 s) and can only end turns; the
-tailer starts at the byte offset the replay consumed). A separate
+launch. The launch order: replay (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`, the
+app's own verdict lines among them) → the time rules (`tick`), so a stale session is dropped → the prune with
+the registry (`pruneDead`: dead or recycled pids, a Claude Code pid whose registry record names another
+session among them; a session on Codex's daemon kept) → `checkRegistry(quietSeconds: 0)`, the registry rescue
+on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
+`thread/loaded/list` has ended each daemon-hosted working session whose thread the daemon does not hold (asked
+only when the daemon hosts one and its socket exists) → the first `sync()`. All of it comes before the first
+publish (`launched` holds `sync` back until the daemon's answer, at most 1 s) and only ends turns, but for a
+dialog the registry says was answered; the tailer starts at the byte offset the replay consumed. A separate
 tiny binary, not the app: it runs inside every Claude Code turn, every Codex turn and every shell command, so
 it must start fast, never launch the app and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
 Codex), never the payload: both agents send the same event names.
@@ -315,10 +318,25 @@ removes the session before); every helper event of a closed turn; and, for 120 s
 (`abortQuarantineSeconds`), a main-agent tool or permission event with no turn id. A line without a turn id
 otherwise meets the table as it is.
 
+Verdict lines: each rescue that decides a session (`turnOver` from the registry, a rollout or the daemon,
+`dialogAnswered` from the registry) applies it live, then appends one `KoffeeLidVerdict` line through
+`ActivityJournalWriter.append`, carrying `session_id`, `verdict` (`ActivityVerdict`: `turn-over`,
+`dialog-answered`) and `logged_at`, nothing else. A rescued turn is ended at
+`ActivitySessionStore.rescueStamp(endedAt:lastMainEventAt:now:)`, the source's own stamp (the registry's
+`statusUpdatedAt`, the rollout marker's; now for the daemon) clamped between the last main-agent event and now,
+and the line carries that stamp, so the replay gives the same `stateSince`. `apply` hands the line to
+`applyVerdict`: a session it does not hold, a stamp before the session's `lastMainEventAt` or an unknown
+verdict changes nothing; otherwise `turnOver` or `dialogAnswered` runs at the line's stamp. A verdict never
+creates a session and never refreshes `lastEventAt`, and the tailer's redelivery of the app's own line meets
+a session already decided and changes nothing. A reader that does not know the name skips the line
+(`ActivityCodec.decodeLine` returns nil for an unknown event). The Health page's "last event seen" ignores it.
+
 Time rules (`tick`): a helper counts as live for 240 s after its last event; a held `Stop` becomes `done` 90 s
 after everything cleared, or 30 min after the last event; `done` becomes `idle` after 20 min; a session silent
 for 2 h is removed. Registry rescues (`ActivityMonitor.checkRegistry`), for Claude Code sessions
-(`abandonCandidates`): a `working` session quiet for 20 s with nothing out is checked every 15 s; registry
+(`abandonCandidates`, no quiet gate at launch), reading `<config>/sessions/<pid>.json` where `<config>` is the
+session's `transcriptPath`'s config directory (`ClaudeRegistryRecord.configDir(fromTranscriptPath:)`), else
+`~/.claude`: a `working` session quiet for 20 s with nothing out is checked every 15 s; registry
 `idle` stamped after the last main event → `turnOver`; registry `busy` → `noteBusy` (and one warning after
 5 min without a hook); a `waiting` session whose registry says `busy` stamped 2 s after the wait began →
 `dialogAnswered`. Codex checks (`ActivityMonitor.checkCodex`), for Codex sessions (`codexCandidates`, the
@@ -337,7 +355,8 @@ session: `task_complete` or `turn_aborted` stamped after the last main event, or
 `turnOver`; `task_started` with no end → `noteBusy` (the same 5 min warning); an earlier turn's end, or
 unreadable → nothing, unreadable logged once per session. `nextDeadline` schedules both. `pruneDead` keeps a
 `hostedByDaemon` session without asking about its pid; the kqueue on the daemon still drops them all when it
-exits. Only `working` counts as running, and the snapshot counts it per agent (`claudeSessions`,
+exits. For a Claude Code session with a live pid, `pruneDead` asks `registrySession` for the session the pid's
+record names (read from the same directory as the rescues) and drops the session when it is another. Only `working` counts as running, and the snapshot counts it per agent (`claudeSessions`,
 `codexSessions`).
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on

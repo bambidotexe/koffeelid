@@ -59,8 +59,8 @@ public enum CodexRolloutTail {
     /// What a verdict means for a quiet working session whose last main-agent event is `lastMainEventAt`,
     /// carrying the turn id `lastMainTurnId`.
     public enum Decision: Equatable {
-        /// The turn is over; `reason` is `finished` or `aborted`.
-        case turnOver(reason: String)
+        /// The turn is over; `reason` is `finished` or `aborted`, and `at` is the end marker's stamp.
+        case turnOver(reason: String, at: Date)
         /// Codex is still working the turn.
         case busy
         case nothing
@@ -74,8 +74,8 @@ public enum CodexRolloutTail {
             at > lastMainEventAt || (turn != nil && turn == lastMainTurnId)
         }
         switch verdict {
-        case .complete(let at, let turn): return ends(at, turn) ? .turnOver(reason: "finished") : .nothing
-        case .aborted(let at, let turn): return ends(at, turn) ? .turnOver(reason: "aborted") : .nothing
+        case .complete(let at, let turn): return ends(at, turn) ? .turnOver(reason: "finished", at: at) : .nothing
+        case .aborted(let at, let turn): return ends(at, turn) ? .turnOver(reason: "aborted", at: at) : .nothing
         case .running: return .busy
         case .unreadable: return .nothing
         }

@@ -230,7 +230,8 @@ This is every app's trap: `docs/shared/pitfalls.md`, **O9**. Here the footer is 
 
 ### Pids are reused
 - **What the code does.** The watchdog compares `proc_pidpath(pid)` with the executable recorded in the pid
-  file; the activity monitor keeps a replayed session only if its pid is alive **and** looks like Claude;
+  file; the activity monitor keeps a replayed session only if its pid is alive, runs its agent **and**, for
+  Claude Code, the pid's registry record, when one exists, names the same session (`pruneDead`);
   `ClaudeRegistryRecord` rejects a record whose pid does not match.
 
 ### launchd starts the agent before the app at login
@@ -312,10 +313,18 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   wait began, goes back to `working`.
 
 ### Another process's environment cannot be read
-- **Why.** macOS withholds it from a same-user reader, so a per-session `CLAUDE_CONFIG_DIR` is invisible.
-- **What the code does.** Falls back to `~/.claude/sessions/<pid>.json`; the log line
-  `activity: no registry record for pid …` is the sign that a relocated registry was missed, and only staleness
-  (2 h) ends such a session.
+- **Symptom.** Under a relocated `CLAUDE_CONFIG_DIR` (an account switcher such as cswap), every Claude Code turn
+  ended with Esc or Ctrl-C stays working for 2 h, and the log carries `activity: no registry record for pid …`.
+- **Why.** macOS withholds it from a same-user reader, so a per-session `CLAUDE_CONFIG_DIR` is invisible, and
+  the registry is not in `~/.claude`.
+- **What the code does.** Reads the directory from the transcript path the hooks name
+  (`<config>/projects/<slug>/<session>.jsonl`, kept on the session as `transcriptPath`):
+  `ClaudeRegistryRecord.configDir(fromTranscriptPath:)` gives `<config>`, and the registry rescues and the
+  launch prune read `<config>/sessions/<pid>.json`. `~/.claude` is the fallback for a session no line has
+  named a path for (lines from before the field, tracking begun on a tool line); the `no registry record` line
+  is then the sign it missed, and only staleness (2 h) ends such a session.
+- **Do not** read the process's environment for it (`ProcWalk.environmentValue` returns nil for another
+  process), and do not take the folder from a fixed depth: a helper's transcript sits deeper in the same folder.
 
 ### Hooks fire while the app is down
 - **What the code does.** The hook appends to a file with one `O_APPEND` write; the app replays this boot's

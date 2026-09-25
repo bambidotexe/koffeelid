@@ -17,4 +17,15 @@ public struct ClaudeRegistryRecord: Equatable {
         return ClaudeRegistryRecord(sessionId: object["sessionId"] as? String, status: object["status"] as? String,
                                     statusUpdatedAt: ms.map { Date(timeIntervalSince1970: $0 / 1000) })
     }
+
+    /// The config directory a transcript lives in: `<config>/projects/<slug>/<session>.jsonl` gives `<config>`, where
+    /// the registry sits too (`<config>/sessions/`), so a relocated `CLAUDE_CONFIG_DIR` is found from the path the
+    /// hooks name. The `projects` folder is the last one above the file's own folder. Nil for a path that is not
+    /// absolute, carries a `.` or `..` component, or has no such folder with a folder above it.
+    public static func configDir(fromTranscriptPath path: String) -> URL? {
+        let parts = path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        guard path.hasPrefix("/"), !parts.contains(where: { $0 == "." || $0 == ".." }),
+              let index = parts.dropLast(2).lastIndex(of: "projects"), index > 0 else { return nil }
+        return URL(fileURLWithPath: "/" + parts[..<index].joined(separator: "/"), isDirectory: true)
+    }
 }

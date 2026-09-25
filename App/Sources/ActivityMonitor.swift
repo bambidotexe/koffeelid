@@ -76,22 +76,27 @@ final class ActivityMonitor {
         if Self.isDisabledByEnvironment { onLog?("activity: disabled by KOFFEELID_DISABLE_ACTIVITY"); return }
         started = true
         watcher.onExit = { [weak self] pid in self?.processExited(pid) }
-        // Replay: events from this boot only, then prune dead or recycled pids.
+        // Replay: events from this boot only, the app's own verdicts among them. Before anything counts: the
+        // time rules drop what went stale while the app was down; the prune drops dead or recycled pids, a
+        // Claude Code pid whose registry record names another session among them; the registry ends each
+        // replayed Claude Code turn that ended meanwhile, whatever its quiet; then (`finishLaunch`) each replayed
+        // Codex turn: first a thread Codex's daemon no longer holds, when the daemon hosts a working session,
+        // then the rollouts. These checks only end turns, but for a dialog the registry says was answered, which
+        // works again as it would at the first check. Nothing is counted before they have run.
         let boot = Self.bootDate() ?? .distantPast
         let currentData = (try? Data(contentsOf: AppSupport.activityJournalURL)) ?? Data()
         let currentEvents = currentData.split(separator: 0x0A).compactMap { ActivityCodec.decodeLine(Data($0)) }
         let replayed = (ActivityJournalWriter.readAll(url: AppSupport.activityJournalRotatedURL) + currentEvents)
             .filter { $0.loggedAt >= boot }
         ingest(replayed)
-        sessions.pruneDead { pid, agent in ProcWalk.isAlive(pid: pid) && ProcWalk.looksLike(agent, pid: pid) }
-        for job in jobs.jobs.values { if let pid = job.ownerPid, !ProcWalk.isAlive(pid: pid) { jobs.processExited(pid: pid) } }
-        onLog?("activity: replayed \(replayed.count) events, \(sessions.sessions.count) sessions, \(jobs.jobs.count) jobs")
-        // Before anything counts: the time rules drop what went stale while the app was down, then a replayed
-        // Codex turn that ended meanwhile ends (`finishLaunch`): first a thread Codex's daemon no longer holds,
-        // when the daemon hosts a working session, then the rollouts. These checks only end turns; nothing
-        // replayed is started by them, and nothing is counted before they have run.
         let launch = Date()
         sessions.tick(now: launch); jobs.tick(now: launch)
+        let registryDirs = claudeRegistryDirs()
+        sessions.pruneDead(isAlive: { pid, agent in ProcWalk.isAlive(pid: pid) && ProcWalk.looksLike(agent, pid: pid) },
+                           registrySession: { pid in ClaudeProcessRegistry.read(pid: pid, configDir: registryDirs[pid])?.sessionId })
+        for job in jobs.jobs.values { if let pid = job.ownerPid, !ProcWalk.isAlive(pid: pid) { jobs.processExited(pid: pid) } }
+        onLog?("activity: replayed \(replayed.count) events, \(sessions.sessions.count) sessions, \(jobs.jobs.count) jobs")
+        checkRegistry(now: launch, quietSeconds: 0)
         launched = false
         launchGeneration += 1
         let hosted = daemonHostedWorkingSessions()
@@ -162,10 +167,10 @@ final class ActivityMonitor {
         return daemon
     }
 
-    /// A line that could not be parsed proves nothing about either hook.
+    /// A line that could not be parsed proves nothing about either hook, and a verdict line is the app's own.
     private func noteSeen(_ e: ActivityEvent) {
         switch e.event {
-        case .parseError: break
+        case .parseError, .verdict: break
         case .jobBegin, .jobEnd:
             if lastTerminalEventAt.map({ e.loggedAt > $0 }) ?? true { lastTerminalEventAt = e.loggedAt }
         default:
@@ -224,18 +229,19 @@ final class ActivityMonitor {
         timer = t
     }
 
-    /// Esc/Ctrl-C fire no hook in Claude Code: ask its own registry about quiet turns and open dialogs. The
-    /// store hands over Claude Code sessions only; Codex's are `checkCodex`'s.
-    private func checkRegistry(now: Date) {
-        for (sid, pid) in sessions.abandonCandidates(at: now) {
-            guard let record = ClaudeProcessRegistry.read(pid: pid), record.sessionId == sid else {
+    /// Esc/Ctrl-C fire no hook in Claude Code: ask its own registry, in the session's transcript's config
+    /// directory, about quiet turns and open dialogs. The store hands over Claude Code sessions only; Codex's are
+    /// `checkCodex`'s. At launch the quiet gate is 0.
+    private func checkRegistry(now: Date, quietSeconds: TimeInterval = ActivityConstants.abandonQuietSeconds) {
+        for (sid, pid) in sessions.abandonCandidates(at: now, quietSeconds: quietSeconds) {
+            guard let session = sessions.sessions[sid] else { continue }
+            guard let record = ClaudeProcessRegistry.read(pid: pid, configDir: ClaudeProcessRegistry.configDir(of: session)), record.sessionId == sid else {
                 if warnedNoRegistry.insert(sid).inserted { onLog?("activity: no registry record for pid \(pid) (session \(sid.prefix(8))); only staleness can end it") }
                 continue
             }
-            guard let session = sessions.sessions[sid] else { continue }
             if record.isIdle, let stamped = record.statusUpdatedAt, stamped > session.lastMainEventAt {
                 onLog?("activity: quiet turn \(sid.prefix(8)) — registry idle, turn over")
-                sessions.turnOver(sessionId: sid, now: now)
+                endTurn(sid, endedAt: stamped, now: now)
             } else if record.isBusy {
                 if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                     onLog?("activity: hooks look dead for \(sid.prefix(8)) — registry busy, no hook for 5 min")
@@ -244,11 +250,41 @@ final class ActivityMonitor {
             }
         }
         for (sid, pid, since) in sessions.openWaitCandidates() {
-            guard let record = ClaudeProcessRegistry.read(pid: pid), record.sessionId == sid, record.isBusy,
+            guard let session = sessions.sessions[sid],
+                  let record = ClaudeProcessRegistry.read(pid: pid, configDir: ClaudeProcessRegistry.configDir(of: session)), record.sessionId == sid, record.isBusy,
                   let stamped = record.statusUpdatedAt, stamped.timeIntervalSince(since) > ActivityConstants.dialogAnswerMinStampLeadSeconds else { continue }
             onLog?("activity: dialog answered without a hook (\(sid.prefix(8))); back to working")
             sessions.dialogAnswered(sessionId: sid, now: now)
+            journal(.dialogAnswered, sid: sid, at: now)
         }
+    }
+
+    /// The registry directory of each replayed Claude Code pid whose session names its transcript, for the prune:
+    /// read before it, since the prune's closure cannot reach the store it is filtering.
+    private func claudeRegistryDirs() -> [Int32: URL] {
+        var dirs: [Int32: URL] = [:]
+        for s in sessions.sessions.values where s.agent == .claude {
+            if let pid = s.agentPid, let dir = ClaudeProcessRegistry.configDir(of: s) { dirs[pid] = dir }
+        }
+        return dirs
+    }
+
+    /// A rescue found the turn over: it ends at the moment the turn ended (`rescueStamp`), and the verdict is
+    /// journaled with that stamp, so a relaunch replays the same end.
+    private func endTurn(_ sid: String, endedAt: Date, now: Date) {
+        guard let session = sessions.sessions[sid] else { return }
+        let at = ActivitySessionStore.rescueStamp(endedAt: endedAt, lastMainEventAt: session.lastMainEventAt, now: now)
+        sessions.turnOver(sessionId: sid, now: at)
+        journal(.turnOver, sid: sid, at: at)
+    }
+
+    /// One `KoffeeLidVerdict` line: the session, the verdict, its stamp, nothing else. The tailer hands it back to
+    /// the store that already applied it, which changes nothing.
+    private func journal(_ verdict: ActivityVerdict, sid: String, at: Date) {
+        var line = ActivityEvent(loggedAt: at, event: .verdict)
+        line.sessionId = sid; line.verdict = verdict.rawValue
+        let written = (try? ActivityCodec.encodeLine(line)).map { ActivityJournalWriter.append($0, to: AppSupport.activityJournalURL) } ?? false
+        if !written { onLog?("activity: could not journal the \(verdict.rawValue) verdict (\(sid.prefix(8))); a relaunch replays the session as it was") }
     }
 
     /// A lost `Stop` or `Interrupt` leaves a Codex turn working with nothing to end it, and the pid its hooks
@@ -286,7 +322,7 @@ final class ActivityMonitor {
         switch verdict {
         case .over:
             onLog?("activity: Codex daemon says thread \(sid.prefix(8)) has nothing running, turn over")
-            sessions.turnOver(sessionId: sid, now: now)
+            endTurn(sid, endedAt: now, now: now)
         case .busy:
             if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                 onLog?("activity: hooks look dead for \(sid.prefix(8)) — daemon says active, no hook for 5 min")
@@ -313,7 +349,7 @@ final class ActivityMonitor {
         for (sid, lastMain) in asked where !loaded.contains(sid) {
             guard let session = sessions.sessions[sid], session.state == .working, !session.pendingDone, session.lastMainEventAt == lastMain else { continue }
             onLog?("activity: Codex daemon has not loaded thread \(sid.prefix(8)), turn over")
-            sessions.turnOver(sessionId: sid, now: now)
+            endTurn(sid, endedAt: now, now: now)
         }
     }
 
@@ -342,9 +378,9 @@ final class ActivityMonitor {
         } ?? CodexRollout.locate(sessionId: sid)
         let verdict = path.flatMap(CodexRollout.read(path:)).map { CodexRolloutTail.verdict(tail: $0) } ?? .unreadable
         switch CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt, lastMainTurnId: session.lastMainTurnId) {
-        case .turnOver(let reason):
+        case .turnOver(let reason, let endedAt):
             onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says \(reason), turn over")
-            sessions.turnOver(sessionId: sid, now: now)
+            endTurn(sid, endedAt: endedAt, now: now)
         case .busy:
             if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                 onLog?("activity: hooks look dead for \(sid.prefix(8)) — rollout says running, no hook for 5 min")

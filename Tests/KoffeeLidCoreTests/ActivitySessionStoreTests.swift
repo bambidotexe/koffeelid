@@ -108,7 +108,7 @@ final class ActivitySessionStoreTests: XCTestCase {
     }
     func testPruneDeadDropsOnlyDeadPids() {
         store.apply(ev(.userPromptSubmit)); store.apply(ev(.userPromptSubmit, "s2", pid: 200)); store.apply(ev(.userPromptSubmit, "s3", pid: nil))
-        store.pruneDead { pid, _ in pid == 100 }
+        store.pruneDead(isAlive: { pid, _ in pid == 100 }, registrySession: { _ in nil })
         XCTAssertEqual(Set(store.sessions.keys), ["s1", "s3"]); XCTAssertEqual(store.trackedPids, [100])
     }
 
@@ -193,7 +193,7 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(store.sessions["exec"]?.hostedByDaemon, false, "codex exec records its own process")
         XCTAssertEqual(store.sessions["s1"]?.hostedByDaemon, false, "only a Codex session is hosted by Codex's daemon")
         var asked: [Int32] = []
-        store.pruneDead { pid, _ in asked.append(pid); return false }
+        store.pruneDead(isAlive: { pid, _ in asked.append(pid); return false }, registrySession: { _ in nil })
         XCTAssertEqual(Set(store.sessions.keys), ["tui"], "the daemon's pid says nothing about the session: the rollout check decides it")
         XCTAssertEqual(state("tui"), .working, "the prune ends nothing it keeps")
         XCTAssertEqual(asked.sorted(), [500, daemon], "the daemon-hosted session is not asked about; a Claude Code session on the same pid is")
@@ -202,7 +202,7 @@ final class ActivitySessionStoreTests: XCTestCase {
     func testPruneAsksAboutEachSessionsOwnAgent() {
         store.apply(ev(.userPromptSubmit)); store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))
         var asked: [ActivityAgent] = []
-        store.pruneDead { _, agent in asked.append(agent); return agent == .codex }
+        store.pruneDead(isAlive: { _, agent in asked.append(agent); return agent == .codex }, registrySession: { _ in nil })
         XCTAssertEqual(Set(asked), [.claude, .codex]); XCTAssertEqual(Set(store.sessions.keys), ["c1"])
     }
 
@@ -324,5 +324,86 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.apply(ev(.postToolUseFailure, at: 7, turn: nil)); XCTAssertEqual(state(), .working)
         store.apply(ev(.stop, at: 8, turn: nil)); XCTAssertEqual(state(), .done)
         store.apply(ev(.postToolUse, at: 9, tool: "Bash", turn: nil)); XCTAssertEqual(state(), .working, "a Stop closes nothing")
+    }
+
+    // MARK: The app's own verdicts
+
+    func verdict(_ value: String?, _ sid: String = "s1", at dt: TimeInterval) -> ActivityEvent {
+        var e = ActivityEvent(loggedAt: t0.addingTimeInterval(dt), event: .verdict); e.sessionId = sid; e.verdict = value; return e
+    }
+    func testAJournaledVerdictReplaysAsTheSameVerdict() {
+        let hooks = [ev(.userPromptSubmit, turn: "p1"), ev(.preToolUse, at: 5, tool: "Bash", turn: "p1")]
+        // Live: the registry's idle, stamped at 8, is applied at that stamp, then journaled with it.
+        var live = ActivitySessionStore()
+        hooks.forEach { live.apply($0) }
+        let stamp = ActivitySessionStore.rescueStamp(endedAt: t0.addingTimeInterval(8), lastMainEventAt: t0.addingTimeInterval(5), now: t0.addingTimeInterval(30))
+        live.turnOver(sessionId: "s1", now: stamp)
+        let line = verdict("turn-over", at: 8)
+        // Replay: the same hook lines and the verdict line give the same session.
+        (hooks + [line]).forEach { store.apply($0) }
+        XCTAssertEqual(store.sessions["s1"], live.sessions["s1"])
+        XCTAssertEqual(state(), .done); XCTAssertEqual(store.sessions["s1"]?.stateSince, t0.addingTimeInterval(8))
+        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["p1"], "the replayed verdict closes the turn, as the live one did")
+        XCTAssertEqual(store.sessions["s1"]?.lastEventAt, t0.addingTimeInterval(5), "a verdict is not a sign of life")
+        // The tailer hands the live verdict back to the store that applied it: nothing changes.
+        live.apply(line); XCTAssertEqual(live.sessions["s1"], store.sessions["s1"])
+
+        // A dialog answered without a hook replays as answered.
+        let dialog = [ev(.userPromptSubmit, "s2", turn: "p2"), ev(.preToolUse, "s2", at: 5, tool: "AskUserQuestion", turn: "p2")]
+        var liveDialog = ActivitySessionStore()
+        dialog.forEach { liveDialog.apply($0) }
+        liveDialog.dialogAnswered(sessionId: "s2", now: t0.addingTimeInterval(40))
+        var replayDialog = ActivitySessionStore()
+        (dialog + [verdict("dialog-answered", "s2", at: 40)]).forEach { replayDialog.apply($0) }
+        XCTAssertEqual(replayDialog.sessions["s2"], liveDialog.sessions["s2"])
+        XCTAssertEqual(replayDialog.sessions["s2"]?.state, .working); XCTAssertEqual(replayDialog.sessions["s2"]?.lastEventAt, t0.addingTimeInterval(5))
+    }
+    func testAVerdictForAnUnknownSessionIsIgnored() {
+        store.apply(verdict("turn-over", "ghost", at: 10)); XCTAssertTrue(store.sessions.isEmpty, "a verdict never creates a session")
+        store.apply(ev(.userPromptSubmit))
+        store.apply(verdict("turn-over", "ghost", at: 10)); XCTAssertEqual(state(), .working, "another session's verdict")
+        store.apply(verdict("resting", at: 10)); XCTAssertEqual(state(), .working, "an unknown verdict decides nothing")
+        store.apply(verdict(nil, at: 10)); XCTAssertEqual(state(), .working)
+        var noSession = verdict("turn-over", at: 10); noSession.sessionId = nil
+        store.apply(noSession); XCTAssertEqual(state(), .working)
+    }
+    func testAVerdictOlderThanTheLastMainEventIsIgnored() {
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.postToolUse, at: 10, tool: "Bash", turn: "p1"))
+        store.apply(verdict("turn-over", at: 9)); XCTAssertEqual(state(), .working, "the turn went on after the verdict's stamp")
+        store.apply(ev(.preToolUse, at: 20, tool: "AskUserQuestion", turn: "p1")); XCTAssertEqual(state(), .waiting)
+        store.apply(verdict("dialog-answered", at: 19)); XCTAssertEqual(state(), .waiting, "an answer to an earlier dialog")
+        store.apply(verdict("dialog-answered", at: 20)); XCTAssertEqual(state(), .working, "the same instant still applies")
+        store.apply(verdict("turn-over", at: 30)); XCTAssertEqual(state(), .done)
+        XCTAssertEqual(store.sessions["s1"]?.lastEventAt, t0.addingTimeInterval(20))
+    }
+    func testTheRescueStampIsWhenTheTurnEndedWithinOurLastEventAndNow() {
+        let last = t0.addingTimeInterval(10), now = t0.addingTimeInterval(40)
+        XCTAssertEqual(ActivitySessionStore.rescueStamp(endedAt: t0.addingTimeInterval(25), lastMainEventAt: last, now: now), t0.addingTimeInterval(25), "the source's own stamp")
+        XCTAssertEqual(ActivitySessionStore.rescueStamp(endedAt: t0.addingTimeInterval(3), lastMainEventAt: last, now: now), last, "never before our last main-agent event")
+        XCTAssertEqual(ActivitySessionStore.rescueStamp(endedAt: t0.addingTimeInterval(90), lastMainEventAt: last, now: now), now, "never in the future")
+        XCTAssertEqual(ActivitySessionStore.rescueStamp(endedAt: now, lastMainEventAt: last, now: now), now, "an answer without a stamp is now")
+    }
+    func testPruneDropsAPidWhoseRegistryNamesAnotherSession() {
+        store.apply(ev(.userPromptSubmit, "recycled", pid: 100))
+        store.apply(ev(.userPromptSubmit, "same", pid: 200))
+        store.apply(ev(.userPromptSubmit, "norecord", pid: 300))
+        store.apply(ev(.userPromptSubmit, "c1", pid: 400, by: .codex))
+        let records: [Int32: String] = [100: "another", 200: "same", 400: "another"]
+        var asked: [Int32] = []
+        store.pruneDead(isAlive: { _, _ in true }, registrySession: { pid in asked.append(pid); return records[pid] })
+        XCTAssertEqual(Set(store.sessions.keys), ["same", "norecord", "c1"], "a record naming another session is a recycled pid; no record proves nothing")
+        XCTAssertEqual(asked.sorted(), [100, 200, 300], "the registry is Claude Code's: a Codex session is not asked")
+        asked = []
+        store.pruneDead(isAlive: { pid, _ in pid != 200 }, registrySession: { pid in asked.append(pid); return records[pid] })
+        XCTAssertEqual(Set(store.sessions.keys), ["norecord", "c1"]); XCTAssertEqual(asked, [300], "a dead pid is not asked about")
+    }
+    func testAbandonCandidatesAtLaunchIgnoreTheQuietGate() {
+        store.apply(ev(.userPromptSubmit, at: 10))
+        store.apply(ev(.userPromptSubmit, "held", at: 10)); store.apply(ev(.stop, "held", at: 11, bg: ["b1"]))
+        store.apply(ev(.userPromptSubmit, "c1", at: 10, pid: 300, by: .codex))
+        let justNow = t0.addingTimeInterval(12)
+        XCTAssertTrue(store.abandonCandidates(at: justNow).isEmpty, "live, the quiet gate holds")
+        XCTAssertEqual(store.abandonCandidates(at: justNow, quietSeconds: 0).map(\.sessionId), ["s1"],
+                       "at launch every working Claude Code session is asked; a held Stop and a Codex session are not")
     }
 }

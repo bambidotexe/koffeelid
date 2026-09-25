@@ -110,16 +110,16 @@ final class CodexRolloutTailTests: XCTestCase {
         CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: lastEvent, lastMainTurnId: lastTurn)
     }
     func testAnEndMarkerAfterOurLastEventEndsTheTurn() {
-        XCTAssertEqual(decide(.complete(at: lastEvent.addingTimeInterval(1), turnId: "t9")), .turnOver(reason: "finished"))
-        XCTAssertEqual(decide(.aborted(at: lastEvent.addingTimeInterval(0.001), turnId: nil), lastTurn: nil), .turnOver(reason: "aborted"))
+        XCTAssertEqual(decide(.complete(at: lastEvent.addingTimeInterval(1), turnId: "t9")), .turnOver(reason: "finished", at: lastEvent.addingTimeInterval(1)), "the decision carries the marker's stamp")
+        XCTAssertEqual(decide(.aborted(at: lastEvent.addingTimeInterval(0.001), turnId: nil), lastTurn: nil), .turnOver(reason: "aborted", at: lastEvent.addingTimeInterval(0.001)))
     }
     func testAnEndMarkerNamingOurTurnEndsItEvenWhenStampedEarlier() {
         // The Interrupt hook lost: the aborted tool's late PostToolUse, of the same turn, is our last main
         // event, 13 s after the rollout's turn_aborted.
         let marker = lastEvent.addingTimeInterval(-13)
-        XCTAssertEqual(decide(.aborted(at: marker, turnId: "t1")), .turnOver(reason: "aborted"))
-        XCTAssertEqual(decide(.complete(at: marker, turnId: "t1")), .turnOver(reason: "finished"))
-        XCTAssertEqual(decide(.aborted(at: lastEvent, turnId: "t1")), .turnOver(reason: "aborted"), "the same instant, the same turn")
+        XCTAssertEqual(decide(.aborted(at: marker, turnId: "t1")), .turnOver(reason: "aborted", at: marker))
+        XCTAssertEqual(decide(.complete(at: marker, turnId: "t1")), .turnOver(reason: "finished", at: marker))
+        XCTAssertEqual(decide(.aborted(at: lastEvent, turnId: "t1")), .turnOver(reason: "aborted", at: lastEvent), "the same instant, the same turn")
     }
     func testAnEndMarkerOfAnEarlierTurnStampedEarlierDecidesNothing() {
         let earlier = lastEvent.addingTimeInterval(-30)

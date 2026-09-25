@@ -18,6 +18,9 @@ public enum ActivityEventName: String, Codable, Equatable {
     case interrupt = "Interrupt"
     case parseError = "ParseError"
     case jobBegin = "JobBegin", jobEnd = "JobEnd"
+    /// The app's own verdict on a session (`ActivityVerdict`), journaled after it applied it live, so a relaunch
+    /// replays it. A reader that does not know the name skips the line: `ActivityCodec.decodeLine` returns nil.
+    case verdict = "KoffeeLidVerdict"
 
     /// The 15 Claude Code events the hook subscribes to, in the order `install-hooks` writes them.
     public static let claudeCodeEvents: [ActivityEventName] = [
@@ -38,6 +41,11 @@ public enum ActivityEventName: String, Codable, Equatable {
 }
 
 /// One trimmed journal line. Bodies (tool input/output, prompts, messages) never reach this type.
+/// What a `KoffeeLidVerdict` line says: the rescue that decided it found the turn over, or the dialog answered.
+public enum ActivityVerdict: String, Equatable, CaseIterable, Sendable {
+    case turnOver = "turn-over", dialogAnswered = "dialog-answered"
+}
+
 public struct ActivityEvent: Codable, Equatable {
     public var loggedAt: Date
     public var event: ActivityEventName
@@ -62,6 +70,8 @@ public struct ActivityEvent: Codable, Equatable {
     public var jobPid: Int32?
     public var jobLabel: String?
     public var jobArmAfterSeconds: Double?
+    /// A `KoffeeLidVerdict` line's `ActivityVerdict` raw value; nil on every other line.
+    public var verdict: String?
 
     public init(loggedAt: Date, event: ActivityEventName) { self.loggedAt = loggedAt; self.event = event }
 
@@ -71,7 +81,7 @@ public struct ActivityEvent: Codable, Equatable {
         case loggedAt = "logged_at", event, agent, sessionId = "session_id", agentId = "agent_id", toolName = "tool_name", turnId = "turn_id"
         case notificationType = "notification_type", source, transcriptPath = "transcript_path", backgroundTaskIds = "background_task_ids"
         case agentPid = "agent_pid", rawPrefix = "raw_prefix", jobId = "job_id", jobPid = "job_pid"
-        case jobLabel = "job_label", jobArmAfterSeconds = "job_arm_after_seconds"
+        case jobLabel = "job_label", jobArmAfterSeconds = "job_arm_after_seconds", verdict
     }
     /// The pid's key on lines written before Codex was supported; this boot's journal can still hold them.
     private enum LegacyKeys: String, CodingKey { case claudePid = "claude_pid" }
@@ -96,6 +106,7 @@ public struct ActivityEvent: Codable, Equatable {
         jobPid = try c.decodeIfPresent(Int32.self, forKey: .jobPid)
         jobLabel = try c.decodeIfPresent(String.self, forKey: .jobLabel)
         jobArmAfterSeconds = try c.decodeIfPresent(Double.self, forKey: .jobArmAfterSeconds)
+        verdict = try c.decodeIfPresent(String.self, forKey: .verdict)
     }
 }
 

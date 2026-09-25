@@ -63,6 +63,7 @@ public struct ActivitySessionStore {
     public var trackedPids: Set<Int32> { Set(sessions.values.compactMap(\.agentPid)) }
 
     public mutating func apply(_ e: ActivityEvent) {
+        if e.event == .verdict { applyVerdict(e); return }
         let agent = e.effectiveAgent
         guard ActivityEventName.hookEvents(for: agent).contains(e.event), let sid = e.sessionId else { return }
         let now = e.loggedAt
@@ -136,11 +137,24 @@ public struct ActivitySessionStore {
             // Esc in Codex ends the turn and its helpers at once; nothing is left out to hold it.
             s.liveAgents.removeAll(); s.backgroundIds.removeAll(); clearPending(&s); set(&s, .done, now)
             closeTurn(&s, byInterrupt: true, now: now)
-        case .sessionEnd, .subagentStart, .subagentStop, .parseError, .jobBegin, .jobEnd:
+        case .sessionEnd, .subagentStart, .subagentStop, .parseError, .jobBegin, .jobEnd, .verdict:
             break // handled above, or helper shapes without agent_id, which carry no signal
         }
         updateHoldRelease(&s, now: now)
         sessions[sid] = s
+    }
+
+    /// The app's own verdict, replayed or handed back by the tailer after it was applied live: it applies the same
+    /// rescue at the same stamp, so the replay reproduces the session, and a second application changes nothing.
+    /// It never creates a session and never refreshes `lastEventAt`; one stamped before the session's last
+    /// main-agent event was overtaken by that event and changes nothing.
+    private mutating func applyVerdict(_ e: ActivityEvent) {
+        guard let sid = e.sessionId, let s = sessions[sid], e.loggedAt >= s.lastMainEventAt,
+              let verdict = e.verdict.flatMap(ActivityVerdict.init(rawValue:)) else { return }
+        switch verdict {
+        case .turnOver: turnOver(sessionId: sid, now: e.loggedAt)
+        case .dialogAnswered: dialogAnswered(sessionId: sid, now: e.loggedAt)
+        }
     }
 
     /// How many closed turns a session remembers: a late line names the turn just closed, seldom an older one.
@@ -186,13 +200,19 @@ public struct ActivitySessionStore {
 
     /// The agent process died: every session it hosted is gone, no SessionEnd required.
     public mutating func processExited(pid: Int32) { sessions = sessions.filter { $0.value.agentPid != pid } }
-    /// Startup prune after replay: a session's pid must be alive and still run its agent. Sessions without
-    /// a pid are left to staleness. A session hosted by Codex's daemon is kept without asking: the daemon was
-    /// alive when it was marked, and its life says nothing about the session's turn, which the rollout
-    /// check at launch decides.
-    public mutating func pruneDead(isAlive: (Int32, ActivityAgent) -> Bool) {
+    /// Startup prune after replay: a session is kept only while its pid is alive and runs its agent and, for a
+    /// Claude Code session, while the registry record for that pid, when one exists, names the same session (a
+    /// recycled pid's record names another; no record proves nothing). `registrySession` is asked about live
+    /// Claude Code pids only. Sessions without a pid are left to staleness. A session hosted by Codex's daemon
+    /// is kept without asking: the daemon was alive when it was marked, and its life says nothing about the
+    /// session's turn, which the Codex check at launch decides.
+    public mutating func pruneDead(isAlive: (Int32, ActivityAgent) -> Bool, registrySession: (Int32) -> String?) {
         sessions = sessions.filter { entry in
-            entry.value.hostedByDaemon || (entry.value.agentPid.map { isAlive($0, entry.value.agent) } ?? true)
+            let s = entry.value
+            guard !s.hostedByDaemon, let pid = s.agentPid else { return true }
+            guard isAlive(pid, s.agent) else { return false }
+            guard s.agent == .claude, let named = registrySession(pid) else { return true }
+            return named == s.id
         }
     }
     /// Marks each Codex session whose pid `isDaemon` names as hosted by Codex's managed daemon.
@@ -240,13 +260,13 @@ public struct ActivitySessionStore {
         return deadlines.filter { $0 > now }.min()
     }
 
-    /// Working Claude Code sessions quiet for `abandonQuietSeconds` with nothing out, to be asked about at
-    /// the source (Claude Code's registry file). The read lives in the app. Codex has no registry: its
-    /// sessions are `codexCandidates`.
-    public func abandonCandidates(at now: Date) -> [(sessionId: String, pid: Int32)] {
+    /// Working Claude Code sessions quiet for `quietSeconds` with nothing out, to be asked about at the source
+    /// (Claude Code's registry file). The read lives in the app; at launch the gate is 0. Codex has no
+    /// registry: its sessions are `codexCandidates`.
+    public func abandonCandidates(at now: Date, quietSeconds: TimeInterval = ActivityConstants.abandonQuietSeconds) -> [(sessionId: String, pid: Int32)] {
         sessions.values.compactMap { s in
             guard s.agent == .claude, s.state == .working, !s.pendingDone, let pid = s.agentPid, !s.hasLiveHelpers(at: now), s.backgroundIds.isEmpty,
-                  now.timeIntervalSince(s.lastEventAt) >= ActivityConstants.abandonQuietSeconds else { return nil }
+                  now.timeIntervalSince(s.lastEventAt) >= quietSeconds else { return nil }
             return (s.id, pid)
         }
     }
@@ -259,11 +279,17 @@ public struct ActivitySessionStore {
             return (s.id, s.transcriptPath)
         }
     }
-    /// The registry or the rollout says the turn ended, stamped after our last event: the turn is over,
-    /// however it ended, and closed.
+    /// The registry, the rollout or Codex's daemon says the turn ended after our last event: the turn is over,
+    /// however it ended, and closed. `now` is when it ended (`rescueStamp`).
     public mutating func turnOver(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .working, !s.pendingDone else { return }
         set(&s, .done, now); closeTurn(&s, byInterrupt: false, now: now); sessions[sessionId] = s
+    }
+    /// When a rescued turn ended: the source's own stamp (the registry's `statusUpdatedAt`, the rollout marker's;
+    /// now for an answer that carries none), never before the last main-agent event and never after now. The turn
+    /// is ended at it and the verdict journaled with it, so a replay gives the same `stateSince`.
+    public static func rescueStamp(endedAt: Date, lastMainEventAt: Date, now: Date) -> Date {
+        min(max(endedAt, lastMainEventAt), now)
     }
     /// The registry says busy, or the rollout's turn has no end: the agent is running even though no hook
     /// arrived. Liveness only — `lastMainEventAt` keeps measuring true hook silence.

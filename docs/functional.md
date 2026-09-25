@@ -115,12 +115,20 @@ up any of the three hooks from that page or from the onboarding turns it on.
   (kqueue). A Claude Code turn ended with Esc or Ctrl-C fires no hook; Claude Code's own
   `sessions/<pid>.json` record going `idle` ends it within about 35 s, and an `idle_prompt` or
   `agent_needs_input` notification after 50 s of main-agent quiet ends it too. The registry's verdict closes
-  the turn; the notification, a timer rather than proof, does not.
+  the turn; the notification, a timer rather than proof, does not. The registry is found from the session's
+  transcript path (`<config>/projects/…`), so a relocated `CLAUDE_CONFIG_DIR` is found; `~/.claude` is the
+  fallback. The app records its own verdicts (a turn over, from the registry, a rollout or Codex's daemon, and
+  a dialog answered) in the journal, stamped when the turn ended or the answer was seen, so a relaunch replays
+  them; a verdict older than the session's last main-agent event changes nothing, and a verdict about a
+  session the journal does not hold is ignored. At launch,
+  after the 2 h rule below, a replayed session is kept only while its pid is alive, runs its agent and, when a
+  Claude Code registry record exists for the pid, names the same session; then the registry and the rollouts
+  are read before the first arm, whatever the turn's quiet, and a session already over is never counted.
   A Codex session of the TUI is hosted by Codex's managed daemon, one per user, alive across every TUI: the
   pid its hooks record is the daemon's, so only the daemon's death drops its sessions. `codex exec` and the
   desktop app record their own process, and their death drops their sessions. Every Codex hook names the
   session's rollout file (`transcript_path`), and a working Codex session quiet for 20 s with nothing out is
-  checked against it every 15 s, and once at launch before anything counts, after the 2 h rule below: a
+  checked against it every 15 s, and once at launch before anything counts: a
   `task_complete` or `turn_aborted` that is stamped after the last main-agent event, or that names the turn
   that event belonged to, ends the turn, however it ended, and closes it (the late `PostToolUse` of a tool
   Codex aborted arrives after the `turn_aborted`, under the same turn id); an end of an earlier turn stamped
@@ -131,7 +139,9 @@ up any of the three hooks from that page or from the onboarding turns it on.
   not answer. Only a session the daemon hosts is asked; a status other than these three decides nothing
   either, and every question has 1 s to be answered. At launch the daemon is asked which threads it holds
   (`thread/loaded/list`): a working session it hosts whose thread is not among them has nothing running, and
-  nothing counts before that answer. The launch checks only end turns. Anything silent for 2 h is dropped.
+  nothing counts before that answer. The launch checks only end turns, but for a Claude Code dialog the
+  registry says was answered, which counts again as it would at the first check. Anything silent for 2 h is
+  dropped.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after

@@ -37,6 +37,17 @@ final class ActivityEventTests: XCTestCase {
         XCTAssertEqual(ActivityCodec.decodeLine(Data(text.utf8)), e)
         XCTAssertNil(ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\"}".utf8))?.transcriptPath)
     }
+    func testAVerdictLineRoundTripsWithItsSessionItsVerdictAndItsStampOnly() throws {
+        var e = ActivityEvent(loggedAt: Date(timeIntervalSince1970: 1_700_000_000.5), event: .verdict)
+        e.sessionId = "s1"; e.verdict = ActivityVerdict.turnOver.rawValue
+        let data = try ActivityCodec.encodeLine(e)
+        let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(Set(object.keys), ["event", "logged_at", "session_id", "verdict"])
+        XCTAssertEqual(object["event"] as? String, "KoffeeLidVerdict"); XCTAssertEqual(object["verdict"] as? String, "turn-over")
+        XCTAssertEqual(ActivityCodec.decodeLine(data), e)
+        XCTAssertEqual(ActivityVerdict.dialogAnswered.rawValue, "dialog-answered")
+        XCTAssertNil(ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\"}".utf8))?.verdict, "a hook line carries none")
+    }
     func testALineFromBeforeCodexStillCarriesItsPid() {
         let e = ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\",\"claude_pid\":42,\"session_id\":\"s\"}".utf8))
         XCTAssertEqual(e?.agentPid, 42); XCTAssertNil(e?.agent); XCTAssertEqual(e?.effectiveAgent, .claude)

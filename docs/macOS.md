@@ -275,15 +275,22 @@ image's `.DS_Store` with `dmgbuild` instead.
 Three surfaces the activity feature depends on, none documented upstream:
 
 - **Hook events and payload keys.** The 15 event names in `ActivityEventName.claudeCodeEvents` and the payload
-  fields `hook_event_name`, `session_id`, `agent_id`, `tool_name`, `notification_type`, `source`,
-  `background_tasks`. `ActivityTrim.event(fromHookPayload:)` reads only these; prompts, tool input and output
-  and assistant messages never reach the journal.
+  fields `hook_event_name`, `session_id`, `agent_id`, `tool_name`, `prompt_id`, `notification_type`, `source`,
+  `background_tasks`, `transcript_path`. `prompt_id` is the turn's id (`ActivityEvent.turnId`): every event of
+  a turn carries the id its `UserPromptSubmit` carried, a helper's events the parent turn's. `transcript_path`
+  is the session's conversation, `<config>/projects/<slug>/<session id>.jsonl`, kept on `SessionStart`,
+  `UserPromptSubmit` and `Stop`. `ActivityTrim.event(fromHookPayload:)` reads only these; prompts, tool input
+  and output and assistant messages never reach the journal.
 - **`<config>/sessions/<pid>.json`.** Claude Code's per-process registry record (`ClaudeRegistryRecord`): `pid`,
   `sessionId`, `status` (`busy` while a turn runs, `idle` at the prompt), `statusUpdatedAt` (epoch
-  milliseconds). It is the only signal about a turn that does not travel through hooks.
-- **`CLAUDE_CONFIG_DIR`.** Relocates the registry away from `~/.claude`. macOS withholds another process's
-  environment from a same-user reader (`ps -E` prints none either), so `ProcWalk.environmentValue` returns
-  `nil` and `ClaudeProcessRegistry.read` falls back to `~/.claude/sessions/<pid>.json`.
+  milliseconds). It is the only signal about a turn that does not travel through hooks. A pid another
+  Claude Code took over names that process's session.
+- **`CLAUDE_CONFIG_DIR`.** Relocates the registry, and the transcripts, away from `~/.claude`. macOS withholds
+  another process's environment from a same-user reader (`ps -E` prints none either), so the variable itself
+  cannot be read; the transcript path the hooks name carries the directory instead.
+  `ClaudeRegistryRecord.configDir(fromTranscriptPath:)` takes the folder above the last `projects` folder
+  over the file's own folder, and `ClaudeProcessRegistry.read(pid:configDir:)` reads `<that>/sessions/<pid>.json`,
+  `~/.claude/sessions/<pid>.json` when the session names no such path.
 
 Hooks are installed in `~/.claude/settings.json` (symlinks resolved), one entry per event:
 `{"matcher": "*", "hooks": [{"type": "command", "command": "<bundle>/Contents/MacOS/KoffeeLidHook hook", "timeout": 5}]}`.
