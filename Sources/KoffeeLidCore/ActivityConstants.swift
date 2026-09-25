@@ -9,6 +9,9 @@ public enum ActivityConstants {
     /// One O_APPEND write of at most this many bytes stays atomic on APFS in practice.
     public static let journalLineMaxBytes = 4096
     public static let metadataMaxChars = 200
+    /// A transcript or rollout path. The ones on this Mac run about 100 characters; `metadataMaxChars` would
+    /// cut a deep home or project folder, and a cut path names no file.
+    public static let pathMaxChars = 1024
     public static let backgroundIdMaxCount = 16
     public static let backgroundIdMaxChars = 40
     public static let rawPrefixMaxChars = 300
@@ -29,8 +32,8 @@ public enum ActivityConstants {
     /// idle_prompt fires ~60 s after a quiet turn (median exactly 60 s); one over fresher main-agent
     /// activity is a glitch. 50 s leaves headroom below 60, not above.
     public static let idleSignalMinQuietSeconds: TimeInterval = 50
-    /// Quiet before a working Claude Code session is checked against its registry (Esc/Ctrl-C fire no hook
-    /// there; Codex fires Interrupt and has no registry).
+    /// Quiet before a working session is checked at its source: Claude Code's registry (Esc/Ctrl-C fire no
+    /// hook there) or Codex's rollout (a lost `Stop` or `Interrupt` leaves nothing else to end the turn).
     public static let abandonQuietSeconds: TimeInterval = 20
     public static let abandonRecheckSeconds: TimeInterval = 15
     /// After an `Interrupt`, a tool or permission line without a turn id changes nothing for this long. Codex

@@ -29,6 +29,14 @@ final class ActivityEventTests: XCTestCase {
         XCTAssertEqual(ActivityCodec.decodeLine(Data(text.utf8)), e)
         XCTAssertNil(ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\"}".utf8))?.turnId, "a line without the key has no turn")
     }
+    func testTheTranscriptPathRoundTripsUnderTranscriptPath() throws {
+        var e = ActivityEvent(loggedAt: Date(timeIntervalSince1970: 1_700_000_000), event: .stop)
+        e.sessionId = "c1"; e.agent = .codex; e.transcriptPath = "/Users/x/.codex/sessions/2026/09/25/rollout-c1.jsonl"
+        let text = String(decoding: try ActivityCodec.encodeLine(e), as: UTF8.self)
+        XCTAssertTrue(text.contains("\"transcript_path\":\"/Users/x/.codex/sessions/2026/09/25/rollout-c1.jsonl\""), text)
+        XCTAssertEqual(ActivityCodec.decodeLine(Data(text.utf8)), e)
+        XCTAssertNil(ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\"}".utf8))?.transcriptPath)
+    }
     func testALineFromBeforeCodexStillCarriesItsPid() {
         let e = ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\",\"claude_pid\":42,\"session_id\":\"s\"}".utf8))
         XCTAssertEqual(e?.agentPid, 42); XCTAssertNil(e?.agent); XCTAssertEqual(e?.effectiveAgent, .claude)

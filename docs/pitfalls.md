@@ -396,6 +396,28 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   under the same id, and that work must count. Do not end the quarantine at the next tool event, or drop the
   turn id to save bytes: the late line is indistinguishable from real work by anything else it carries.
 
+### The daemon outlives every TUI, so the pid proves nothing
+- **Symptom.** A Codex session whose end event was lost (an `Interrupt` past its 3 s cap, a hook switched off
+  in `/hooks`, the hook binary missing during an install) stays working for 2 h, and a relaunch of the app
+  counts it again, though the TUI was quit long ago.
+- **Why.** Codex's TUI runs its threads in the managed daemon (`codex app-server --managed-daemon`, one per
+  user, parented by launchd, alive across every TUI), so the hook's nearest `codex` ancestor is the daemon and
+  every TUI session records its pid. The kqueue on that pid fires only when the daemon dies, and the launch
+  prune finds it alive and running `codex`: neither can ever end one TUI session.
+- **What the code does.** `ProcWalk.isCodexDaemon` recognises the daemon (its `/app-server-daemon/` path or
+  its `app-server` argument) and the monitor marks such sessions `hostedByDaemon`; `pruneDead` keeps them
+  without asking about the pid. The session's rollout decides instead: the hook lines keep `transcript_path`
+  (`SessionStart`, `UserPromptSubmit`, `Stop`, `Interrupt`), and `ActivityMonitor.checkCodex` reads its last
+  64 KB (`CodexRollout`, `CodexRolloutTail`) for a working session quiet for 20 s, every 15 s, and for every
+  working Codex session once at launch before anything counts. A `task_complete` or `turn_aborted` stamped
+  after the last main-agent event is `turnOver`; a `task_started` with no end is `noteBusy`; anything else
+  decides nothing. The kqueue stays: the daemon's own death still drops every session it hosted.
+- **Do not** read the rollout's modification time as an end: a tool that sleeps for half an hour writes
+  nothing for half an hour. **Do not** count an `item_completed` as a turn marker: Codex writes one for an
+  aborted call after the abort. **Do not** keep, log or return anything of a rollout line but its type, its
+  stamp and its turn id: the file is the conversation. **Do not** let the launch check start anything: it
+  only ends turns the replay counted.
+
 ## Working on this Mac
 
 - **The installed app is the daily driver.** `AppleClamshellCausesSleep = No` is usually its arm. Run

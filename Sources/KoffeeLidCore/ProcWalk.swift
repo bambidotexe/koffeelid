@@ -2,7 +2,7 @@ import Foundation
 
 /// Reads the process ancestor chain via sysctl — microseconds, no subprocesses. Used by the hook to find
 /// the Claude Code or Codex process it runs under, and by the app to prune sessions whose pid died or was
-/// recycled.
+/// recycled and to tell Codex's shared daemon apart.
 public enum ProcWalk {
     public struct ProcInfo: Equatable {
         public let pid: Int32, ppid: Int32, name: String, path: String?
@@ -43,6 +43,25 @@ public enum ProcWalk {
         return String(decoding: buffer[start..<end], as: UTF8.self)
     }
 
+    /// The argument vector, argv[0] first, from a same-user process's KERN_PROCARGS2 buffer: argc, the exec
+    /// path, NUL padding, then argc NUL-terminated strings. Nil when the process cannot be read.
+    public static func arguments(forPid pid: Int32) -> [String]? {
+        guard let buffer = procArgs(pid) else { return nil }
+        var argc: Int32 = 0
+        withUnsafeMutableBytes(of: &argc) { $0.copyBytes(from: buffer.prefix(MemoryLayout<Int32>.size)) }
+        var index = MemoryLayout<Int32>.size
+        while index < buffer.count, buffer[index] != 0 { index += 1 }   // exec path
+        while index < buffer.count, buffer[index] == 0 { index += 1 }   // padding
+        var out: [String] = []
+        while out.count < Int(argc), index < buffer.count {
+            var end = index
+            while end < buffer.count, buffer[end] != 0 { end += 1 }
+            out.append(String(decoding: buffer[index..<end], as: UTF8.self))
+            index = end + 1
+        }
+        return out
+    }
+
     /// One variable from a same-user process's environment (CLAUDE_CONFIG_DIR: the registry dir is per account).
     public static func environmentValue(_ name: String, forPid pid: Int32) -> String? {
         guard let buffer = procArgs(pid) else { return nil }
@@ -79,7 +98,8 @@ public enum ProcWalk {
         return false
     }
     /// Codex's two install shapes: the launcher `~/.local/bin/codex` (a symlink) and the binary it points
-    /// at, `~/.codex/packages/standalone/<version>/bin/codex`; the app-server daemon runs the same binary.
+    /// at, `~/.codex/packages/standalone/<version>/bin/codex`; the app-server daemon runs its own copy under
+    /// `~/.codex/packages/app-server-daemon/`.
     public static func isCodexPath(_ path: String) -> Bool {
         path.hasSuffix("/codex") || path.split(separator: "/").contains("codex")
     }
@@ -88,6 +108,16 @@ public enum ProcWalk {
         if let path = info.path, isCodexPath(path) { return true }
         if let argv0 = execPath(for: info.pid), isCodexPath(argv0) { return true }
         return false
+    }
+    /// Codex's managed daemon, `codex app-server --listen unix:// --managed-daemon`, installed under
+    /// `~/.codex/packages/app-server-daemon/`: one per user, started by the first TUI, parented by launchd,
+    /// and the process every TUI session's hooks run under. Recognised by its subcommand or its install path.
+    public static func isCodexDaemon(path: String?, arguments: [String]) -> Bool {
+        if let path, path.contains("/app-server-daemon/") { return true }
+        return arguments.dropFirst().contains("app-server")
+    }
+    public static func isCodexDaemon(_ info: ProcInfo) -> Bool {
+        isCodexDaemon(path: info.path, arguments: arguments(forPid: info.pid) ?? [])
     }
     public static func isProcess(of agent: ActivityAgent, _ info: ProcInfo) -> Bool {
         agent == .claude ? isClaudeProcess(info) : isCodexProcess(info)

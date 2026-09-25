@@ -92,4 +92,15 @@ final class ActivityTrimTests: XCTestCase {
         XCTAssertNil(turn([:]))
         XCTAssertEqual(turn(["turn_id": String(repeating: "t", count: 300)])?.count, 200)
     }
+    func testTheTranscriptPathIsKeptOnTheFourBoundaryEventsOnly() {
+        let path = "/Users/x/.codex/sessions/2026/09/25/rollout-2026-09-25T18-00-00-s.jsonl"
+        func kept(_ name: String, _ agent: ActivityAgent = .codex, _ value: String = path) -> String? {
+            ActivityTrim.event(fromHookPayload: payload(["hook_event_name": name, "session_id": "s", "transcript_path": value]), agent: agent, loggedAt: now).transcriptPath
+        }
+        for name in ["SessionStart", "UserPromptSubmit", "Stop", "Interrupt"] { XCTAssertEqual(kept(name), path, name) }
+        for name in ["SessionStart", "UserPromptSubmit", "Stop"] { XCTAssertEqual(kept(name, .claude), path, "Claude Code's \(name)") }
+        XCTAssertNil(kept("PreToolUse")); XCTAssertNil(kept("PostToolUse", .claude)); XCTAssertNil(kept("SessionEnd"))
+        XCTAssertEqual(kept("Stop", .codex, String(repeating: "p", count: 2000))?.count, ActivityConstants.pathMaxChars)
+        XCTAssertEqual(ActivityConstants.pathMaxChars, 1024)
+    }
 }

@@ -111,13 +111,20 @@ up any of the three hooks from that page or from the onboarding turns it on.
   has run longer than "Ignore commands shorter than" (default 5 s, `KOFFEELID_ARM_AFTER` per shell).
   Interactive programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `claude`, `codex`, …)
   never count.
-- **Without an end event**: a Claude Code or Codex process or a shell that exits drops its sessions and jobs at
-  once (kqueue). A Claude Code turn ended with Esc or Ctrl-C fires no hook; Claude Code's own
+- **Without an end event**: a Claude Code process or a shell that exits drops its sessions and jobs at once
+  (kqueue). A Claude Code turn ended with Esc or Ctrl-C fires no hook; Claude Code's own
   `sessions/<pid>.json` record going `idle` ends it within about 35 s, and an `idle_prompt` or
   `agent_needs_input` notification after 50 s of main-agent quiet ends it too. The registry's verdict closes
   the turn; the notification, a timer rather than proof, does not.
-  Codex has no registry and no notification hook, and its `Interrupt` hook fires instead. Anything silent for
-  2 h is dropped.
+  A Codex session of the TUI is hosted by Codex's managed daemon, one per user, alive across every TUI: the
+  pid its hooks record is the daemon's, so only the daemon's death drops its sessions. `codex exec` and the
+  desktop app record their own process, and their death drops their sessions. Every Codex hook names the
+  session's rollout file (`transcript_path`), and a working Codex session quiet for 20 s with nothing out is
+  checked against it every 15 s, and once at launch before anything counts: a `task_complete` or
+  `turn_aborted` stamped after the last main-agent event ends the turn, however it ended, and closes it; a
+  `task_started` with no end keeps it alive; a rollout that cannot be read decides nothing, and a path that
+  names another session's rollout is never read. The launch check only ends turns. Anything silent for 2 h is
+  dropped.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after

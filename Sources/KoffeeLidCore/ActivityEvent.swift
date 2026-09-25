@@ -51,6 +51,9 @@ public struct ActivityEvent: Codable, Equatable {
     public var turnId: String?
     public var notificationType: String?
     public var source: String?
+    /// The session's transcript file: Claude Code's conversation, Codex's rollout. Kept on `SessionStart`,
+    /// `UserPromptSubmit`, `Stop` and `Interrupt` only; nil on the others and on lines written before the field.
+    public var transcriptPath: String?
     public var backgroundTaskIds: [String]?
     /// The agent process the hook ran under: the nearest ancestor of that agent's kind.
     public var agentPid: Int32?
@@ -66,7 +69,7 @@ public struct ActivityEvent: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case loggedAt = "logged_at", event, agent, sessionId = "session_id", agentId = "agent_id", toolName = "tool_name", turnId = "turn_id"
-        case notificationType = "notification_type", source, backgroundTaskIds = "background_task_ids"
+        case notificationType = "notification_type", source, transcriptPath = "transcript_path", backgroundTaskIds = "background_task_ids"
         case agentPid = "agent_pid", rawPrefix = "raw_prefix", jobId = "job_id", jobPid = "job_pid"
         case jobLabel = "job_label", jobArmAfterSeconds = "job_arm_after_seconds"
     }
@@ -84,6 +87,7 @@ public struct ActivityEvent: Codable, Equatable {
         turnId = try c.decodeIfPresent(String.self, forKey: .turnId)
         notificationType = try c.decodeIfPresent(String.self, forKey: .notificationType)
         source = try c.decodeIfPresent(String.self, forKey: .source)
+        transcriptPath = try c.decodeIfPresent(String.self, forKey: .transcriptPath)
         backgroundTaskIds = try c.decodeIfPresent([String].self, forKey: .backgroundTaskIds)
         agentPid = try c.decodeIfPresent(Int32.self, forKey: .agentPid)
             ?? decoder.container(keyedBy: LegacyKeys.self).decodeIfPresent(Int32.self, forKey: .claudePid)

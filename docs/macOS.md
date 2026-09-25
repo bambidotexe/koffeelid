@@ -295,11 +295,14 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
 
 - **Hook events and payload keys.** The 12 event names in `ActivityEventName.codexEvents`: Claude Code's list
   without `Notification`, `PermissionDenied`, `PostToolUseFailure` and `StopFailure`, plus `Interrupt`, which
-  Esc and Ctrl-C fire. Every payload carries `session_id` and `hook_event_name`; `turn_id` on everything but
-  `SessionStart` and `SessionEnd`; `agent_id` and `agent_type` on a helper's events; `tool_name` on the tool
-  events; `source` on `SessionStart` (`startup`, `resume`, `clear`, `compact`, `fork`); `reason` on
-  `SessionEnd`. `Stop` fires for the main agent only, `SubagentStop` for a helper. The tool a question to the
-  user goes through is `request_user_input`.
+  Esc and Ctrl-C fire. Every payload carries `session_id`, `hook_event_name` and `transcript_path` (the
+  session's rollout, below); `turn_id` on everything but `SessionStart` and `SessionEnd`; `agent_id` and
+  `agent_type` on a helper's events; `tool_name` on the tool events; `source` on `SessionStart` (`startup`,
+  `resume`, `clear`, `compact`, `fork`); `reason` on `SessionEnd`, the constant `other` in 0.157. `Stop` fires
+  for the main agent only, `SubagentStop` for a helper, and `Stop` only when a turn completes normally: an
+  aborted or errored turn never reaches it. `SessionStart` fires at the session's first prompt, not when the
+  TUI opens; a thread quit before any prompt sends `SessionEnd` alone. The tool a question to the user goes
+  through is `request_user_input`.
 - **`~/.codex/hooks.json`** (`$CODEX_HOME/hooks.json`, the same `hooks` object as Claude Code's, under a root
   that may also hold a `description`). A missing `matcher` matches everything; `"*"` does too, but a matcher is
   otherwise a regular expression. The `hooks` feature is on by default. Hooks can also live in `config.toml`
@@ -315,12 +318,31 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
   `/hooks` screen and stops running. `CodexHookTrust` reproduces key and hash, `CodexHookTrustTests` pins
   them to the hashes Codex reported.
 - **How the hook runs.** `$SHELL -lc "<command>"` from the session's environment snapshot, in the session's
-  cwd, the payload on stdin; the shell usually execs the hook, so its parent is the `codex` process itself,
-  and a `codex` started from a Claude Code tool call has `claude` further up the chain.
-  `ProcWalk.pid(of: .codex, inChainFrom:)` takes the nearest `codex`.
-- **Process shapes.** `~/.local/bin/codex` is a symlink to `~/.codex/packages/standalone/<version>/bin/codex`;
-  the shared app-server daemon runs the same binary. `p_comm` is `codex`. No per-process registry exists:
-  what a lost `Stop` costs Claude Code, Codex covers with `Interrupt` and `SessionEnd`.
+  cwd, the payload on stdin; the shell usually execs the hook, so its parent is the `codex` process that runs
+  the session's thread: for the TUI that is the managed daemon (below), never the TUI itself; for `codex exec`
+  and the desktop app, their own `codex`. A `codex` started from a Claude Code tool call has `claude` further
+  up the chain. `ProcWalk.pid(of: .codex, inChainFrom:)` takes the nearest `codex`.
+- **Process shapes.** `~/.local/bin/codex` is a symlink to `~/.codex/packages/standalone/<version>/bin/codex`.
+  `p_comm` is `codex` for every Codex process. The TUI does not run its own threads: the **managed daemon**,
+  `codex app-server --listen unix:// --managed-daemon` from
+  `~/.codex/packages/app-server-daemon/releases/<version>/bin/codex`, does. It is one per user, started by the
+  first TUI, parented by launchd, beside a `codex app-server daemon pid-update-loop` companion, and alive after
+  the last TUI has gone: on 2026-09-25 five overlapping TUI sessions carried its one pid, and it was still up
+  19 min after the last TUI detached. A killed TUI does not stop a running turn: the daemon finishes it, its
+  hooks still fire, and it unloads a thread 30 min after it is idle with no subscriber. So the pid a TUI
+  session's hooks record proves nothing about the session; only the daemon's death drops them all.
+  `ProcWalk.isCodexDaemon` recognises it by its path or its `app-server` argument. The desktop app runs its
+  threads in its own long-lived `codex`, `codex exec` in its own process. No per-process registry exists; the
+  rollout is the session's record.
+- **The rollout.** `~/.codex/sessions/<yyyy>/<mm>/<dd>/rollout-<timestamp>-<session id>.jsonl`, the path every
+  hook sends as `transcript_path`: one JSON line per item, each with `timestamp` (ISO 8601, milliseconds, UTC),
+  `type` and `payload`. The turn markers are the `event_msg` lines whose `payload.type` is `task_started`,
+  `task_complete` or `turn_aborted`, each with `payload.turn_id`; on 2026-09-25, 399 `task_started` across 55
+  rollouts met 392 `task_complete` and 7 `turn_aborted`, one for one. The other `event_msg` types
+  (`item_completed`, `token_count`, `thread_settings_applied`) are items, not turns: an `item_completed` for an
+  aborted call can land after the `turn_aborted`, under the same turn id. The file holds the whole
+  conversation; `CodexRolloutTail` reads only the markers' type, stamp and turn id from its last 64 KB. A
+  session quit before its first prompt has a rollout with no marker.
 - **`CODEX_HOME`.** Relocates the whole folder. Like `CLAUDE_CONFIG_DIR`, it is invisible from another
   process, so the installer and the Health page use `~/.codex`.
 - **The desktop app.** LaunchServices answers `com.openai.codex` with the OpenAI desktop app (named ChatGPT

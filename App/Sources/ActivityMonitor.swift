@@ -32,8 +32,9 @@ struct ActivitySnapshot: Equatable {
     }
 }
 
-/// Owns the two stores; tails the activity journal; watches agent and shell pids; runs the time rules and
-/// the registry rescues; reports the aggregate "running" level to the coordinator. Main thread only.
+/// Owns the two stores; tails the activity journal; watches agent and shell pids; runs the time rules, the
+/// registry rescues and the rollout checks; reports the aggregate "running" level to the coordinator. Main
+/// thread only.
 @MainActor
 final class ActivityMonitor {
     var onChange: ((ActivitySnapshot) -> Void)?
@@ -54,6 +55,9 @@ final class ActivityMonitor {
     private var started = false
     private var warnedNoRegistry: Set<String> = []
     private var warnedHooksSilent: Set<String> = []
+    private var warnedNoRollout: Set<String> = []
+    /// Whether each Codex pid seen is Codex's managed daemon, read once per pid (its arguments do not change).
+    private var codexDaemonPids: [Int32: Bool] = [:]
     private var wakeObserver: NSObjectProtocol?
 
     static var isDisabledByEnvironment: Bool { ProcessInfo.processInfo.environment["KOFFEELID_DISABLE_ACTIVITY"] == "1" }
@@ -73,6 +77,9 @@ final class ActivityMonitor {
         sessions.pruneDead { pid, agent in ProcWalk.isAlive(pid: pid) && ProcWalk.looksLike(agent, pid: pid) }
         for job in jobs.jobs.values { if let pid = job.ownerPid, !ProcWalk.isAlive(pid: pid) { jobs.processExited(pid: pid) } }
         onLog?("activity: replayed \(replayed.count) events, \(sessions.sessions.count) sessions, \(jobs.jobs.count) jobs")
+        // Before anything counts: a replayed Codex turn that ended while the app was down ends here. This
+        // check only ends turns; nothing replayed is started by it.
+        checkCodex(now: Date(), atLaunch: true)
         rotateIfNeeded()
         // Live: replay consumed currentData.count bytes of the current journal; the tailer begins exactly
         // there, so nothing already replayed is applied twice and anything appended since is still delivered.
@@ -114,6 +121,14 @@ final class ActivityMonitor {
                 sessions.apply(e)
             }
         }
+        sessions.markDaemonHosted { [self] pid in isCodexDaemon(pid) }
+    }
+
+    private func isCodexDaemon(_ pid: Int32) -> Bool {
+        if let known = codexDaemonPids[pid] { return known }
+        let daemon = ProcWalk.info(for: pid).map(ProcWalk.isCodexDaemon) ?? false
+        codexDaemonPids[pid] = daemon
+        return daemon
     }
 
     /// A line that could not be parsed proves nothing about either hook.
@@ -138,6 +153,7 @@ final class ActivityMonitor {
 
     private func processExited(_ pid: Int32) {
         sessions.processExited(pid: pid); jobs.processExited(pid: pid)
+        codexDaemonPids.removeValue(forKey: pid)
         sync()
     }
 
@@ -148,6 +164,7 @@ final class ActivityMonitor {
         let now = Date()
         sessions.tick(now: now); jobs.tick(now: now)
         checkRegistry(now: now)
+        checkCodex(now: now, atLaunch: false)
         watcher.unwatchAll(except: sessions.trackedPids.union(jobs.trackedPids))
         for pid in sessions.trackedPids.union(jobs.trackedPids) { watcher.watch(pid: pid) }
         rotateIfNeeded()
@@ -177,7 +194,7 @@ final class ActivityMonitor {
     }
 
     /// Esc/Ctrl-C fire no hook in Claude Code: ask its own registry about quiet turns and open dialogs. The
-    /// store hands over Claude Code sessions only; Codex fires Interrupt instead and has no registry.
+    /// store hands over Claude Code sessions only; Codex's are `checkCodex`'s.
     private func checkRegistry(now: Date) {
         for (sid, pid) in sessions.abandonCandidates(at: now) {
             guard let record = ClaudeProcessRegistry.read(pid: pid), record.sessionId == sid else {
@@ -200,6 +217,34 @@ final class ActivityMonitor {
                   let stamped = record.statusUpdatedAt, stamped.timeIntervalSince(since) > ActivityConstants.dialogAnswerMinStampLeadSeconds else { continue }
             onLog?("activity: dialog answered without a hook (\(sid.prefix(8))); back to working")
             sessions.dialogAnswered(sessionId: sid, now: now)
+        }
+    }
+
+    /// A lost `Stop` or `Interrupt` leaves a Codex turn working with nothing to end it, and the pid its hooks
+    /// record is usually Codex's daemon, alive across every session: read the session's rollout instead. At
+    /// launch every working Codex session is read, without the quiet gate. Only ends turns.
+    private func checkCodex(now: Date, atLaunch: Bool) {
+        for (sid, recorded) in sessions.codexCandidates(at: now, quietSeconds: atLaunch ? 0 : ActivityConstants.abandonQuietSeconds) {
+            guard let session = sessions.sessions[sid] else { continue }
+            let path = recorded.flatMap { CodexRolloutTail.isRollout(path: $0, ofSession: sid) ? $0 : nil } ?? CodexRollout.locate(sessionId: sid)
+            let verdict = path.flatMap(CodexRollout.read(path:)).map { CodexRolloutTail.verdict(tail: $0) } ?? .unreadable
+            switch verdict {
+            case .complete(let at) where at > session.lastMainEventAt:
+                onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says finished, turn over")
+                sessions.turnOver(sessionId: sid, now: now)
+            case .aborted(let at) where at > session.lastMainEventAt:
+                onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says aborted, turn over")
+                sessions.turnOver(sessionId: sid, now: now)
+            case .running:
+                if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
+                    onLog?("activity: hooks look dead for \(sid.prefix(8)) — rollout says running, no hook for 5 min")
+                }
+                sessions.noteBusy(sessionId: sid, now: now)
+            case .unreadable:
+                if warnedNoRollout.insert(sid).inserted { onLog?("activity: no rollout for Codex session \(sid.prefix(8)); only staleness can end it") }
+            case .complete, .aborted:
+                break // an end stamped before our last event is the previous turn's
+            }
         }
     }
 

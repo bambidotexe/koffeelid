@@ -259,21 +259,27 @@ zsh preexec/precmd ┴▶ KoffeeLidHook ─▶ activity.jsonl ─▶ ActivityJou
                                                            ActivitySessionStore + ActivityJobStore
                                                            ActivityProcessWatcher (kqueue exit)
                                                            ClaudeProcessRegistry (sessions/<pid>.json)
+                                                           CodexRollout (rollout-…-<session>.jsonl, last 64 KB)
    ActivitySnapshot ─▶ KoffeeLidController.handleActivity ─▶ ActivityArmPolicy ─▶ applyAuto
 ```
 
 A file, not a socket: hooks fire while the app is down or being relaunched, and the journal is replayed at
-launch (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`; dead or recycled pids pruned;
-the tailer starts at the byte offset the replay consumed). A separate tiny binary, not the app: it runs inside
-every Claude Code turn, every Codex turn and every shell command, so it must start fast, never launch the app
-and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
+launch (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`; dead or recycled pids pruned,
+but a session on Codex's daemon kept; then the rollout check runs on every working Codex session, before the
+first publish, and can only end turns; the tailer starts at the byte offset the replay consumed). A separate
+tiny binary, not the app: it runs inside every Claude Code turn, every Codex turn and every shell command, so
+it must start fast, never launch the app and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
 Codex), never the payload: both agents send the same event names.
 
 `ActivityTrim` reduces a hook payload to event name, session id, agent id, tool name, turn id (Codex's
-`turn_id`, else Claude Code's `prompt_id`), notification type, source and background task ids, stamps it with the agent, caps every field and the line (4 KB), and turns
+`turn_id`, else Claude Code's `prompt_id`), notification type, source, background task ids and, on
+`SessionStart`, `UserPromptSubmit`, `Stop` and `Interrupt` only, the transcript path (up to 1024 characters),
+stamps it with the agent, caps every field and the line (4 KB), and turns
 anything unparseable, or any name outside that agent's events (`ActivityEventName.claudeCodeEvents`,
 `codexEvents`), into a `ParseError` line. Each line carries the pid of the nearest ancestor running its agent
-(`ProcWalk.pid(of:inChainFrom:)`; a Codex started from a Claude Code tool call has both in its chain).
+(`ProcWalk.pid(of:inChainFrom:)`; a Codex started from a Claude Code tool call has both in its chain). For a
+Codex TUI session that ancestor is Codex's managed daemon, shared by every TUI session and outliving them;
+the monitor reads each Codex pid once (`ProcWalk.isCodexDaemon`) and marks those sessions `hostedByDaemon`.
 `ActivityJournalWriter.append` is one `write` on an `O_APPEND` descriptor. The journal rotates to
 `activity.1.jsonl` above 20 MB, or above 5 MB while idle.
 
@@ -307,12 +313,20 @@ otherwise meets the table as it is.
 
 Time rules (`tick`): a helper counts as live for 240 s after its last event; a held `Stop` becomes `done` 90 s
 after everything cleared, or 30 min after the last event; `done` becomes `idle` after 20 min; a session silent
-for 2 h is removed. Registry rescues (`ActivityMonitor.checkRegistry`), for Claude Code sessions only, Codex
-having no registry and an `Interrupt` hook instead: a `working` session quiet for 20 s with nothing out is
-checked every 15 s; registry `idle` stamped after the last main event → `turnOver`; registry `busy` →
-`noteBusy` (and one warning after 5 min without a hook); a `waiting` session whose registry says `busy`
-stamped 2 s after the wait began → `dialogAnswered`. Only `working` counts as running, and the snapshot
-counts it per agent (`claudeSessions`, `codexSessions`).
+for 2 h is removed. Registry rescues (`ActivityMonitor.checkRegistry`), for Claude Code sessions
+(`abandonCandidates`): a `working` session quiet for 20 s with nothing out is checked every 15 s; registry
+`idle` stamped after the last main event → `turnOver`; registry `busy` → `noteBusy` (and one warning after
+5 min without a hook); a `waiting` session whose registry says `busy` stamped 2 s after the wait began →
+`dialogAnswered`. Rollout checks (`ActivityMonitor.checkCodex`), for Codex sessions (`codexCandidates`, the
+same gate and cadence, no pid needed, and no gate at launch): the session's `transcriptPath` when it names
+the session's own rollout, else the newest `~/.codex/sessions/*/*/*/rollout-*-<session id>.jsonl`
+(`CodexRollout.locate`); `CodexRollout.read` hands its last 64 KB to `CodexRolloutTail.verdict`, which reads
+only the `event_msg` turn markers' type, stamp and turn id; `task_complete` or `turn_aborted` stamped after
+the last main event → `turnOver`; `task_started` with no end → `noteBusy` (the same 5 min warning);
+unreadable → nothing, logged once per session. `nextDeadline` schedules both. `pruneDead` keeps a
+`hostedByDaemon` session without asking about its pid; the kqueue on the daemon still drops them all when it
+exits. Only `working` counts as running, and the snapshot counts it per agent (`claudeSessions`,
+`codexSessions`).
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
 `job end`, on the owner shell's exit, or after 2 h.

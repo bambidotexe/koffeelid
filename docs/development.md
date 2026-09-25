@@ -137,7 +137,8 @@ gesture: started|armed via tilt|modifier + close while armed|cancelled (…)|lid
 one-close session held on lid open · one-close arm held · one-close session ended on unlock|lid open
 effect: capture started|capture stopped|stopped|retracting from N°|following the lid from N°
 effect: gesture fold ended; waiting below N° again
-activity: running (…)|idle|quiet turn …|hooks look dead for …|no registry record for pid …
+activity: running (…)|idle|quiet turn …|quiet Codex turn …|hooks look dead for …|no registry record for pid …
+activity: no rollout for Codex session …
 auto-armed (activity) · auto-disarm scheduled in Ns · auto-arm ended: local input during the hold-off
 built-in Fn reader: reading …|Input Monitoring not granted|no built-in keyboard found|open FAILED
 ```

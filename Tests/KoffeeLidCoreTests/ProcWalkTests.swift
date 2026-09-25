@@ -49,6 +49,19 @@ final class ProcWalkTests: XCTestCase {
         XCTAssertFalse(ProcWalk.isProcess(of: .claude, .init(pid: 1, ppid: 0, name: "codex", path: nil)))
         if let pid = ProcWalk.pid(of: .codex, inChainFrom: getpid()) { XCTAssertTrue(ProcWalk.looksLike(.codex, pid: pid)) }
     }
+    func testTheManagedDaemonIsRecognisedByItsArguments() {
+        let daemonPath = "/Users/x/.codex/packages/app-server-daemon/releases/0.157.0-aarch64-apple-darwin/bin/codex"
+        XCTAssertTrue(ProcWalk.isCodexDaemon(path: daemonPath, arguments: [daemonPath, "app-server", "--listen", "unix://", "--managed-daemon"]))
+        XCTAssertTrue(ProcWalk.isCodexDaemon(path: "/opt/codex/bin/codex", arguments: ["codex", "app-server"]), "by its arguments alone")
+        XCTAssertTrue(ProcWalk.isCodexDaemon(path: daemonPath, arguments: []), "by its path alone")
+        XCTAssertFalse(ProcWalk.isCodexDaemon(path: "/Users/x/.codex/packages/standalone/0.157.0/bin/codex", arguments: ["codex"]), "the TUI")
+        XCTAssertFalse(ProcWalk.isCodexDaemon(path: "/Users/x/.local/bin/codex", arguments: ["codex", "exec", "--json"]), "codex exec")
+        XCTAssertFalse(ProcWalk.isCodexDaemon(path: nil, arguments: ["app-server"]), "argv[0] is the program, not an argument")
+        // The KERN_PROCARGS2 reader, checked on this process, whose argv the runner set.
+        XCTAssertEqual(ProcWalk.arguments(forPid: getpid()), CommandLine.arguments)
+        XCTAssertNil(ProcWalk.arguments(forPid: 2_000_000))
+        XCTAssertFalse(ProcWalk.isCodexDaemon(ProcWalk.info(for: getpid())!))
+    }
     func testNoClaudeInAnOrdinaryChainAndAliveness() {
         // Run from a plain terminal the chain has no Claude; run from inside a Claude Code shell it does.
         // Either way the answer must be consistent with the per-process check.

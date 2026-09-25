@@ -6,10 +6,10 @@ final class ActivitySessionStoreTests: XCTestCase {
     var store = ActivitySessionStore()
 
     func ev(_ name: ActivityEventName, _ sid: String = "s1", at dt: TimeInterval = 0, tool: String? = nil, agent: String? = nil,
-            notif: String? = nil, source: String? = nil, bg: [String]? = nil, pid: Int32? = 100, by: ActivityAgent? = nil, turn: String? = nil) -> ActivityEvent {
+            notif: String? = nil, source: String? = nil, bg: [String]? = nil, pid: Int32? = 100, by: ActivityAgent? = nil, turn: String? = nil, path: String? = nil) -> ActivityEvent {
         var e = ActivityEvent(loggedAt: t0.addingTimeInterval(dt), event: name)
         e.sessionId = sid; e.toolName = tool; e.agentId = agent; e.notificationType = notif; e.source = source
-        e.backgroundTaskIds = bg; e.agentPid = pid; e.agent = by; e.turnId = turn
+        e.backgroundTaskIds = bg; e.agentPid = pid; e.agent = by; e.turnId = turn; e.transcriptPath = path
         return e
     }
     func state(_ sid: String = "s1") -> ActivitySessionState? { store.sessions[sid]?.state }
@@ -147,7 +147,57 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(store.openWaitCandidates().map(\.sessionId), ["s1"])
         var codexOnly = ActivitySessionStore()
         codexOnly.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))
-        XCTAssertEqual(codexOnly.nextDeadline(after: t0), t0.addingTimeInterval(ActivityConstants.staleSeconds), "no recheck timer for a session with no registry")
+        XCTAssertEqual(codexOnly.abandonCandidates(at: quiet).count, 0, "a Codex session is never asked about a registry")
+    }
+    func testAQuietCodexSessionIsACandidateAndAClaudeOneIsNot() {
+        let rollout = "/Users/x/.codex/sessions/2026/09/25/rollout-2026-09-25T18-00-00-c1.jsonl"
+        store.apply(ev(.sessionStart, "c1", source: "startup", pid: 300, by: .codex, path: rollout))
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1", path: rollout))
+        store.apply(ev(.postToolUse, "c1", tool: "exec_command", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.userPromptSubmit))
+        store.apply(ev(.userPromptSubmit, "c2", pid: nil, by: .codex))
+        store.apply(ev(.userPromptSubmit, "c3", pid: 300, by: .codex)); store.apply(ev(.subagentStart, "c3", agent: "h1", pid: 300, by: .codex))
+        store.apply(ev(.userPromptSubmit, "c4", pid: 300, by: .codex)); store.apply(ev(.postToolUse, "c4", bg: ["b1"], pid: 300, by: .codex))
+        store.apply(ev(.userPromptSubmit, "c5", pid: 300, by: .codex)); store.apply(ev(.stop, "c5", pid: 300, by: .codex))
+        func candidates(_ dt: TimeInterval, quiet: TimeInterval = ActivityConstants.abandonQuietSeconds) -> [String: String?] {
+            Dictionary(uniqueKeysWithValues: store.codexCandidates(at: t0.addingTimeInterval(dt), quietSeconds: quiet).map { ($0.sessionId, $0.transcriptPath) })
+        }
+        XCTAssertTrue(candidates(19).isEmpty, "not quiet yet")
+        XCTAssertEqual(candidates(20), ["c1": rollout, "c2": nil], "the path a later line left out stands; Claude Code, helpers, background shells and a finished turn are not asked")
+        XCTAssertEqual(Set(candidates(0, quiet: 0).keys), ["c1", "c2"], "at launch there is no quiet gate")
+        store.noteBusy(sessionId: "c1", now: t0.addingTimeInterval(20))
+        XCTAssertFalse(candidates(30).keys.contains("c1"), "busy re-arms the quiet gate")
+        XCTAssertEqual(store.sessions["c1"]?.lastMainEventAt, t0, "busy is liveness only")
+        store.turnOver(sessionId: "c1", now: t0.addingTimeInterval(45))
+        XCTAssertEqual(state("c1"), .done); XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1"], "the rollout's verdict closes the turn")
+        store.apply(ev(.postToolUse, "c1", at: 50, tool: "exec_command", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+    }
+    func testNextDeadlineCoversTheCodexRecheck() {
+        store.apply(ev(.userPromptSubmit, "c1", at: 1, pid: 300, by: .codex))
+        XCTAssertEqual(store.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(1 + ActivityConstants.abandonQuietSeconds), "first rollout check when the quiet gate opens")
+        XCTAssertEqual(store.nextDeadline(after: t0.addingTimeInterval(25)), t0.addingTimeInterval(25 + ActivityConstants.abandonRecheckSeconds), "then on the recheck cadence")
+        var noPid = ActivitySessionStore()
+        noPid.apply(ev(.userPromptSubmit, "c1", at: 1, pid: nil, by: .codex))
+        XCTAssertEqual(noPid.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(21), "the rollout needs no pid")
+        var waiting = ActivitySessionStore()
+        waiting.apply(ev(.permissionRequest, "c1", at: 1, pid: 300, by: .codex))
+        XCTAssertEqual(waiting.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(1 + ActivityConstants.staleSeconds), "a waiting Codex session has nothing to recheck")
+    }
+    func testPruneKeepsADaemonHostedSessionForTheCodexCheck() {
+        let daemon: Int32 = 40531
+        store.apply(ev(.userPromptSubmit, "tui", pid: daemon, by: .codex))
+        store.apply(ev(.userPromptSubmit, "exec", pid: 500, by: .codex))
+        store.apply(ev(.userPromptSubmit, pid: daemon))
+        store.markDaemonHosted { $0 == daemon }
+        XCTAssertEqual(store.sessions["tui"]?.hostedByDaemon, true)
+        XCTAssertEqual(store.sessions["exec"]?.hostedByDaemon, false, "codex exec records its own process")
+        XCTAssertEqual(store.sessions["s1"]?.hostedByDaemon, false, "only a Codex session is hosted by Codex's daemon")
+        var asked: [Int32] = []
+        store.pruneDead { pid, _ in asked.append(pid); return false }
+        XCTAssertEqual(Set(store.sessions.keys), ["tui"], "the daemon's pid says nothing about the session: the rollout check decides it")
+        XCTAssertEqual(state("tui"), .working, "the prune ends nothing it keeps")
+        XCTAssertEqual(asked.sorted(), [500, daemon], "the daemon-hosted session is not asked about; a Claude Code session on the same pid is")
+        store.processExited(pid: daemon); XCTAssertTrue(store.sessions.isEmpty, "the daemon's own death still drops its sessions")
     }
     func testPruneAsksAboutEachSessionsOwnAgent() {
         store.apply(ev(.userPromptSubmit)); store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))

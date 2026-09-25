@@ -23,9 +23,14 @@ public enum ActivityTrim {
         e.turnId = clamp(obj["turn_id"]) ?? clamp(obj["prompt_id"])
         e.notificationType = clamp(obj["notification_type"])
         e.source = clamp(obj["source"])
+        if pathEvents.contains(event), let path = obj["transcript_path"] as? String { e.transcriptPath = String(path.prefix(ActivityConstants.pathMaxChars)) }
         if let tasks = obj["background_tasks"] { e.backgroundTaskIds = taskIds(tasks) }
         return e
     }
+
+    /// The events that carry the transcript path: every turn's boundaries and the session's start, enough for
+    /// a session to know its file without a kilobyte on every tool line.
+    static let pathEvents: Set<ActivityEventName> = [.sessionStart, .userPromptSubmit, .stop, .interrupt]
 
     static func clamp(_ value: Any?) -> String? {
         guard let text = value as? String else { return nil }

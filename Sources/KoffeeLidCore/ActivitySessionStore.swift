@@ -13,6 +13,12 @@ public struct ActivitySession: Equatable {
     public var lastMainEventAt: Date
     /// The agent process hosting the session.
     public var agentPid: Int32?
+    /// The pid is Codex's managed daemon, which hosts every TUI session of the user and outlives them all:
+    /// alive, it proves nothing about this session. Set by `markDaemonHosted(where:)`.
+    public var hostedByDaemon = false
+    /// The session's transcript file, from the last main-agent line that named one: Claude Code's
+    /// conversation, Codex's rollout.
+    public var transcriptPath: String?
     /// Helpers believed running, each with its last-seen time; there is no reliable end event.
     public var liveAgents: [String: Date] = [:]
     public var backgroundIds: Set<String> = []
@@ -87,6 +93,7 @@ public struct ActivitySessionStore {
         if e.event != .notification { s.lastMainEventAt = now }
 
         if let turn = e.turnId { s.lastMainTurnId = turn }
+        if let path = e.transcriptPath { s.transcriptPath = path }
         if e.event == .userPromptSubmit { s.closedTurnIds.removeAll { $0 == e.turnId }; s.interruptedAt = nil }
 
         switch e.event {
@@ -180,9 +187,20 @@ public struct ActivitySessionStore {
     /// The agent process died: every session it hosted is gone, no SessionEnd required.
     public mutating func processExited(pid: Int32) { sessions = sessions.filter { $0.value.agentPid != pid } }
     /// Startup prune after replay: a session's pid must be alive and still run its agent. Sessions without
-    /// a pid are left to staleness.
+    /// a pid are left to staleness. A session hosted by Codex's daemon is kept without asking: the daemon was
+    /// alive when it was marked, and its life says nothing about the session's turn, which the rollout
+    /// check at launch decides.
     public mutating func pruneDead(isAlive: (Int32, ActivityAgent) -> Bool) {
-        sessions = sessions.filter { entry in entry.value.agentPid.map { isAlive($0, entry.value.agent) } ?? true }
+        sessions = sessions.filter { entry in
+            entry.value.hostedByDaemon || (entry.value.agentPid.map { isAlive($0, entry.value.agent) } ?? true)
+        }
+    }
+    /// Marks each Codex session whose pid `isDaemon` names as hosted by Codex's managed daemon.
+    public mutating func markDaemonHosted(where isDaemon: (Int32) -> Bool) {
+        for (id, s) in sessions where s.agent == .codex {
+            let hosted = s.agentPid.map(isDaemon) ?? false
+            if hosted != s.hostedByDaemon { sessions[id]?.hostedByDaemon = hosted }
+        }
     }
 
     /// Every time-based rule. Call with the wall clock; schedule the next call at `nextDeadline(after:)`.
@@ -210,8 +228,9 @@ public struct ActivitySessionStore {
                 deadlines.append(s.lastEventAt.addingTimeInterval(ActivityConstants.holdTTLSeconds))
             }
             if s.state == .done { deadlines.append(s.stateSince.addingTimeInterval(ActivityConstants.doneVisibleSeconds)) }
-            // The registry rescues are Claude Code's: a Codex session has no registry to ask.
-            if s.agent == .claude, s.state == .working, !s.pendingDone, s.agentPid != nil {
+            // A quiet working session is asked about at its source: Claude Code's registry, found by the pid,
+            // or Codex's rollout, found by the session.
+            if s.state == .working, !s.pendingDone, s.agent == .codex || s.agentPid != nil {
                 let eligibleAt = s.lastEventAt.addingTimeInterval(ActivityConstants.abandonQuietSeconds)
                 deadlines.append(eligibleAt > now ? eligibleAt : now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds))
             }
@@ -222,8 +241,8 @@ public struct ActivitySessionStore {
     }
 
     /// Working Claude Code sessions quiet for `abandonQuietSeconds` with nothing out, to be asked about at
-    /// the source (Claude Code's registry file). The read lives in the app. Codex has no registry, and its
-    /// Interrupt hook says what Claude Code's registry says.
+    /// the source (Claude Code's registry file). The read lives in the app. Codex has no registry: its
+    /// sessions are `codexCandidates`.
     public func abandonCandidates(at now: Date) -> [(sessionId: String, pid: Int32)] {
         sessions.values.compactMap { s in
             guard s.agent == .claude, s.state == .working, !s.pendingDone, let pid = s.agentPid, !s.hasLiveHelpers(at: now), s.backgroundIds.isEmpty,
@@ -231,13 +250,23 @@ public struct ActivitySessionStore {
             return (s.id, pid)
         }
     }
-    /// The registry says idle, stamped after our last event: the turn is over, however it ended, and closed.
+    /// Working Codex sessions quiet for `quietSeconds` with nothing out, to be checked against their rollout
+    /// (the path their hooks named, when one did). The read lives in the app; at launch the gate is 0.
+    public func codexCandidates(at now: Date, quietSeconds: TimeInterval = ActivityConstants.abandonQuietSeconds) -> [(sessionId: String, transcriptPath: String?)] {
+        sessions.values.compactMap { s in
+            guard s.agent == .codex, s.state == .working, !s.pendingDone, !s.hasLiveHelpers(at: now), s.backgroundIds.isEmpty,
+                  now.timeIntervalSince(s.lastEventAt) >= quietSeconds else { return nil }
+            return (s.id, s.transcriptPath)
+        }
+    }
+    /// The registry or the rollout says the turn ended, stamped after our last event: the turn is over,
+    /// however it ended, and closed.
     public mutating func turnOver(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .working, !s.pendingDone else { return }
         set(&s, .done, now); closeTurn(&s, byInterrupt: false, now: now); sessions[sessionId] = s
     }
-    /// The registry says busy: Claude is running even though no hook arrived. Liveness only —
-    /// `lastMainEventAt` keeps measuring true hook silence.
+    /// The registry says busy, or the rollout's turn has no end: the agent is running even though no hook
+    /// arrived. Liveness only — `lastMainEventAt` keeps measuring true hook silence.
     public mutating func noteBusy(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .working else { return }
         s.lastEventAt = now; sessions[sessionId] = s
