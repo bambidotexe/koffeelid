@@ -323,12 +323,23 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
   what a lost `Stop` costs Claude Code, Codex covers with `Interrupt` and `SessionEnd`.
 - **`CODEX_HOME`.** Relocates the whole folder. Like `CLAUDE_CONFIG_DIR`, it is invisible from another
   process, so the installer and the Health page use `~/.codex`.
+- **The desktop app and its icons.** LaunchServices answers `com.openai.codex` with the OpenAI desktop app
+  (named ChatGPT on this Mac, an Electron bundle), whose Finder icon is the OpenAI mark. The Codex icon is
+  inside it, `Contents/Resources/icon-codex-light.png` (1024 px; a dark variant sits beside it), and that is
+  the badge Codex's work wears on the cup; without it the app's own icon serves. Claude Code has no app of its
+  own: its badge is the Claude desktop app's, `com.anthropic.claudefordesktop`.
 
 ## zsh
 
 The snippet printed by `koffeelid shell-init zsh` registers `preexec` and `precmd` hooks. `precmd` must read
 `$?` as its first statement to preserve the exit status for other hooks. The snippet lives in `~/.zshrc`
 between two `# ---------- KoffeeLid ----------` lines.
+
+The terminal app hosting a shell is on the shell's process chain: Terminal runs `login`, which runs the shell,
+from `Terminal.app/Contents/MacOS/Terminal`; an editor's terminal runs it from a helper bundle nested in the
+editor's (`Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/…`), where the outermost `.app`
+is the one whose icon the user knows. A shell over ssh or under launchd has no app above it.
+`ProcWalk.hostApplicationPath(in:)` reads it from the chain the job's pid gives (`$$`, the interactive shell).
 
 ## Sounds
 

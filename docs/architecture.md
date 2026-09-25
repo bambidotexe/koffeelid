@@ -160,7 +160,7 @@ The launch and quit clears are conditional because other lid-sleep utilities dri
 | Sleep behind the arm | `SleepInterruptionMonitor` | `NSWorkspace.willSleepNotification` while armed | `handleExternalSleep` (`SleepInterruptionPolicy`) |
 | Screen lock | `ScreenLockObserver` | `com.apple.screenIsLocked` / `…Unlocked`, `CGSessionCopyCurrentDictionary` | `applyGestureHold` |
 | Hot keys | `HotKeyController` | Carbon `RegisterEventHotKey` | `setMode` via `ModeCycle.nextOnShortcut` |
-| Status item | `StatusItemController` | `NSStatusItem` | `buildMenu`, `ModeCycle.nextOnRightClick` |
+| Status item | `StatusItemController` (`MugShape`; the auto-armed cup's badges from `ActivityIcons`) | `NSStatusItem` | `buildMenu`, `ModeCycle.nextOnRightClick` |
 | CLI | `CommandServer` | `DistributedNotificationCenter`, `dev.rubens.koffeelid.command` | `perform(_, source: .cli)` |
 | Activity | `ActivityMonitor` | journal tail, kqueue, registry reads | `handleActivity` |
 | Local input | `LocalInputMonitor` | `CGEventSource.secondsSinceLastEventType`, polled every 2 s during a hold-off | `checkLocalInput` |
@@ -302,6 +302,13 @@ counts it per agent (`claudeSessions`, `codexSessions`).
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
 `job end`, on the owner shell's exit, or after 2 h.
+
+The snapshot also carries the badges of the work (`ActivityBadge`: a kind and the app that stands for it):
+Claude Code's and Codex's are fixed bundle identifiers, a command's is the app hosting its shell, read from
+the shell pid's process chain (`ProcWalk.hostApplicationPath`) at every publish, Terminal when none.
+`AutoArmBadges` in the coordinator unions them over a stretch of the level and clears them when it drops
+(`currentAutoBadges`, refreshed with the status item and read again when the menu is built); `ActivityIcons`
+turns each app into its icon once and keeps it.
 
 `ActivityArmPolicy` is a level. `update(running:enabled:now:)` turns it on with the first running kind and
 accumulates the kinds seen (`involved`); when nothing runs, `offAt = idleSince + currentHoldOff` (the longest

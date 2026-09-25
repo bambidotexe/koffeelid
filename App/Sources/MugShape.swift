@@ -2,11 +2,12 @@ import AppKit
 
 // The KoffeeLid mug, from the user's SVG artwork in App/Resources/Glyphs (viewBox 325 × 244, one even-odd
 // `cup` path per state whose extra sub-paths are the eyes, plus a `liquid` ellipse in every state but off).
-// Drives the menu bar glyph (StatusItemController). The app icon is separate artwork,
-// App/Resources/AppIcon.icon. Keep it AppKit-only with no other dependencies.
+// Drives the menu bar glyph (StatusItemController), where the auto-armed cup is the armed one wearing the
+// badges of the apps at work (`drawBadges`). The app icon is separate artwork, App/Resources/AppIcon.icon.
+// Keep it AppKit-only with no other dependencies.
 enum MugShape {
-    /// The four glyphs: `mug-off.svg`, `mug-auto.svg`, `mug-armed.svg`, `mug-caffeinate.svg`.
-    enum State: String, CaseIterable { case off, auto, armed, caffeinate }
+    /// The three glyphs: `mug-off.svg`, `mug-armed.svg`, `mug-caffeinate.svg`.
+    enum State: String, CaseIterable { case off, armed, caffeinate }
 
     /// Content bounds of the cup path (the same in every file).
     static let box = NSRect(x: 2, y: 9.41, width: 320.75, height: 224.31)
@@ -15,8 +16,7 @@ enum MugShape {
 
     static let cup = "M272.46,70.69C303.85,72.21 322.75,89.99 322.75,118.27C322.75,148.01 302.2,165.95 268.01,165.95L259.12,165.95C239.05,208.5 197.69,233.72 144.13,233.72L130.33,233.72C53.52,233.72 2,179.29 2,101.86L2,70.74C2,34.25 56.58,9.41 137.23,9.41C217.84,9.41 272.41,34.22 272.46,70.69ZM137.23,108.15C201.47,108.15 248.7,91.89 248.7,70.74C248.7,49.73 201.47,33.33 137.23,33.33C73.14,33.33 25.92,49.73 25.92,70.74C25.92,91.89 73.14,108.15 137.23,108.15ZM267.61,142.18L268.01,142.18C287.49,142.18 298.83,133.14 298.83,118.27C298.83,104.42 289.2,95.79 272.46,94.51L272.46,101.86C272.46,116.27 270.79,129.75 267.61,142.18Z"
     /// The eyes, appended to `cup` inside the same even-odd path (so they are cut-outs).
-    static let autoEyes = "M57.57,166.1A53.56,53.56 0 0 0 119.98,166.1A5.5,5.5 0 0 0 113.57,157.16A42.56,42.56 0 0 1 63.98,157.16A5.5,5.5 0 0 0 57.57,166.1ZM150.37,160.98A33.88,33.88 0 1 0 217.23,156.31Z"
-    static let armedEyes = "M59.44,180.57A33.88,33.88 0 1 1 118.12,180.57ZM154.81,180.57A33.88,33.88 0 1 1 213.49,180.57Z"
+    static let armedEyes = "M119.979,149.134C101.372,135.795 76.177,135.795 57.569,149.134C56.13,150.166 55.274,151.832 55.274,153.604C55.274,156.621 57.757,159.104 60.774,159.104C61.924,159.104 63.045,158.744 63.979,158.074C78.765,147.476 98.784,147.476 113.569,158.074C114.504,158.744 116.774,159.104 116.774,159.104C116.774,159.104 122.275,156.621 122.275,153.604C122.275,151.832 121.419,150.166 119.979,149.134ZM215.947,149.134C197.34,135.795 172.144,135.795 153.537,149.134C152.098,150.166 151.242,151.832 151.242,153.604C151.242,156.621 153.725,159.104 156.742,159.104C157.892,159.104 159.013,158.744 159.947,158.074C174.732,147.476 194.752,147.476 209.537,158.074C210.471,158.744 212.742,159.104 212.742,159.104C212.742,159.104 218.242,156.621 218.242,153.604C218.242,151.832 217.387,150.166 215.947,149.134Z"
     static let caffeinateEyes = "M52.4,162.63A36.38,36.38 0 0 1 125.16,162.63A36.38,36.38 0 0 1 52.4,162.63ZM147.77,162.63A36.38,36.38 0 0 1 220.53,162.63A36.38,36.38 0 0 1 147.77,162.63Z"
     /// The coffee in the cup (path coordinates, y down): drawn over the opening's hole in every armed state.
     static let liquid = (cx: CGFloat(138.3), cy: CGFloat(70.89), rx: CGFloat(100.58), ry: CGFloat(30.05))
@@ -24,7 +24,6 @@ enum MugShape {
     static func pathData(for state: State) -> String {
         switch state {
         case .off: return cup
-        case .auto: return cup + autoEyes
         case .armed: return cup + armedEyes
         case .caffeinate: return cup + caffeinateEyes
         }
@@ -44,6 +43,29 @@ enum MugShape {
         if state != .off {
             let e = NSBezierPath(ovalIn: NSRect(x: liquid.cx - liquid.rx, y: liquid.cy - liquid.ry, width: liquid.rx * 2, height: liquid.ry * 2))
             e.transform(using: t); e.fill()
+        }
+    }
+
+    /// Where the badges of the apps at work sit on a cup drawn in `r`: `side` pt squares stacked from the
+    /// cup's bottom-right corner, each further one `step` pt up and to the right, the first in front.
+    static func badgeFrames(count: Int, in r: NSRect, side: CGFloat, step: CGFloat) -> [NSRect] {
+        (0..<max(0, count)).map { i in
+            let d = CGFloat(i) * step
+            return NSRect(x: r.maxX - side + d, y: r.minY + d, width: side, height: side)
+        }
+    }
+
+    /// Draws app icons in `frames` (front first), back to front, each after clearing `knockout` pt of
+    /// whatever is already drawn around it, so a dark icon still reads on the dark cup.
+    static func drawBadges(_ badges: [NSImage], frames: [NSRect], knockout: CGFloat) {
+        for (badge, frame) in zip(badges, frames).reversed() {
+            let radius = frame.width * 0.22 + knockout          // an app icon's own corner, plus the gap
+            let hole = NSBezierPath(roundedRect: frame.insetBy(dx: -knockout, dy: -knockout), xRadius: radius, yRadius: radius)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current?.compositingOperation = .destinationOut
+            NSColor.black.setFill(); hole.fill()
+            NSGraphicsContext.restoreGraphicsState()
+            badge.draw(in: frame, from: .zero, operation: .sourceOver, fraction: 1)
         }
     }
 

@@ -6,6 +6,8 @@ struct ActivitySnapshot: Equatable {
     var claudeSessions = 0
     var codexSessions = 0
     var runningJobs = 0
+    /// The apps hosting the running commands' shells (`ActivityBadge.terminal(hosting:)`).
+    var terminalBadges: Set<ActivityBadge> = []
     var workingSessions: Int { claudeSessions + codexSessions }
     /// The kinds with something running, for `ActivityArmPolicy`.
     var kinds: Set<ActivityKind> {
@@ -14,6 +16,13 @@ struct ActivitySnapshot: Equatable {
         if codexSessions > 0 { kinds.insert(.codex) }
         if runningJobs > 0 { kinds.insert(.terminal) }
         return kinds
+    }
+    /// The apps at work, for the auto-armed cup and the menu's auto-arm line.
+    var badges: Set<ActivityBadge> {
+        var badges = terminalBadges
+        if claudeSessions > 0 { badges.insert(.claude) }
+        if codexSessions > 0 { badges.insert(.codex) }
+        return badges
     }
     /// For the status line and the log. Not localized: it is CLI/log text.
     var summary: String {
@@ -149,7 +158,8 @@ final class ActivityMonitor {
     private func publish(now: Date) {
         let new = ActivitySnapshot(running: sessions.isRunning || jobs.isRunning(at: now),
                                    claudeSessions: sessions.workingCount(of: .claude), codexSessions: sessions.workingCount(of: .codex),
-                                   runningJobs: jobs.runningCount(at: now))
+                                   runningJobs: jobs.runningCount(at: now),
+                                   terminalBadges: Set(jobs.runningOwnerPids(at: now).map { ActivityBadge.terminal(hosting: ProcWalk.chain(from: $0)) }))
         guard new != snapshot else { return }
         if new.running != snapshot.running { onLog?(new.running ? "activity: running (\(new.summary))" : "activity: idle") }
         snapshot = new

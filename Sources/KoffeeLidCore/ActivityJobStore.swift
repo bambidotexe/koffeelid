@@ -43,5 +43,9 @@ public struct ActivityJobStore {
     }
     public func runningCount(at now: Date) -> Int { jobs.values.filter { ($0.armAfter ?? .distantPast) <= now }.count }
     public func isRunning(at now: Date) -> Bool { runningCount(at: now) > 0 }
+    /// The shells of the running jobs, once each: their process chains name the terminals hosting them.
+    public func runningOwnerPids(at now: Date) -> [Int32] {
+        Array(Set(jobs.values.filter { ($0.armAfter ?? .distantPast) <= now }.compactMap(\.ownerPid))).sorted()
+    }
     public var trackedPids: Set<Int32> { Set(jobs.values.compactMap(\.ownerPid)) }
 }

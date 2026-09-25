@@ -73,6 +73,8 @@ final class KoffeeLidController {
     private var activityPolicy = ActivityArmPolicy()
     /// The auto-arm level (`ActivityArmPolicy`), independent of `mode`: the Mac is armed while either holds it.
     var autoArmed: Bool { activityPolicy.isOn }
+    /// The apps whose work armed the Mac during the current auto stretch: the cup's badges and the menu line's.
+    private var autoBadges = AutoArmBadges()
     private var activityTimer: Timer?
     /// Polls for local input while an auto hold-off counts down (invariant 11).
     private var inputTimer: Timer?
@@ -886,6 +888,13 @@ final class KoffeeLidController {
     private func handleActivity(_ snapshot: ActivitySnapshot) {
         applyAuto(activityPolicy.update(running: snapshot.kinds, enabled: prefs.armOnActivity, now: Date()))
         scheduleActivityTick()
+        refreshStatusItem()                                 // the apps at work changed, even if the level did not
+    }
+
+    /// The badges of the current auto stretch, brought up to date with the apps at work and the level.
+    private func currentAutoBadges() -> [ActivityBadge] {
+        autoBadges.update(running: activity.snapshot.badges, levelOn: activityPolicy.isOn)
+        return autoBadges.shown
     }
 
     /// "Disarm once finished" from the menu: the auto level drops a minute after the work is over (instead of
@@ -983,6 +992,7 @@ final class KoffeeLidController {
     private func refreshStatusItem() {
         // The glyph is the one place the auto-arm shows: a manual arm (any other source) always wins over it.
         statusItem.state = mode != .off ? (mode == .caffeinate ? .caffeinate : .armed) : (isArmed && autoArmed ? .auto : .off)
+        statusItem.badges = ActivityIcons.icons(for: currentAutoBadges())
         statusItem.warning = flagClearPending
         statusItem.standingBy = standingBy
     }
@@ -996,7 +1006,8 @@ final class KoffeeLidController {
         m.addItem(withTitle: header, action: nil, keyEquivalent: "").isEnabled = false
         if autoArmed, isArmed {
             let hint = NSMenuItem(title: autoArmHint(), action: nil, keyEquivalent: "")
-            hint.attributedTitle = StatusItemController.menuTitle(autoArmHint(), glyph: .auto); hint.isEnabled = false
+            hint.attributedTitle = StatusItemController.menuTitle(autoArmHint(), badges: ActivityIcons.icons(for: currentAutoBadges()))
+            hint.isEnabled = false
             m.addItem(hint)
         }
         m.addItem(.separator())

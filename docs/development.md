@@ -276,11 +276,16 @@ The menu-bar glyph and the app icon are two separate pieces of artwork of the sa
 generated from each other: a change to one is a change to one.
 
 **The menu-bar glyph** is `App/Sources/MugShape.swift`, whose path constants are the `d` attributes of
-`App/Resources/Glyphs/mug-off.svg`, `mug-auto.svg`, `mug-armed.svg`, `mug-caffeinate.svg` (viewBox 325 × 244,
-even-odd fill): the shared `cup`, one eye string per armed state, and the `liquid` ellipse in every state but
-off. To change it: edit the SVGs, paste the new `d` strings into `MugShape` (the parser handles M L H V C A Z),
-update `MugShape.box` if the cup bounds moved, and rebuild. Glyph size and vertical offset live in
-`StatusItemController.mugImage` (22 pt wide, template image).
+`App/Resources/Glyphs/mug-off.svg`, `mug-armed.svg`, `mug-caffeinate.svg` (viewBox 325 × 244, even-odd fill):
+the shared `cup`, one eye string per armed state, and the `liquid` ellipse in every state but off. To change
+it: edit the SVGs, paste the new `d` strings into `MugShape` (the parser handles M L H V C A Z), update
+`MugShape.box` if the cup bounds moved, and rebuild. Glyph size and vertical offset live in
+`StatusItemController.mugImage` (22 pt wide, template image). The auto-armed cup has no artwork of its own:
+`StatusItemController.badgedMugImage` draws the armed cup and stacks the app icons of the work on it
+(`MugShape.badgeFrames`, `drawBadges`; the badge size, step and knock-out are the three constants beside it).
+That image carries colour, so it is not a template: the cup is drawn in `labelColor`, resolved when the bar
+draws it. The icons come from `ActivityIcons` (the system's icon for the app, cached per app), the apps from
+`ActivityBadge` in Core.
 
 **The app icon** is `App/Resources/AppIcon.icon`, an Icon Composer document (Xcode ships Icon Composer.app
 under Xcode › Open Developer Tool). It holds `icon.json` and three 1024 × 1024 layers in `Assets/`:

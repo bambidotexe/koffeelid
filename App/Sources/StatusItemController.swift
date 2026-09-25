@@ -5,8 +5,17 @@ final class StatusItemController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     var onRightClick: (() -> Void)?
     var menuProvider: (() -> NSMenu)?
-    /// Which glyph: off, auto (an activity arm, which the menu still lists as Off), armed, armed + screen on.
-    var state: MugShape.State = .off { didSet { render() } }
+    /// What the bar shows: the empty cup, the armed cup, the round-eyed cup, or (auto: an activity arm,
+    /// which the menu still lists as Off) the armed cup wearing the badges of the apps at work.
+    enum State {
+        case off, auto, armed, caffeinate
+        var glyph: MugShape.State {
+            switch self { case .off: return .off; case .auto, .armed: return .armed; case .caffeinate: return .caffeinate }
+        }
+    }
+    var state: State = .off { didSet { render() } }
+    /// The app icons the auto-armed cup wears, front first; every other state ignores them.
+    var badges: [NSImage] = [] { didSet { render() } }
     /// The kernel flag could not be cleared; the icon turns orange until it is.
     var warning = false { didSet { render() } }
     /// Armed with an external display connected: the arm stands, the built-in-screen behaviours wait.
@@ -40,8 +49,10 @@ final class StatusItemController: NSObject {
 
     private func render() {
         guard let button = item.button else { return }
-        button.image = Self.mugImage(state: state)
-        // The image stays a template: AppKit only tints template images, so the orange warning needs it.
+        let badged = state == .auto && !badges.isEmpty
+        button.image = badged ? badgedMugImage(badges: badges, warning: warning) : Self.mugImage(state: state.glyph)
+        // A template image is tinted by the bar, orange for the warning. The badged cup carries the icons'
+        // colours, so it is no template: it draws its own ink, orange itself for the warning.
         button.contentTintColor = warning ? .systemOrange : nil
         button.title = angleText.map { " " + $0 } ?? ""
         button.imagePosition = angleText == nil ? .imageOnly : .imageLeft
@@ -50,7 +61,7 @@ final class StatusItemController: NSObject {
         button.toolTip = tip
     }
 
-    static func tooltipTitle(for state: MugShape.State) -> String {
+    static func tooltipTitle(for state: State) -> String {
         switch state { case .off: return L("Off"); case .auto: return L("Auto-armed"); case .armed: return L("Armed"); case .caffeinate: return L("Armed + screen on") }
     }
 
@@ -70,13 +81,27 @@ final class StatusItemController: NSObject {
         return title
     }
 
+    /// The auto-arm line: the title followed by the badges of the apps at work, 16 pt each, in the cup's order.
+    static func menuTitle(_ text: String, badges: [NSImage]) -> NSAttributedString {
+        let font = NSFont.menuFont(ofSize: 0)
+        let title = NSMutableAttributedString(string: text, attributes: [.font: font])
+        for (i, badge) in badges.enumerated() {
+            let attachment = NSTextAttachment()
+            attachment.image = badge
+            attachment.bounds = NSRect(x: 0, y: -4, width: 16, height: 16)
+            title.append(NSAttributedString(string: i == 0 ? "  " : " ", attributes: [.font: font]))
+            title.append(NSAttributedString(attachment: attachment))
+        }
+        return title
+    }
+
     private static var cache: [MugShape.State: NSImage] = [:]
 
     /// The KoffeeLid mug (`MugShape`, from the SVG artwork): an empty cup when off, coffee and closed eyes
-    /// when auto-armed, sleepy eyes when armed, round eyes for Armed + screen on. 22 pt wide (the cup is
-    /// wider than tall) for the 22 pt menu bar. The button centres the image, so 1 pt of headroom above
-    /// the cup sits it half a point low (an even image height also keeps the button's offset on a whole
-    /// point), matching the neighbouring glyphs. Drawn opaque: a template image, the bar tints it.
+    /// when armed, round eyes for Armed + screen on. 22 pt wide (the cup is wider than tall) for the 22 pt
+    /// menu bar. The button centres the image, so 1 pt of headroom above the cup sits it half a point low
+    /// (an even image height also keeps the button's offset on a whole point), matching the neighbouring
+    /// glyphs. Drawn opaque: a template image, the bar tints it.
     static func mugImage(state: MugShape.State) -> NSImage {
         if let cached = cache[state] { return cached }
         let width: CGFloat = 22, height = width * MugShape.aspect
@@ -87,6 +112,41 @@ final class StatusItemController: NSObject {
         }
         image.isTemplate = true
         cache[state] = image
+        return image
+    }
+
+    /// The badges: 9 pt squares (an app icon still reads at that size on a Retina bar), 3 pt apart in the
+    /// stack, with 0.75 pt of cup cleared around each.
+    static let badgeSide: CGFloat = 9, badgeStep: CGFloat = 3, badgeKnockout: CGFloat = 0.75
+
+    /// The armed cup wearing the apps at work: the same cup as `mugImage(state: .armed)`, at the same place,
+    /// the badges stacked from its bottom-right corner up and to the right (the first in front), the image
+    /// widening to hold them. The icons carry colour, so this is no template image: the cup is drawn in
+    /// the bar's own text colour, resolved at draw time so it follows the bar's appearance, or in orange
+    /// for the warning.
+    static func badgedMugImage(badges: [NSImage], warning: Bool) -> NSImage {
+        let width: CGFloat = 22, height = width * MugShape.aspect
+        let mug = NSRect(x: 0.5, y: 0.5, width: width, height: height)
+        let frames = MugShape.badgeFrames(count: badges.count, in: mug, side: badgeSide, step: badgeStep)
+        let right = frames.map(\.maxX).max() ?? mug.maxX
+        let size = NSSize(width: ceil(right + 0.5), height: ceil(height) + 2)
+        let image = NSImage(size: size, flipped: false) { _ in
+            MugShape.draw(in: mug, state: .armed, ink: warning ? .systemOrange : .labelColor)
+            MugShape.drawBadges(badges, frames: frames, knockout: badgeKnockout)
+            return true
+        }
+        return image
+    }
+
+    /// The last badged cup, kept while the same icons and warning are asked for again (`render` runs on
+    /// every angle sample while the angle is shown).
+    private var badged: (badges: [NSImage], warning: Bool, image: NSImage)?
+    private func badgedMugImage(badges: [NSImage], warning: Bool) -> NSImage {
+        if let b = badged, b.warning == warning, b.badges.count == badges.count, zip(b.badges, badges).allSatisfy({ $0 === $1 }) {
+            return b.image
+        }
+        let image = Self.badgedMugImage(badges: badges, warning: warning)
+        badged = (badges, warning, image)
         return image
     }
 }

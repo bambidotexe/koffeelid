@@ -83,7 +83,7 @@ on a Mac that is otherwise Off.
 ## Three modes
 
 <p align="center">
-  <img src="docs/assets/menubar.png" width="720" alt="Menu bar cups: Off (empty), Auto-armed (closed eyes), Armed (sleepy eyes), Armed + screen on (round eyes)">
+  <img src="docs/assets/menubar.png" width="720" alt="Menu bar cups: Off (empty), Auto-armed (closed eyes wearing the icon of the app at work), Armed (closed eyes), Armed + screen on (round eyes)">
 </p>
 
 | | Off | Armed | Armed + screen on |

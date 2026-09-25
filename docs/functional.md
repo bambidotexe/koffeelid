@@ -196,16 +196,23 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 
 ## User interface
 
-- **Menu-bar cup.** Four glyphs: empty (Off), closed eyes (auto-armed only), sleepy eyes (Armed), round eyes
-  (Armed + screen on). A manual mode always wins over the auto glyph. Orange = the kernel flag could not be
-  cleared. Optional lid angle next to it. "Show in menu bar" off hides the cup and nothing else: every arming
-  path that does not go through it (the gesture, the two shortcuts, auto-arm, the CLI, URLs, App Intents) and
-  every armed behaviour work exactly as before; right-clicking to arm and the lid angle simply have no icon
-  left to use.
+- **Menu-bar cup.** Three glyphs: empty (Off), closed eyes (Armed), round eyes (Armed + screen on). Auto-armed
+  is the closed-eyes cup wearing, at its bottom-right corner, the icon of each app whose work armed the Mac:
+  the Claude desktop app for Claude Code, the OpenAI desktop app's Codex icon for Codex, and for a command the
+  terminal app hosting its shell (Terminal, iTerm, an editor's terminal…; Terminal's icon when no app hosts it,
+  as over ssh). Several stack up and to the right, front to back Claude Code, Codex, then the terminals, three
+  at most. The icons are the installed apps' own, nothing is bundled: an app that is not installed gives no
+  badge. The badges of everything that ran during the stretch stay through the hold-off, so the cup still says
+  why the Mac is armed, and go when the level drops. A manual mode always wins over the auto cup. Orange = the
+  kernel flag could not be cleared. Optional lid angle next to it. "Show in menu bar" off hides the cup and
+  nothing else: every arming path that does not go through it (the gesture, the two shortcuts, auto-arm, the
+  CLI, URLs, App Intents) and every armed behaviour work exactly as before; right-clicking to arm and the lid
+  angle simply have no icon left to use.
 - **Menu.** Header with the mode; a greyed line while the auto level holds ("Auto-armed while Claude Code
   works", "… while Codex works", "… while a command runs", "… while Claude Code and Codex work", "… while
   Claude Code and a command run", "… while Codex and a command run", "… while Claude Code, Codex and a
-  command run", or "Auto-armed, off in N min"); the three modes; "Disarm once finished"; Settings…; Quit.
+  command run", or "Auto-armed, off in N min"), followed by the same app icons the cup wears; the three modes,
+  each followed by its cup in grey; "Disarm once finished"; Settings…; Quit.
 - **Opening the app.** KoffeeLid has no Dock icon. Opening it again from Finder, Spotlight, the Applications
   folder or `open -b dev.rubens.koffeelid` while it runs opens Settings — the way back in when the menu-bar
   cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,

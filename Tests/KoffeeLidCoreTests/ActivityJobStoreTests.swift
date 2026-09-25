@@ -13,6 +13,13 @@ final class ActivityJobStoreTests: XCTestCase {
         store.begin(id: "x", pid: 8, label: nil, armAfterSeconds: 0, now: t0)
         XCTAssertEqual(store.runningCount(at: t0), 1, "zero arm-after counts immediately")
     }
+    func testTheRunningJobsShellsAreListedOnceEach() {
+        store.begin(id: "a", pid: 7, label: "make", armAfterSeconds: 0, now: t0)
+        store.begin(id: "b", pid: nil, label: nil, armAfterSeconds: 0, now: t0)
+        store.begin(id: "c", pid: 9, label: "sleep", armAfterSeconds: 5, now: t0)
+        XCTAssertEqual(store.runningOwnerPids(at: t0), [7], "a job without a shell has no pid; one not yet counted is not running")
+        XCTAssertEqual(store.runningOwnerPids(at: at(5)), [7, 9])
+    }
     func testEndRemovesWhateverTheStatus() {
         store.begin(id: "zsh-7", pid: 7, label: "make", armAfterSeconds: 0, now: t0)
         store.end(id: "zsh-7"); XCTAssertTrue(store.jobs.isEmpty)
