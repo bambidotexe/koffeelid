@@ -109,8 +109,16 @@ up any of the three hooks from that page or from the onboarding turns it on.
   turn id otherwise follows the rules above.
 - **Terminal (zsh)**: a `preexec`/`precmd` snippet in `~/.zshrc` reports each command. A command counts once it
   has run longer than "Ignore commands shorter than" (default 5 s, `KOFFEELID_ARM_AFTER` per shell).
-  Interactive programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `claude`, `codex`, …)
-  never count.
+  Prefixes (`sudo` and its flags, `time`, `command`, `builtin`, `exec`, `nice`, `nohup`, `env`, `noglob`,
+  `caffeinate`) and leading `VAR=value` words are skipped before the program's name is read, and interactive
+  programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `tig`, `lazygit`, `claude`,
+  `codex`, …) never count; nor do the shells and logins `zsh`, `bash`, `sh`, `fish`, `su`, `login`. A shell
+  that re-reads the snippet, or is replaced by `exec`, ends the job it was running; the snippet releases the
+  shell's slot when it loads. While a command runs, its shell is asked every 15 s whether it still runs one: a
+  shell gone ends the job at once (kqueue), and so does a shell pid now held by a process started after the
+  command began; a shell back at its prompt with no child for 5 s ends it, the end having been lost; a shell
+  replaced by its program is kept until that program exits; a job without a shell pid is dropped after 2 h.
+  At launch each replayed job's shell is asked once before anything counts.
 - **Without an end event**: a Claude Code process or a shell that exits drops its sessions and jobs at once
   (kqueue). A Claude Code turn ended with Esc or Ctrl-C fires no hook; Claude Code's own
   `sessions/<pid>.json` record going `idle` ends it within about 35 s, and an `idle_prompt` or
@@ -142,8 +150,8 @@ up any of the three hooks from that page or from the onboarding turns it on.
   nothing either, and every question has 1 s to be answered. At launch the managed daemon is asked which
   threads it holds (`thread/loaded/list`): a working session it hosts whose thread is not among them has
   nothing running, and nothing counts before that answer. The launch checks only end turns, but for a Claude Code dialog the
-  registry says was answered, which counts again as it would at the first check. Anything silent for 2 h is
-  dropped.
+  registry says was answered, which counts again as it would at the first check. A session silent for 2 h is
+  dropped; a command is asked of its shell instead (Terminal, above).
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after

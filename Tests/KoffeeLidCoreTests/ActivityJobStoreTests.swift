@@ -34,16 +34,41 @@ final class ActivityJobStoreTests: XCTestCase {
     }
     func testOwnerDeathAndStalenessRemove() {
         store.begin(id: "a", pid: 7, label: nil, armAfterSeconds: 0, now: t0)
-        store.begin(id: "b", pid: 8, label: nil, armAfterSeconds: 0, now: t0)
-        XCTAssertEqual(store.trackedPids, [7, 8])
+        store.begin(id: "b", pid: nil, label: nil, armAfterSeconds: 0, now: t0)
+        XCTAssertEqual(store.trackedPids, [7])
         store.processExited(pid: 7); XCTAssertEqual(Set(store.jobs.keys), ["b"])
         store.tick(now: at(7199)); XCTAssertEqual(store.jobs.count, 1)
         store.tick(now: at(7200)); XCTAssertTrue(store.jobs.isEmpty)
     }
-    func testNextDeadlineIsTheEarliestOfArmAfterAndStaleness() {
+    func testAJobWithAShellIsNeverDroppedByStaleness() {
+        store.begin(id: "zsh-7", pid: 7, label: "make", armAfterSeconds: 0, now: t0)
+        store.begin(id: "loose", pid: nil, label: nil, armAfterSeconds: 0, now: t0)
+        store.tick(now: at(3 * 3600))
+        XCTAssertEqual(Set(store.jobs.keys), ["zsh-7"], "a shell with a command in the foreground is asked, not timed out")
+        XCTAssertTrue(store.isRunning(at: at(3 * 3600)))
+    }
+    func testAProbeThatFindsTheShellAtItsPromptDropsTheJob() {
+        store.begin(id: "zsh-7", pid: 7, label: "sleep", armAfterSeconds: 0, now: t0)
+        let prompt = ShellJobLiveness.Probe(alive: true, isShell: true, atPrompt: true, hasChildren: false)
+        XCTAssertNil(store.probe(id: "zsh-7", prompt, now: at(15)))
+        XCTAssertEqual(store.jobs["zsh-7"]?.promptSeenAt, at(15))
+        XCTAssertEqual(store.nextDeadline(after: at(15)), at(15 + ActivityConstants.jobPromptSettleSeconds), "asked again once the settle has run")
+        XCTAssertNil(store.probe(id: "zsh-7", prompt, now: at(17)))
+        XCTAssertEqual(store.probe(id: "zsh-7", prompt, now: at(20)), "shell at its prompt")
+        XCTAssertTrue(store.jobs.isEmpty)
+        XCTAssertNil(store.probe(id: "zsh-7", prompt, now: at(21)), "an unknown job is not dropped twice")
+        store.begin(id: "zsh-8", pid: 8, label: "sleep", armAfterSeconds: 0, now: t0)
+        let gone = ShellJobLiveness.Probe(alive: false, isShell: false, atPrompt: false, hasChildren: false)
+        XCTAssertEqual(store.probe(id: "zsh-8", gone, now: at(1)), "shell gone")
+        XCTAssertTrue(store.jobs.isEmpty)
+    }
+    func testNextDeadlineIsTheEarliestOfArmAfterTheProbeAndStaleness() {
         store.begin(id: "a", pid: 7, label: nil, armAfterSeconds: 5, now: t0)
         XCTAssertEqual(store.nextDeadline(after: t0), at(5))
-        XCTAssertEqual(store.nextDeadline(after: at(6)), at(7200))
+        XCTAssertEqual(store.nextDeadline(after: at(6)), at(6 + ActivityConstants.jobProbeSeconds), "a job with a shell is asked every 15 s")
+        var loose = ActivityJobStore()
+        loose.begin(id: "b", pid: nil, label: nil, armAfterSeconds: 0, now: t0)
+        XCTAssertEqual(loose.nextDeadline(after: at(6)), at(7200), "a job without a shell is only timed out")
         XCTAssertNil(ActivityJobStore().nextDeadline(after: t0))
     }
 }

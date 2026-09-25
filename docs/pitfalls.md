@@ -344,6 +344,37 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   marker comment and uncommented KoffeeLid `shell-init zsh` lines are removed; another tool's `shell-init zsh`
   line is neither detected nor touched.
 
+### `exec zsh` and `source ~/.zshrc` end the running job
+- **Symptom.** Right after `exec zsh` or `source ~/.zshrc` (the natural thing to type after Set Up Terminal),
+  the Mac arms 5 s later and stays armed with nothing running, until the next command in that shell.
+- **Why.** `preexec` began a job (labelled `exec` or `source`); then the snippet ran again, mid-command or in
+  the new image, and an assignment at load emptied the job variable, so `precmd` ended nothing. The shell is
+  alive and watched, so the kqueue never fires.
+- **What the code does.** The snippet declares `_koffeelid_job` without assigning it, and an interactive
+  shell loading it sends `job end --id zsh-$$` before registering its hooks, which ends the job the pid's
+  earlier image began. `exec` is a skipped prefix and `zsh` a skipped program, so `exec zsh` begins nothing.
+  `ShellInitTests` re-source the snippet and `exec` a shell in a real `zsh -f -i`.
+- **Do not** assign any of the snippet's state at load, or drop the load's `job end`.
+
+### A shell at its prompt is the truth about a job, not the journal
+- **Symptom.** A `job end` that never reached the journal (the hook binary missing during an install or an
+  update, a failed write) keeps the Mac armed until the next command in that shell; a timer on the job, the
+  other way round, disarms the Mac under a three-hour build.
+- **Why.** The journal holds only what the hooks said. The shell knows whether it runs a command: at its
+  prompt it owns its terminal's foreground group, while a command runs that group is the command's
+  (`docs/macOS.md` § zsh).
+- **What the code does.** `ActivityMonitor.probeJobs` asks each job's shell at every pass, at least every
+  15 s while a job with a shell exists, and once at replay before the first count: `ShellJobLiveness.probe`
+  reads the pid (`ProcWalk.info`, `hasChildren`), `ShellJobLiveness.judge` decides. A pid gone, or held by a
+  process forked after the job began (a recycled pid), drops the job; a process that is no longer a shell (it
+  `exec`'d into the program) keeps it for the kqueue; a shell at its prompt with no child, seen so twice 5 s
+  apart, drops it; anything else keeps it, with no time limit. Each drop logs `activity: job <id> ended
+  without a hook (<reason>)`. Only a job without a shell pid is dropped after 2 h.
+- **Do not** time out a job whose shell can be asked, trust a bare pid at replay, or drop a job on one
+  sighting of the prompt: the shell owns its terminal for milliseconds between `preexec` and the fork. Known
+  false negative: a builtin that blocks (`wait`, `read`) looks like the prompt, and its job ends after 5 s.
+  Known false positive: a lost end in a shell that keeps a background child holds until that child exits.
+
 ### `precmd` must read `$?` first
 - **Why.** Later `precmd` hooks (prompts) expect the command's status.
 - **What the code does.** `local code=$?` is the first statement and the function returns it.

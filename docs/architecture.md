@@ -268,8 +268,8 @@ A file, not a socket: hooks fire while the app is down or being relaunched, and 
 launch. The launch order: replay (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`, the
 app's own verdict lines among them) → the time rules (`tick`), so a stale session is dropped → the prune with
 the registry (`pruneDead`: dead or recycled pids, a Claude Code pid whose registry record names another
-session among them; a session on a shared Codex host kept) → `checkRegistry(quietSeconds: 0)`, the registry
-rescue on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
+session among them; a session on a shared Codex host kept) → the jobs' shell probe (`probeJobs`) →
+`checkRegistry(quietSeconds: 0)`, the registry rescue on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
 `thread/loaded/list` has ended each working session on the managed daemon whose thread the daemon does not
 hold (asked only when the managed daemon hosts one and its socket exists) → the first `sync()`. All of it comes before the first
 publish (`launched` holds `sync` back until the daemon's answer, at most 1 s) and only ends turns, but for a
@@ -363,7 +363,13 @@ record names (read from the same directory as the rescues) and drops the session
 `codexSessions`).
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
-`job end`, on the owner shell's exit, or after 2 h.
+`job end`, on the owner shell's exit (kqueue), when its shell answers that it runs nothing, or, for a job
+without a shell pid only, after 2 h. `ActivityMonitor.probeJobs` runs at every `sync()` and once at replay,
+after the prune: for each job with a shell pid, `ShellJobLiveness.probe` turns `ProcWalk.info` (process group,
+the terminal's foreground group, `p_comm`, fork time) and `ProcWalk.hasChildren` into a probe, and
+`ActivityJobStore.probe` applies `ShellJobLiveness.judge` with the job's own `promptSeenAt`, logging `activity:
+job <id> ended without a hook (<reason>)` for a drop. `nextDeadline` asks again `jobProbeSeconds` (15 s) later
+while a job has a shell, and when a first sighting at the prompt has settled (`jobPromptSettleSeconds`, 5 s).
 
 The snapshot also carries the badges of the work (`ActivityBadge`: a kind and the app that stands for it):
 Claude Code's and Codex's are fixed bundle identifiers, a command's is the app hosting its shell, read from

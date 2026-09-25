@@ -6,8 +6,23 @@ import Foundation
 public enum ProcWalk {
     public struct ProcInfo: Equatable {
         public let pid: Int32, ppid: Int32, name: String, path: String?
-        public init(pid: Int32, ppid: Int32, name: String, path: String?) { self.pid = pid; self.ppid = ppid; self.name = name; self.path = path }
+        /// The process group, and the foreground process group of its controlling terminal (0 without one).
+        /// A shell at its prompt owns its terminal's foreground group; one running a foreground command has
+        /// handed it to that command's group.
+        public let pgid: Int32, tpgid: Int32
+        /// When the process was forked; an `exec` keeps it.
+        public let startedAt: Date?
+        public init(pid: Int32, ppid: Int32, name: String, path: String?, pgid: Int32 = 0, tpgid: Int32 = 0, startedAt: Date? = nil) {
+            self.pid = pid; self.ppid = ppid; self.name = name; self.path = path
+            self.pgid = pgid; self.tpgid = tpgid; self.startedAt = startedAt
+        }
+        /// An interactive shell's `p_comm`, a login shell's leading `-` stripped.
+        public var isShell: Bool {
+            let bare = name.hasPrefix("-") ? String(name.dropFirst()) : name
+            return ProcWalk.shellNames.contains(bare)
+        }
     }
+    static let shellNames: Set<String> = ["zsh", "bash", "sh", "fish", "dash", "ksh", "tcsh"]
 
     public static func info(for pid: Int32) -> ProcInfo? {
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
@@ -16,7 +31,17 @@ public enum ProcWalk {
         let name = withUnsafeBytes(of: proc.kp_proc.p_comm) { String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self) }
         var buffer = [CChar](repeating: 0, count: 4096)
         let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
-        return ProcInfo(pid: pid, ppid: proc.kp_eproc.e_ppid, name: name, path: length > 0 ? String(cString: buffer) : nil)
+        let start = proc.kp_proc.p_un.__p_starttime
+        let startedAt = start.tv_sec > 0 ? Date(timeIntervalSince1970: TimeInterval(start.tv_sec) + TimeInterval(start.tv_usec) / 1_000_000) : nil
+        return ProcInfo(pid: pid, ppid: proc.kp_eproc.e_ppid, name: name, path: length > 0 ? String(cString: buffer) : nil,
+                        pgid: proc.kp_eproc.e_pgid, tpgid: proc.kp_eproc.e_tpgid, startedAt: startedAt)
+    }
+
+    /// Whether `pid` has at least one child process; false when it has none or cannot be read.
+    public static func hasChildren(pid: Int32) -> Bool {
+        var children = [Int32](repeating: 0, count: 16)
+        let count = children.withUnsafeMutableBytes { proc_listchildpids(pid, $0.baseAddress, Int32($0.count)) }
+        return count > 0
     }
 
     public static func chain(from pid: Int32, maxHops: Int = 15) -> [ProcInfo] {

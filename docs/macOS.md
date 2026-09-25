@@ -393,6 +393,22 @@ editor's (`Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/â
 is the one whose icon the user knows. A shell over ssh or under launchd has no app above it.
 `ProcWalk.hostApplicationPath(in:)` reads it from the chain the job's pid gives (`$$`, the interactive shell).
 
+**A shell at its prompt owns its terminal's foreground process group.** `kinfo_proc.kp_eproc` carries the
+process group (`e_pgid`) and its terminal's foreground group (`e_tpgid`, 0 without a terminal; `ps -o
+pid,pgid,tpgid`). At the prompt the two are equal; while the shell runs a foreground command it has handed the
+group to the command's (a zsh running `claude` showed `claude`'s pid as its `tpgid`), and the command is its
+child (`proc_listchildpids`). `ProcWalk.info` reads both, `ProcWalk.hasChildren` the children. A builtin that
+blocks (`wait`, `read`, a loop of builtins) keeps the group and forks nothing: it looks like the prompt. `exec`
+keeps the pid and the fork time (`p_starttime`, `ProcInfo.startedAt`) and changes `p_comm`; a login shell's
+`p_comm` starts with `-` (`-zsh`).
+
+**Re-reading the snippet.** `source ~/.zshrc` runs the snippet again inside the `source` command, between its
+`preexec` and its `precmd`; `exec zsh` starts a new image under the same pid that reads it from scratch. Any
+variable the snippet assigns at load is reset in both, so it declares its job variable without assigning it
+(`(( ${+_koffeelid_job} )) || typeset -g _koffeelid_job=`), and an interactive shell loading it sends `job end
+--id zsh-$$`, which ends whatever job an earlier image of that pid began (a `job end` for an unknown id changes
+nothing).
+
 ## Sounds
 
 Six clips in `App/Resources/Sounds/close-sound-<name>.mp3`. The default output plays them with `AVAudioPlayer`,

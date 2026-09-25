@@ -45,7 +45,17 @@ public enum ActivityConstants {
     public static let dialogAnswerMinStampLeadSeconds: TimeInterval = 2
 
     // Jobs (SidePulse §7).
+    /// A job without a shell pid is dropped after this long; a job with one is asked of its shell instead.
     public static let jobStaleSeconds: TimeInterval = 2 * 3600
+    /// How often a job's shell is asked whether it still runs a command: the cadence of the session
+    /// rechecks (`abandonRecheckSeconds`), and the ask is one sysctl and one child listing per shell, a few
+    /// microseconds, so a lost `job end` holds the Mac at most this long past the settle.
+    public static let jobProbeSeconds: TimeInterval = 15
+    /// A shell seen at its prompt with no child must be seen so again this much later before its job is
+    /// dropped. The shell owns its terminal between `preexec` and the command's fork, and again between two
+    /// commands of one line: milliseconds, which one sighting could catch and two this far apart do not.
+    /// The same 5 s a command must run before it counts (`jobArmAfterDefaultSeconds`).
+    public static let jobPromptSettleSeconds: TimeInterval = 5
     /// Commands shorter than this never count (KoffeeLid: never arm).
     public static let jobArmAfterDefaultSeconds: TimeInterval = 5
 

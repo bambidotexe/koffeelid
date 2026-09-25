@@ -33,8 +33,8 @@ struct ActivitySnapshot: Equatable {
 }
 
 /// Owns the two stores; tails the activity journal; watches agent and shell pids; runs the time rules, the
-/// registry rescues and the Codex checks (its daemon, its rollouts); reports the aggregate "running" level
-/// to the coordinator. Main thread only.
+/// registry rescues, the Codex checks (its daemon, its rollouts) and the jobs' shell probes; reports the
+/// aggregate "running" level to the coordinator. Main thread only.
 @MainActor
 final class ActivityMonitor {
     var onChange: ((ActivitySnapshot) -> Void)?
@@ -79,11 +79,12 @@ final class ActivityMonitor {
         watcher.onExit = { [weak self] pid in self?.processExited(pid) }
         // Replay: events from this boot only, the app's own verdicts among them. Before anything counts: the
         // time rules drop what went stale while the app was down; the prune drops dead or recycled pids, a
-        // Claude Code pid whose registry record names another session among them; the registry ends each
-        // replayed Claude Code turn that ended meanwhile, whatever its quiet; then (`finishLaunch`) each replayed
-        // Codex turn: first a thread Codex's managed daemon no longer holds, when it hosts a working session,
-        // then the rollouts. These checks only end turns, but for a dialog the registry says was answered, which
-        // works again as it would at the first check. Nothing is counted before they have run.
+        // Claude Code pid whose registry record names another session among them; each job's shell is asked
+        // whether it still runs a command; the registry ends each replayed Claude Code turn that ended
+        // meanwhile, whatever its quiet; then (`finishLaunch`) each replayed Codex turn: first a thread Codex's
+        // managed daemon no longer holds, when it hosts a working session, then the rollouts. These checks
+        // only end turns, but for a dialog the registry says was answered, which works again as it would at
+        // the first check. Nothing is counted before they have run.
         let boot = Self.bootDate() ?? .distantPast
         let currentData = (try? Data(contentsOf: AppSupport.activityJournalURL)) ?? Data()
         let currentEvents = currentData.split(separator: 0x0A).compactMap { ActivityCodec.decodeLine(Data($0)) }
@@ -95,7 +96,7 @@ final class ActivityMonitor {
         let registryDirs = claudeRegistryDirs()
         sessions.pruneDead(isAlive: { pid, agent in ProcWalk.isAlive(pid: pid) && ProcWalk.looksLike(agent, pid: pid) },
                            registrySession: { pid in ClaudeProcessRegistry.read(pid: pid, configDir: registryDirs[pid])?.sessionId })
-        for job in jobs.jobs.values { if let pid = job.ownerPid, !ProcWalk.isAlive(pid: pid) { jobs.processExited(pid: pid) } }
+        probeJobs(now: launch)
         onLog?("activity: replayed \(replayed.count) events, \(sessions.sessions.count) sessions, \(jobs.jobs.count) jobs")
         checkRegistry(now: launch, quietSeconds: 0)
         launched = false
@@ -206,6 +207,7 @@ final class ActivityMonitor {
         guard started, launched else { return }
         let now = Date()
         sessions.tick(now: now); jobs.tick(now: now)
+        probeJobs(now: now)
         checkRegistry(now: now)
         checkCodex(now: now, atLaunch: false)
         watcher.unwatchAll(except: sessions.trackedPids.union(jobs.trackedPids))
@@ -234,6 +236,18 @@ final class ActivityMonitor {
         t.tolerance = 0.5
         RunLoop.main.add(t, forMode: .common)
         timer = t
+    }
+
+    /// Asks each job's shell whether it still runs a command (`ShellJobLiveness`): a shell gone or recycled,
+    /// or back at its prompt with no child for `jobPromptSettleSeconds`, ends a job whose `job end` never came.
+    /// A shell replaced by its program keeps the job until that program exits (the kqueue).
+    private func probeJobs(now: Date) {
+        for job in jobs.jobs.values {
+            guard let pid = job.ownerPid else { continue }
+            let info = ProcWalk.isAlive(pid: pid) ? ProcWalk.info(for: pid) : nil
+            let probe = ShellJobLiveness.probe(info, hasChildren: info != nil && ProcWalk.hasChildren(pid: pid), jobSince: job.since)
+            if let reason = jobs.probe(id: job.id, probe, now: now) { onLog?("activity: job \(job.id) ended without a hook (\(reason))") }
+        }
     }
 
     /// Esc/Ctrl-C fire no hook in Claude Code: ask its own registry, in the session's transcript's config

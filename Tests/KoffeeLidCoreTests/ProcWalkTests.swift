@@ -73,6 +73,26 @@ final class ProcWalkTests: XCTestCase {
         let own = ProcWalk.info(for: getpid())!
         XCTAssertFalse(ProcWalk.isManagedCodexDaemon(own)); XCTAssertFalse(ProcWalk.isSharedCodexHost(own))
     }
+    func testShellNamesAreRecognisedWithALoginDash() {
+        for name in ["zsh", "-zsh", "bash", "-bash", "sh", "-sh", "fish", "dash", "ksh", "tcsh", "-tcsh"] {
+            XCTAssertTrue(ProcWalk.ProcInfo(pid: 1, ppid: 0, name: name, path: nil).isShell, name)
+        }
+        for name in ["make", "sleep", "claude", "zshx", "-", "", "--zsh", "ssh"] {
+            XCTAssertFalse(ProcWalk.ProcInfo(pid: 1, ppid: 0, name: name, path: nil).isShell, name)
+        }
+    }
+    func testTheProcessGroupStartAndChildrenAreRead() throws {
+        let own = try XCTUnwrap(ProcWalk.info(for: getpid()))
+        XCTAssertEqual(own.pgid, getpgrp())
+        let started = try XCTUnwrap(own.startedAt)
+        XCTAssertLessThan(started, Date()); XCTAssertGreaterThan(started, Date().addingTimeInterval(-24 * 3600))
+        let child = Process(); child.executableURL = URL(fileURLWithPath: "/bin/sleep"); child.arguments = ["30"]
+        try child.run()
+        defer { child.terminate(); child.waitUntilExit() }
+        XCTAssertTrue(ProcWalk.hasChildren(pid: getpid()))
+        XCTAssertFalse(ProcWalk.hasChildren(pid: child.processIdentifier))
+        XCTAssertFalse(ProcWalk.hasChildren(pid: 2_000_000))
+    }
     func testNoClaudeInAnOrdinaryChainAndAliveness() {
         // Run from a plain terminal the chain has no Claude; run from inside a Claude Code shell it does.
         // Either way the answer must be consistent with the per-process check.

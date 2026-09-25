@@ -95,22 +95,37 @@ public enum ShellInit {
 typeset -ga KOFFEELID_SKIP
 (( ${#KOFFEELID_SKIP} )) || KOFFEELID_SKIP=(
   vi vim nvim emacs nano pico less more man info
-  ssh mosh tmux screen top htop btop watch
+  ssh mosh tmux screen top htop btop watch tig lazygit
+  zsh bash sh fish su login
   claude codex grok koffeelid
 )
-typeset -g _koffeelid_job=
+# Declared, never reset: a `source ~/.zshrc` inside a command keeps the job it belongs to.
+(( ${+_koffeelid_job} )) || typeset -g _koffeelid_job=
 
 _koffeelid_preexec() {
   # $3 is the command line after alias expansion. Collect the head of every segment (split on
   # && || | |& ; & and the group characters), quotes stripped, basename taken: a launcher's
-  # `cd '<dir>' && '<path>/vim'` must match on vim, and `(vim)` on vim, not on `(`.
+  # `cd '<dir>' && '<path>/vim'` must match on vim, and `(vim)` on vim, not on `(`. Leading
+  # VAR=value words and the prefixes below (sudo with its -flags) are not the program: `sudo vim`
+  # is vim.
   local -a words heads
   words=(${(z)3})
-  local word head=
+  local word bare head= sudoflags=
   for word in $words; do
     case $word in
-      '&&'|'||'|'|'|'|&'|';'|'&'|'('|')'|'{'|'}') head= ;;
-      *) [[ -n $head ]] || { head=${${(Q)word}:t}; heads+=($head) } ;;
+      '&&'|'||'|'|'|'|&'|';'|'&'|'('|')'|'{'|'}') head= sudoflags= ;;
+      *)
+        [[ -n $head ]] && continue
+        bare=${word%%=*}
+        [[ $word == *=* && $bare == [A-Za-z_]* && $bare != *[^A-Za-z0-9_]* ]] && continue
+        bare=${${(Q)word}:t}
+        [[ -n $sudoflags && $bare == -* ]] && continue
+        sudoflags=
+        case $bare in
+          sudo) sudoflags=1; continue ;;
+          time|command|builtin|exec|nice|nohup|env|noglob|caffeinate) continue ;;
+        esac
+        head=$bare; heads+=($head) ;;
     esac
   done
   # One skipped head skips the whole line: the shell waits on the interactive program wherever it sits.
@@ -134,6 +149,9 @@ _koffeelid_precmd() {
   return $code
 }
 
+# Loading the snippet ends the job this shell's pid holds: one an earlier image began (`exec zsh`),
+# or the `source` that is reading it now.
+[[ -o interactive ]] && '@KOFFEELID_HOOK@' job end --id zsh-$$ >/dev/null 2>&1
 autoload -Uz add-zsh-hook
 add-zsh-hook preexec _koffeelid_preexec
 add-zsh-hook precmd _koffeelid_precmd

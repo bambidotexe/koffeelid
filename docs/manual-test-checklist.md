@@ -206,6 +206,13 @@ Walk these with a stand-in release (`docs/development.md` § Testing an update w
 - [ ] With this Claude Code session working all day (the level never drops): Off from the menu, then `sleep 120` in a terminal → the Mac is still armed throughout (the auto level and the manual mode are independent)
 - [ ] Close the lid during the sleep → Mac stays awake; open it → lock screen; command ends → `activity: idle`, `auto-disarm scheduled in 60s`, then `disarmed (activity ended)` and normal lid sleep is back (`AppleClamshellCausesSleep = Yes`)
 - [ ] `sleep 2` alone never arms (arm-after 5 s); `vim` never arms (skip list)
+- [ ] `exec zsh`, wait 10 s → no `activity: running`
+- [ ] `source ~/.zshrc`, wait 10 s → no `activity: running`
+- [ ] `sleep 300`, then close the tab → `activity: idle` at once
+- [ ] `sleep 7300` → still armed after 2 h, `activity: idle` when it ends
+- [ ] `sleep 300`, Ctrl-Z, `fg` → armed again 5 s after `fg`
+- [ ] `sudo -n vim` → never arms
+- [ ] Kill the app during a `sleep 300`, relaunch → `replayed … 1 jobs`, armed, ends with the sleep
 - [ ] Start a Claude Code turn → arms within a second of the prompt (`activity: running (1 session working, 0 commands)`); a question from Claude (AskUserQuestion) → `activity: idle` and `auto-disarm scheduled in 1800s` (the line under the header says "Auto-armed, off in 30 min"); answering it → running again, disarm cancelled
 - [ ] Ctrl-C a Claude turn → `activity: quiet turn … — registry idle, turn over` within ~35 s, then the 30 min hold-off, then `disarmed (activity ended)`; a `sleep 120` that ends during that wait does not shorten it
 - [ ] Under cswap (`CLAUDE_CONFIG_DIR` set), Ctrl-C a turn → `turn over` within 35 s and no `no registry record`
