@@ -49,7 +49,7 @@ struct SettingsGeneralPage: View {
             // The warning is not a state that can be put right: it is the hazard of the other way out, and
             // the button beside it is the way that is not hazardous. It therefore always shows.
             SettingsGroup(title: L("Uninstall"),
-                          hint: L("Removes everything KoffeeLid set up outside its own folder: what starts it at login, what lets it hold the Mac awake, what it added to Claude Code and to the shell, and its settings and logs. KoffeeLid then moves itself to the Trash and quits."),
+                          hint: L("Removes everything KoffeeLid set up outside its own folder: what starts it at login, what lets it hold the Mac awake, what it added to Claude Code, to Codex and to the shell, and its settings and logs. KoffeeLid then moves itself to the Trash and quits."),
                           warnings: [L("Do not drag KoffeeLid to the Trash. All of that stays behind, goes on running against an app that is gone, and can make the Mac misbehave.")]) {
                 ButtonRow {
                     Button(L("Uninstall KoffeeLid"), role: .destructive) { confirmUninstall() }
@@ -63,7 +63,7 @@ struct SettingsGeneralPage: View {
     private func confirmUninstall() {
         let alert = NSAlert()
         alert.messageText = L("Uninstall KoffeeLid?")
-        alert.informativeText = L("KoffeeLid stops holding the Mac awake, gives back the permissions it was granted, removes what starts it at login, what it added to Claude Code and to the shell, and its settings and logs. It then moves itself to the Trash and quits. Removing the sleep lock asks for an administrator password.")
+        alert.informativeText = L("KoffeeLid stops holding the Mac awake, gives back the permissions it was granted, removes what starts it at login, what it added to Claude Code, to Codex and to the shell, and its settings and logs. It then moves itself to the Trash and quits. Removing the sleep lock asks for an administrator password.")
         alert.alertStyle = .critical
         alert.addButton(withTitle: L("Uninstall"))
         alert.addButton(withTitle: L("Cancel"))

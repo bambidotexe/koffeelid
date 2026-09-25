@@ -1,7 +1,7 @@
 import AppKit
 import KoffeeLidCore
 
-/// The two hooks that feed auto-arm on activity: listed by the onboarding's "Arm while you work" page and
+/// The three hooks that feed auto-arm on activity: listed by the onboarding's "Arm while you work" page and
 /// reported by the Settings window's Auto-Arm page, as `PermissionCatalog` is by the System page.
 @MainActor
 enum HookCatalog {
@@ -9,7 +9,7 @@ enum HookCatalog {
         PermissionItem(id: .claudeHooks,
                        title: L("Claude Code"),
                        why: L("Tells KoffeeLid when a Claude Code session is working, so it arms while you close the lid and disarms once the turn is over. Adds hooks to ~/.claude/settings.json (backed up first)."),
-                       granted: { (HookInstaller.installedCount() ?? 0) == HookConfig.events.count },
+                       granted: { (HookInstaller.installedCount() ?? 0) == HookConfig.claude.events.count },
                        buttonTitle: L("Set up…"),
                        action: { window, done in
                            let r = HookInstaller.install()
@@ -23,6 +23,25 @@ enum HookCatalog {
                            let r = HookInstaller.uninstall()
                            DiagnosticLog.shared.log("uninstall-hooks from UI: \(r.message)")
                            if !r.ok { report(L("Claude Code"), r.message, in: window) }
+                           done()
+                       }),
+        PermissionItem(id: .codexHooks,
+                       title: L("Codex"),
+                       why: L("Tells KoffeeLid when a Codex session is working, so it arms while you close the lid and disarms once the turn is over. Adds hooks to ~/.codex/hooks.json and marks them trusted in ~/.codex/config.toml (both backed up first)."),
+                       granted: { (HookInstaller.codexInstalledCount() ?? 0) == HookConfig.codex.events.count },
+                       buttonTitle: L("Set up…"),
+                       action: { window, done in
+                           let r = HookInstaller.installCodex()
+                           DiagnosticLog.shared.log("install-hooks codex from UI: \(r.message)")
+                           if r.ok { if !Preferences.shared.armOnActivity { Preferences.shared.armOnActivity = true } } else { report(L("Codex"), r.message, in: window) }
+                           done()
+                       },
+                       doneTitle: L("Set up"),
+                       removeTitle: L("Remove"),
+                       remove: { window, done in
+                           let r = HookInstaller.uninstallCodex()
+                           DiagnosticLog.shared.log("uninstall-hooks codex from UI: \(r.message)")
+                           if !r.ok { report(L("Codex"), r.message, in: window) }
                            done()
                        }),
         PermissionItem(id: .zshHook,

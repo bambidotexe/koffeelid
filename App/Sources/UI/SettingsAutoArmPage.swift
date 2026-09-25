@@ -1,7 +1,7 @@
 import SwiftUI
 import KoffeeLidCore
 
-/// Arming that happens on its own while work runs: the switch, then each of the two things that tell
+/// Arming that happens on its own while work runs: the switch, then each of the three things that tell
 /// KoffeeLid work is running, with its own waits.
 struct SettingsAutoArmPage: View {
     @ObservedObject var model: SettingsModel
@@ -13,10 +13,10 @@ struct SettingsAutoArmPage: View {
             SettingsGroup(title: L("While you work"),
                           hint: L("KoffeeLid arms itself while work is running and turns itself off once it is over. It never changes the mode you picked yourself."),
                           warnings: SettingsStatus.autoArmIsDeaf(held: model.held, autoArmEnabled: auto)
-                            ? [L("Set up Claude Code or the terminal below. Until then, KoffeeLid cannot tell when work is running.")]
+                            ? [L("Set up Claude Code, Codex or the terminal below. Until then, KoffeeLid cannot tell when work is running.")]
                             : [],
                           notes: [L("“Disarm once finished” in the menu also ends your own arm, one minute after the work is over.")]) {
-                ToggleRow(L("Arm while Claude Code or a terminal command is running"),
+                ToggleRow(L("Arm while Claude Code, Codex or a terminal command is running"),
                           isOn: model.binding(\.armOnActivity))
                 StatusRow(L("Work running now"), mark: workMark)
             }
@@ -31,7 +31,21 @@ struct SettingsAutoArmPage: View {
                         Button(L("Set Up Claude Code")) { model.grant(.claudeHooks) }
                     }
                 }
-                SliderRow(L("Stay armed after Claude Code finishes"), value: claudeMinutes,
+                SliderRow(L("Stay armed after Claude Code finishes"), value: minutes(.claude),
+                          in: 1...120, step: 1, enabled: auto, format: SettingsFormat.minutes)
+            }
+            SettingsGroup(title: L("Codex"),
+                          hint: L("KoffeeLid adds its hooks to ~/.codex/hooks.json, marks them trusted in ~/.codex/config.toml, and backs both files up first. The wait leaves you time to pick a session up from another device: touching this Mac's keyboard or trackpad ends it at once."),
+                          notes: [L("A session waiting for your answer does not count as running.")]) {
+                StatusRow(L("Codex hooks"), mark: model.mark(.codexHooks, yes: L("Enabled"), no: L("Disabled")))
+                ButtonRow {
+                    if model.holds(.codexHooks) {
+                        Button(L("Remove from Codex")) { model.revoke(.codexHooks) }
+                    } else {
+                        Button(L("Set Up Codex")) { model.grant(.codexHooks) }
+                    }
+                }
+                SliderRow(L("Stay armed after Codex finishes"), value: minutes(.codex),
                           in: 1...120, step: 1, enabled: auto, format: SettingsFormat.minutes)
             }
             SettingsGroup(title: L("Terminal"),
@@ -56,12 +70,12 @@ struct SettingsAutoArmPage: View {
     private var workMark: StatusMark {
         let snapshot = model.activity
         if snapshot.workingSessions == 0 && snapshot.runningJobs == 0 { return .info(L("None")) }
-        return .info(String(format: L("Claude Code: %d, commands: %d"), snapshot.workingSessions, snapshot.runningJobs))
+        return .info(String(format: L("Claude Code: %d, Codex: %d, commands: %d"), snapshot.claudeSessions, snapshot.codexSessions, snapshot.runningJobs))
     }
 
-    /// Stored in seconds, set in minutes: Claude Code's wait is a long one.
-    private var claudeMinutes: Binding<Double> {
-        let seconds = model.holdOff(.claude)
+    /// Stored in seconds, set in minutes: an agent's wait is a long one.
+    private func minutes(_ kind: ActivityKind) -> Binding<Double> {
+        let seconds = model.holdOff(kind)
         return Binding(get: { seconds.wrappedValue / 60 }, set: { seconds.wrappedValue = $0.rounded() * 60 })
     }
 }

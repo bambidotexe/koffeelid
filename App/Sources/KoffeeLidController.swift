@@ -699,6 +699,7 @@ final class KoffeeLidController {
             try? FileManager.default.removeItem(at: url)
         }
         if (HookInstaller.installedCount() ?? 0) > 0 { done.append(HookInstaller.uninstall().ok ? "claude code hooks removed" : "claude code hooks removal failed") }
+        if (HookInstaller.codexInstalledCount() ?? 0) > 0 { done.append(HookInstaller.uninstallCodex().ok ? "codex hooks removed" : "codex hooks removal failed") }
         if HookInstaller.zshrcHasSnippet() { done.append(HookInstaller.removeFromZshrc().ok ? "zsh snippet removed" : "zsh snippet removal failed") }
         if let id = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: id); done.append("preferences cleared") }
         hotKey.register(); refreshGestureSampling(); effect.parameters = prefs.effect; builtInFn.start(); refreshStatusItem()
@@ -710,8 +711,9 @@ final class KoffeeLidController {
     /// moved to the Trash. Returns what was done, and then what could not be, so the caller can say so.
     ///
     /// **Dragging the bundle to the Trash is not an uninstall.** It removes the app and nothing else: the
-    /// sudoers rule stays, the wrapper on the PATH stays, the login items stay, and the Claude Code hooks
-    /// and the zsh snippet go on calling a binary that is no longer there, once per event, for ever.
+    /// sudoers rule stays, the wrapper on the PATH stays, the login items stay, and the Claude Code hooks,
+    /// the Codex hooks and the zsh snippet go on calling a binary that is no longer there, once per event,
+    /// for ever.
     ///
     /// The order is the whole of it:
     /// 1. the arm ends first, so the kernel flag is clear before anything else moves (invariant 1);
@@ -754,11 +756,17 @@ final class KoffeeLidController {
             let r = HookInstaller.uninstall()
             if r.ok { done.append("claude code hooks removed") } else { failed.append(String(format: L("The Claude Code hooks could not be removed: %@"), r.message)) }
         }
+        if (HookInstaller.codexInstalledCount() ?? 0) > 0 {
+            let r = HookInstaller.uninstallCodex()
+            if r.ok { done.append("codex hooks removed") } else { failed.append(String(format: L("The Codex hooks could not be removed: %@"), r.message)) }
+        }
         if HookInstaller.zshrcHasSnippet() {
             let r = HookInstaller.removeFromZshrc()
             if r.ok { done.append("zsh snippet removed") } else { failed.append(String(format: L("The line in .zshrc could not be removed: %@"), r.message)) }
         }
-        try? FileManager.default.removeItem(at: HookInstaller.backupURL)
+        for backup in [HookInstaller.backupURL, HookInstaller.codexHooksBackupURL, HookInstaller.codexConfigBackupURL] {
+            try? FileManager.default.removeItem(at: backup)
+        }
 
         if UninstallPlan.needsPrivilege(present: { FileManager.default.fileExists(atPath: $0) }) {
             switch SleepLock.runPrivilegedScript(UninstallPlan.privilegedScript) {
@@ -946,7 +954,7 @@ final class KoffeeLidController {
         case "armWithOption", "gestureModifier", "gestureActivationDegrees", "gestureReverseCancelDegrees":
             if key == "gestureActivationDegrees" { effect.foldThresholdDegrees = prefs.gestureActivationDegrees }
             gesture.reset(); refreshGestureSampling()
-        case "armOnActivity", "activityJobArmAfterSeconds", Preferences.holdOffKey(.claude), Preferences.holdOffKey(.terminal):
+        case "armOnActivity", "activityJobArmAfterSeconds", Preferences.holdOffKey(.claude), Preferences.holdOffKey(.codex), Preferences.holdOffKey(.terminal):
             activityPolicy.holdOffs = prefs.activityHoldOffs
             activity.jobArmAfterSeconds = prefs.activityJobArmAfterSeconds
             if key == "armOnActivity" { log.log(prefs.armOnActivity ? "auto-arm enabled" : "auto-arm disabled"); handleActivity(activity.snapshot) }
@@ -1001,7 +1009,8 @@ final class KoffeeLidController {
         m.addItem(.separator())
         // With a hook set up: end the arm a minute after the work is over (a manual arm, or an auto-arm
         // ahead of its long hold-off). Pending until it fires; clicking again cancels.
-        if (HookInstaller.installedCount() ?? 0) == HookConfig.events.count || HookInstaller.zshrcHasSnippet() {
+        if (HookInstaller.installedCount() ?? 0) == HookConfig.claude.events.count
+            || (HookInstaller.codexInstalledCount() ?? 0) == HookConfig.codex.events.count || HookInstaller.zshrcHasSnippet() {
             let once = NSMenuItem(title: L("Disarm once finished"), action: #selector(menuToggleDisarmOnce(_:)), keyEquivalent: "")
             once.target = self; once.state = activityDisarmOncePending ? .on : .off
             m.addItem(once)
@@ -1020,10 +1029,16 @@ final class KoffeeLidController {
 
     /// The greyed line under the header: why a closed lid does not sleep while the menu says Off.
     private func autoArmHint() -> String {
-        let kinds = activity.snapshot.kinds
-        if kinds == [.claude] { return L("Auto-armed while Claude Code works") }
-        if kinds == [.terminal] { return L("Auto-armed while a command runs") }
-        if !kinds.isEmpty { return L("Auto-armed while Claude Code and a command run") }
+        switch activity.snapshot.kinds {
+        case [.claude]: return L("Auto-armed while Claude Code works")
+        case [.codex]: return L("Auto-armed while Codex works")
+        case [.terminal]: return L("Auto-armed while a command runs")
+        case [.claude, .codex]: return L("Auto-armed while Claude Code and Codex work")
+        case [.claude, .terminal]: return L("Auto-armed while Claude Code and a command run")
+        case [.codex, .terminal]: return L("Auto-armed while Codex and a command run")
+        case [.claude, .codex, .terminal]: return L("Auto-armed while Claude Code, Codex and a command run")
+        default: break
+        }
         let left = activityPolicy.nextDeadline(after: Date()).map { $0.timeIntervalSinceNow } ?? 0
         let text = left >= 60 ? String(format: L("%d min"), Int((left / 60).rounded(.up))) : String(format: L("%d s"), Int(left.rounded(.up)))
         return String(format: L("Auto-armed, off in %@"), text)

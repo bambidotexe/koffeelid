@@ -6,7 +6,7 @@ import KoffeeLidCore
 final class ActivityArmPolicyTests: XCTestCase {
     let t0 = Date(timeIntervalSince1970: 1_700_000_000)
     func at(_ dt: TimeInterval) -> Date { t0.addingTimeInterval(dt) }
-    var p = ActivityArmPolicy(holdOffs: [.claude: 1800, .terminal: 60])
+    var p = ActivityArmPolicy(holdOffs: [.claude: 1800, .codex: 1800, .terminal: 60])
 
     func testWorkTurnsTheLevelOnOnceAndOnlyWhenEnabled() {
         XCTAssertNil(p.update(running: [], enabled: true, now: t0))
@@ -32,6 +32,16 @@ final class ActivityArmPolicyTests: XCTestCase {
         _ = p.update(running: [], enabled: true, now: at(10))
         XCTAssertEqual(p.nextDeadline(after: at(10)), at(1810))
         XCTAssertNil(p.tick(now: at(1000))); XCTAssertEqual(p.tick(now: at(1810)), .off(releaseManual: false))
+    }
+    func testCodexGetsItsOwnLongHoldOff() {
+        var q = ActivityArmPolicy(holdOffs: [.claude: 1800, .codex: 900, .terminal: 60])
+        XCTAssertEqual(q.update(running: [.codex], enabled: true, now: t0), .on)
+        _ = q.update(running: [.codex, .terminal], enabled: true, now: at(5))
+        _ = q.update(running: [], enabled: true, now: at(10))
+        XCTAssertEqual(q.nextDeadline(after: at(10)), at(910), "the longest of the kinds that ran, Codex's")
+        _ = q.update(running: [.claude], enabled: true, now: at(20))
+        _ = q.update(running: [], enabled: true, now: at(30))
+        XCTAssertEqual(q.nextDeadline(after: at(30)), at(1830), "Claude Code joined the stretch, and its wait is the longer")
     }
     func testACommandFinishingLastDoesNotShortenClaudesHoldOff() {
         _ = p.update(running: [.claude], enabled: true, now: t0)

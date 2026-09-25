@@ -19,7 +19,7 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(SettingsStatus.severity(of: .loginItems, held: grants(.sleepLock)), .failure)
     }
     func testAMissingOptionalGrantIsOrangeAndNeverBlue() {
-        for grant in [SettingsGrant.screenRecording, .inputMonitoring, .notifications, .claudeHooks, .zshHook] {
+        for grant in [SettingsGrant.screenRecording, .inputMonitoring, .notifications, .claudeHooks, .codexHooks, .zshHook] {
             XCTAssertEqual(SettingsStatus.severity(of: grant, held: []), .warning, grant.rawValue)
         }
     }
@@ -39,6 +39,7 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertTrue(SettingsStatus.autoArmIsDeaf(held: grants(.sleepLock, .notifications), autoArmEnabled: true))
         XCTAssertFalse(SettingsStatus.autoArmIsDeaf(held: [], autoArmEnabled: false))
         XCTAssertFalse(SettingsStatus.autoArmIsDeaf(held: grants(.claudeHooks), autoArmEnabled: true))
+        XCTAssertFalse(SettingsStatus.autoArmIsDeaf(held: grants(.codexHooks), autoArmEnabled: true))
         XCTAssertFalse(SettingsStatus.autoArmIsDeaf(held: grants(.zshHook), autoArmEnabled: true))
     }
 }

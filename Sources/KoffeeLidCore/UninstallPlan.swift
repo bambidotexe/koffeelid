@@ -4,9 +4,9 @@ import Foundation
 /// it a user cannot.
 ///
 /// Dragging the bundle to the Trash removes the app and nothing else: the sudoers rule, the wrapper on the
-/// PATH, the login items, the Claude Code hooks and the zsh snippet stay, and the hooks go on running a
-/// binary that is no longer there on every Claude Code event. Everything in that list is removable from the
-/// app itself except the two files below, which are root-owned.
+/// PATH, the login items, the Claude Code and Codex hooks and the zsh snippet stay, and the hooks go on
+/// running a binary that is no longer there on every Claude Code and Codex event. Everything in that list
+/// is removable from the app itself except the two files below, which are root-owned.
 public enum UninstallPlan {
     /// The root-owned files, in the order a script removes them: the sudoers rule that backs the sleep lock
     /// and the `koffeelid` wrapper. They go in one script so that one administrator dialog covers both.

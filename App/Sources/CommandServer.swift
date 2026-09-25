@@ -25,16 +25,22 @@ final class CommandServer {
 
 /// Client side, run from `main.swift` before AppKit starts when the first argument is a verb.
 enum CommandLineClient {
-    static let usage = "usage: koffeelid arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings | install-hooks | uninstall-hooks | shell-init zsh"
+    static let usage = "usage: koffeelid arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings | install-hooks [claude|codex] | uninstall-hooks [claude|codex] | shell-init zsh"
 
     /// Returns an exit code when the arguments were a CLI invocation, nil to start the app normally.
     static func run(arguments: [String]) -> Int32? {
         guard arguments.count >= 2, !arguments[1].hasPrefix("-") else { return nil }
         switch arguments[1] {
-        case "install-hooks":
-            let r = HookInstaller.install(); print(r.message); return r.ok ? 0 : 1
-        case "uninstall-hooks":
-            let r = HookInstaller.uninstall(); print(r.message); return r.ok ? 0 : 1
+        case "install-hooks", "uninstall-hooks":
+            // The agent is an optional word: none is Claude Code, as it was before Codex was supported.
+            let install = arguments[1] == "install-hooks"
+            let r: (ok: Bool, message: String)
+            switch arguments.count >= 3 ? arguments[2] : "claude" {
+            case "claude": r = install ? HookInstaller.install() : HookInstaller.uninstall()
+            case "codex": r = install ? HookInstaller.installCodex() : HookInstaller.uninstallCodex()
+            default: fputs("usage: koffeelid \(arguments[1]) [claude|codex]\n", stderr); return 2
+            }
+            print(r.message); return r.ok ? 0 : 1
         case "shell-init":
             guard arguments.count >= 3, arguments[2] == "zsh" else { fputs("usage: koffeelid shell-init zsh\n", stderr); return 2 }
             print(HookInstaller.snippet); return 0

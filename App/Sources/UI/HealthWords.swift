@@ -29,6 +29,7 @@ enum HealthWords {
         case .inputMonitoring: L("Input Monitoring permission")
         case .notifications: L("Notifications permission")
         case .claudeHooks: L("Claude Code hooks")
+        case .codexHooks: L("Codex hooks")
         case .zshHook: L("Terminal hook (zsh)")
         case .lidSensor: L("Lid angle sensor")
         case .crashes: String(format: L("Crashes in the last %d days"), Int(HealthConstants.crashWindow / 86_400))
@@ -40,6 +41,7 @@ enum HealthWords {
         case .state: L("State")
         case .lidAngle: L("Lid angle now")
         case .lastClaudeEvent: L("Last Claude Code event")
+        case .lastCodexEvent: L("Last Codex event")
         case .lastTerminalCommand: L("Last terminal command")
         case .lastSafetyStop: L("Last turned itself off")
         }
@@ -80,11 +82,12 @@ enum HealthWords {
         case .sudoersRule: L("A sudoers rule for /usr/bin/pmset disablesleep")
         case .at(let date): HealthReport.stamp(date)
         case .lastCrash(let date): String(format: L("Last one %@"), HealthReport.stamp(date))
-        // The event's own name, as Claude Code sends it: a detail for a bug report, in no language.
+        // The event's own name, as the agent sends it: a detail for a bug report, in no language.
         case .event(let name, let date): "\(name), \(HealthReport.stamp(date))"
         case .hookEvents(let installed, let total):
             String(format: L("%d of %d hook events point at this copy of KoffeeLid"), installed, total)
         case .settingsUnreadable: L("~/.claude/settings.json could not be read")
+        case .codexFilesUnreadable: L("~/.codex/hooks.json or ~/.codex/config.toml could not be read")
         }
     }
 
@@ -116,6 +119,8 @@ enum HealthWords {
             L("Quit and reopen KoffeeLid so it can read this Mac's 🌐 Fn key. Until then, any keyboard's 🌐 Fn key arms the lid gesture.")
         case .setUpClaudeCode:
             L("Set up Claude Code on the Auto-Arm page.")
+        case .setUpCodex:
+            L("Set up Codex on the Auto-Arm page.")
         case .setUpTerminal:
             L("Set up the terminal on the Auto-Arm page, then open a new terminal window.")
         case .noLidSensor:

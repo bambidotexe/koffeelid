@@ -29,7 +29,8 @@ public enum ActivityConstants {
     /// idle_prompt fires ~60 s after a quiet turn (median exactly 60 s); one over fresher main-agent
     /// activity is a glitch. 50 s leaves headroom below 60, not above.
     public static let idleSignalMinQuietSeconds: TimeInterval = 50
-    /// Quiet before a working session is checked against Claude Code's registry (Esc/Ctrl-C fire no hook).
+    /// Quiet before a working Claude Code session is checked against its registry (Esc/Ctrl-C fire no hook
+    /// there; Codex fires Interrupt and has no registry).
     public static let abandonQuietSeconds: TimeInterval = 20
     public static let abandonRecheckSeconds: TimeInterval = 15
     /// Registry busy but no hook for this long: hooks for that session are dead; log once.
@@ -44,10 +45,10 @@ public enum ActivityConstants {
 
     // KoffeeLid's own.
     /// Between "nothing runs any more" and the auto-disarm, per kind that ran during the arm (the longest
-    /// wins). A finished Claude Code turn usually has its user on the other end of a remote connection,
-    /// about to prompt again — and a sleeping Mac would drop that connection — so it waits half an hour;
-    /// a finished command has nothing left to wait for.
-    public static let holdOffDefaults: [ActivityKind: TimeInterval] = [.claude: 30 * 60, .terminal: 60]
+    /// wins). A finished Claude Code or Codex turn usually has its user on the other end of a remote
+    /// connection, about to prompt again — and a sleeping Mac would drop that connection — so it waits half
+    /// an hour; a finished command has nothing left to wait for.
+    public static let holdOffDefaults: [ActivityKind: TimeInterval] = [.claude: 30 * 60, .codex: 30 * 60, .terminal: 60]
     /// "Disarm once finished": the wait after the work ends, so a turn that picks itself back up is not cut short.
     public static let disarmOnceHoldOffSeconds: TimeInterval = 60
 

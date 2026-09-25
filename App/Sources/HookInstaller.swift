@@ -1,8 +1,10 @@
 import Foundation
 import KoffeeLidCore
 
-/// `koffeelid install-hooks` / `uninstall-hooks` and the Settings button share this. Edits
-/// `~/.claude/settings.json` through `HookConfig`, backs it up first, and reports what actually landed.
+/// `koffeelid install-hooks` / `uninstall-hooks` and the Settings buttons share this. Edits Claude Code's
+/// `~/.claude/settings.json` through `HookConfig.claude`, and Codex's `~/.codex/hooks.json` through
+/// `HookConfig.codex` together with the trust Codex wants in `~/.codex/config.toml` (`CodexHookTrust`);
+/// backs every file up first, and reports what actually landed.
 enum HookInstaller {
     /// Resolved like `zshrcURL`: a dotfiles-managed `~/.claude/settings.json` is often a symlink, and
     /// reading/writing through the resolved path keeps the link intact instead of replacing it.
@@ -15,7 +17,15 @@ enum HookInstaller {
         MainActor.assumeIsolated { ActivityMonitor.hookBinaryURL }.resolvingSymlinksInPath().standardizedFileURL.path
     }
     static var command: String { "\(hookPath) hook" }
+    static var codexCommand: String { "\(hookPath) hook codex" }
     static var snippet: String { ShellInit.zsh(hookPath: hookPath) }
+
+    /// Codex's home, symlinks resolved as Codex resolves it: the hooks file's path is part of every trust key.
+    static var codexHome: URL { FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex").resolvingSymlinksInPath() }
+    static var codexHooksURL: URL { codexHome.appendingPathComponent("hooks.json") }
+    static var codexHooksBackupURL: URL { codexHome.appendingPathComponent("hooks.json.backup-koffeelid") }
+    static var codexConfigURL: URL { codexHome.appendingPathComponent("config.toml") }
+    static var codexConfigBackupURL: URL { codexHome.appendingPathComponent("config.toml.backup-koffeelid") }
     /// Guarded, so a shell on a Mac where the app (or the wrapper) is gone stays silent.
     static var zshLine: String {
         if FileManager.default.isExecutableFile(atPath: "/usr/local/bin/koffeelid") {
@@ -29,11 +39,11 @@ enum HookInstaller {
         do {
             let root = try HookSettingsFile.load(at: settingsURL) ?? [:]
             try HookSettingsFile.backup(from: settingsURL, to: backupURL)
-            let edited = HookConfig.install(into: root, command: command)
+            let edited = HookConfig.claude.install(into: root, command: command)
             try HookSettingsFile.write(edited, to: settingsURL)
-            let n = HookConfig.installedCount(in: edited, command: command), total = HookConfig.events.count
+            let n = HookConfig.claude.installedCount(in: edited, command: command), total = HookConfig.claude.events.count
             if n == total { return (true, "Installed \(total) Claude Code hooks -> \(command)") }
-            let missing = HookConfig.events.filter { HookConfig.installedCommand(in: edited, event: $0) != command }
+            let missing = HookConfig.claude.events.filter { HookConfig.claude.installedCommand(in: edited, event: $0) != command }
             return (false, "Installed \(n) of \(total) hooks -> \(command)\nDeclined to touch: \(missing.joined(separator: ", ")) (their value in ~/.claude/settings.json has a shape this tool does not rewrite)")
         } catch { return (false, "install-hooks failed: \(error)\nYour settings file was not modified.") }
     }
@@ -42,7 +52,7 @@ enum HookInstaller {
         do {
             guard let root = try HookSettingsFile.load(at: settingsURL) else { return (true, "No settings file found — nothing to remove.") }
             try HookSettingsFile.backup(from: settingsURL, to: backupURL)
-            try HookSettingsFile.write(HookConfig.uninstall(from: root), to: settingsURL)
+            try HookSettingsFile.write(HookConfig.claude.uninstall(from: root), to: settingsURL)
             return (true, "Removed KoffeeLid hooks.")
         } catch { return (false, "uninstall-hooks failed: \(error)\nYour settings file was not modified.") }
     }
@@ -52,7 +62,100 @@ enum HookInstaller {
     static func installedCount() -> Int? {
         let root: [String: Any]?
         do { root = try HookSettingsFile.load(at: settingsURL) } catch { return nil }
-        return HookConfig.installedCount(in: root ?? [:], command: command)
+        return HookConfig.claude.installedCount(in: root ?? [:], command: command)
+    }
+
+    // MARK: Codex
+
+    enum CodexFailure: Error, CustomStringConvertible {
+        case configUnreadable, stateNotRewritable
+        var description: String {
+            switch self {
+            case .configUnreadable: return "could not read ~/.codex/config.toml as UTF-8; refusing to touch it"
+            case .stateNotRewritable: return "~/.codex/config.toml holds a hook state in a form this tool does not rewrite (an inline `state` table); trust the hooks from Codex's /hooks screen instead"
+            }
+        }
+    }
+
+    /// `~/.codex/config.toml` as text; empty when absent, an error when it cannot be read as UTF-8.
+    private static func codexConfigText() throws -> String {
+        guard FileManager.default.fileExists(atPath: codexConfigURL.path) else { return "" }
+        guard let text = try? String(contentsOf: codexConfigURL, encoding: .utf8) else { throw CodexFailure.configUnreadable }
+        return text
+    }
+
+    /// The 12 hooks into `~/.codex/hooks.json`, then their trust into `~/.codex/config.toml`: without the
+    /// second, Codex lists the hooks and never runs them. Both files are read and every refusal decided
+    /// before either is written; a failure between the two writes says which file landed.
+    static func installCodex() -> (ok: Bool, message: String) {
+        let config = HookConfig.codex, total = config.events.count
+        var written: [String] = []
+        do {
+            let root = try HookSettingsFile.load(at: codexHooksURL) ?? [:]
+            let configText = try codexConfigText()
+            let edited = config.install(into: root, command: codexCommand)
+            let entries = CodexHookTrust.entries(hooksFile: codexHooksURL.path, root: edited, config: config, command: codexCommand)
+            guard let trusted = CodexHookTrust.trusting(configText, entries: entries, ourHashes: CodexHookTrust.hashes(config: config, command: codexCommand)) else {
+                throw CodexFailure.stateNotRewritable
+            }
+            try HookSettingsFile.backup(from: codexHooksURL, to: codexHooksBackupURL)
+            try HookSettingsFile.write(edited, to: codexHooksURL)
+            written.append("~/.codex/hooks.json")
+            try HookSettingsFile.backup(from: codexConfigURL, to: codexConfigBackupURL)
+            try trusted.write(to: codexConfigURL, atomically: true, encoding: .utf8)
+            written.append("~/.codex/config.toml")
+            let n = config.installedCount(in: edited, command: codexCommand)
+            if n == total { return (true, "Installed \(total) Codex hooks -> \(codexCommand), trusted in ~/.codex/config.toml") }
+            let missing = config.events.filter { config.installedCommand(in: edited, event: $0) != codexCommand }
+            return (false, "Installed \(n) of \(total) hooks -> \(codexCommand)\nDeclined to touch: \(missing.joined(separator: ", ")) (their value in ~/.codex/hooks.json has a shape this tool does not rewrite)")
+        } catch { return (false, "install-hooks codex failed: \(error)\n" + outcome(written)) }
+    }
+
+    /// The trust goes first, named after the hooks as they still sit in the file, then the hooks.
+    static func uninstallCodex() -> (ok: Bool, message: String) {
+        let config = HookConfig.codex
+        var written: [String] = []
+        do {
+            let root = try HookSettingsFile.load(at: codexHooksURL)
+            let configText = try codexConfigText()
+            let entries = CodexHookTrust.entries(hooksFile: codexHooksURL.path, root: root ?? [:], config: config, command: codexCommand)
+            if let untrusted = CodexHookTrust.untrusting(configText, keys: Set(entries.map(\.key)), ourHashes: CodexHookTrust.hashes(config: config, command: codexCommand)) {
+                try HookSettingsFile.backup(from: codexConfigURL, to: codexConfigBackupURL)
+                try untrusted.write(to: codexConfigURL, atomically: true, encoding: .utf8)
+                written.append("~/.codex/config.toml")
+            }
+            guard let root else { return (true, "No Codex hooks file found — nothing to remove.") }
+            try HookSettingsFile.backup(from: codexHooksURL, to: codexHooksBackupURL)
+            try HookSettingsFile.write(config.uninstall(from: root), to: codexHooksURL)
+            return (true, "Removed KoffeeLid hooks from Codex.")
+        } catch { return (false, "uninstall-hooks codex failed: \(error)\n" + outcome(written)) }
+    }
+
+    private static func outcome(_ written: [String]) -> String {
+        written.isEmpty ? "Your Codex files were not modified." : "Written before the failure: \(written.joined(separator: ", ")) (a .backup-koffeelid copy sits beside it)."
+    }
+
+    /// How many of the 12 events point at THIS bundle's hook binary and are trusted by Codex; nil when
+    /// either file is unreadable or invalid. Absent files count as empty.
+    static func codexInstalledCount() -> Int? {
+        codexInstalledCount(hooksURL: codexHooksURL, configURL: codexConfigURL, command: codexCommand)
+    }
+
+    /// The same, told its paths: file IO only, so the Health page can ask off the main thread (`hookPath`
+    /// reads the bundle on the main actor).
+    static func codexInstalledCount(hooksURL: URL, configURL: URL, command: String) -> Int? {
+        let root: [String: Any]?, configText: String
+        do {
+            root = try HookSettingsFile.load(at: hooksURL)
+            if FileManager.default.fileExists(atPath: configURL.path) {
+                guard let text = try? String(contentsOf: configURL, encoding: .utf8) else { return nil }
+                configText = text
+            } else { configText = "" }
+        } catch { return nil }
+        let config = HookConfig.codex
+        let states = CodexHookTrust.states(in: configText)
+        return CodexHookTrust.entries(hooksFile: hooksURL.path, root: root ?? [:], config: config, command: command)
+            .filter { states[$0.key]?.trustedHash == $0.hash && states[$0.key]?.enabled != false }.count
     }
 
     // MARK: ~/.zshrc

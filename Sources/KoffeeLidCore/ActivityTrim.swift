@@ -1,19 +1,22 @@
 import Foundation
 
-/// Reduces a raw Claude Code hook payload to one journal line. Bodies are dropped here so the journal
-/// stays small and appends stay atomic; every copied string is clamped at ingestion.
+/// Reduces a raw Claude Code or Codex hook payload to one journal line. Bodies are dropped here so the
+/// journal stays small and appends stay atomic; every copied string is clamped at ingestion. Only the
+/// agent's own event names pass: the hook's verb says which agent sent the payload, not the payload.
 public enum ActivityTrim {
-    public static func event(fromHookPayload data: Data, loggedAt: Date) -> ActivityEvent {
+    public static func event(fromHookPayload data: Data, agent: ActivityAgent, loggedAt: Date) -> ActivityEvent {
         guard let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let name = obj["hook_event_name"] as? String,
               let event = ActivityEventName(rawValue: name),
-              ActivityEventName.claudeCodeEvents.contains(event)
+              ActivityEventName.hookEvents(for: agent).contains(event)
         else {
             var e = ActivityEvent(loggedAt: loggedAt, event: .parseError)
+            e.agent = agent
             e.rawPrefix = String(String(decoding: data, as: UTF8.self).prefix(ActivityConstants.rawPrefixMaxChars))
             return e
         }
         var e = ActivityEvent(loggedAt: loggedAt, event: event)
+        e.agent = agent
         e.sessionId = clamp(obj["session_id"])
         e.agentId = clamp(obj["agent_id"])
         e.toolName = clamp(obj["tool_name"])

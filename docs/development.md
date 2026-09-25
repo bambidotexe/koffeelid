@@ -259,9 +259,12 @@ fold angles and compare. One 1440 × 900 render takes about a second with `swift
 UserDefaults and the activity journal with the installed app. Fake one Claude Code turn:
 `echo '{"hook_event_name":"UserPromptSubmit","session_id":"fake"}' | /Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook`
 (arms if the activity switch is on; the fake event carries no pid, so only a matching `Stop` or staleness ends
-it). Run `koffeelid install-hooks` only from `/Applications/KoffeeLid.app`: it writes the absolute path of the
-binary that ran it. The timings in `ActivityConstants` were sized from recorded Claude Code sessions; change
-them only against new recordings.
+it), or one Codex turn with `… KoffeeLidHook hook codex` (ended by a `Stop`, an `Interrupt` or staleness).
+Run `koffeelid install-hooks` and `install-hooks codex` only from `/Applications/KoffeeLid.app`: they write
+the absolute path of the binary that ran them, and Codex's trust hash covers that path. To see what Codex
+makes of the hooks without a turn: `codex app-server` on stdio, send `initialize` then `hooks/list`, and read
+each entry's `currentHash` and `trustStatus` (`docs/macOS.md` § Codex). The timings in `ActivityConstants`
+were sized from recorded Claude Code sessions; change them only against new recordings.
 
 **A collaborator.** One file, one system API, closures back to the coordinator (`onX`), an `onLog` closure if
 it can fail, a `deinit` that tears down any C callback holding an unretained `self`. Wire it in

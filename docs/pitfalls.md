@@ -345,6 +345,39 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **Do not** run it from anywhere but `/Applications/KoffeeLid.app`. A Debug app shares the journal and the
   preferences with the installed one: launch it with `KOFFEELID_DISABLE_ACTIVITY=1`.
 
+## Codex hooks
+
+### A hook in `~/.codex/hooks.json` alone never runs
+- **Symptom.** The file holds the 12 entries, Codex's `/hooks` screen lists them as untrusted, and no line
+  ever reaches the journal.
+- **Why.** Codex runs a user hook only once it is trusted: a `[hooks.state."<key>"]` table in
+  `~/.codex/config.toml` whose `trusted_hash` equals the hash Codex computes for the entry.
+- **What the code does.** `install-hooks codex` writes that table for each of the 12 hooks with the key and
+  the hash Codex would compute (`CodexHookTrust`, `docs/macOS.md` § Codex), and the row reads Enabled only
+  while all 12 are installed **and** trusted. `CodexHookTrustTests` pins the hash to the ones Codex 0.157.0
+  reported over `hooks/list`.
+- **If Codex changes its hash.** The row still says Enabled (KoffeeLid wrote what it computed), Codex's
+  `/hooks` screen says modified, and the Health page's *Last Codex event* stays at *None yet*. That reading is
+  the tell. Re-derive the hash from `codex-rs/hooks/src/engine/discovery.rs` and
+  `codex-rs/config/src/fingerprint.rs`, or ask a running `codex app-server` over `hooks/list`, and fix the test.
+
+### The trust key moves with the entry's index
+- **Why.** The key ends in the group's index in the event's array. An entry of ours added before a stranger's
+  would shift the stranger's key and untrust their hook.
+- **What the code does.** Ours is appended after every existing group, and removed from the end. A table of
+  ours left under an old key (the file was rearranged by hand) is recognised by its hash and dropped.
+
+### `config.toml` is edited as text, not parsed
+- **Why.** A TOML rewrite would lose the user's comments and layout, and Core takes no TOML library.
+- **What the code does.** Only `[hooks.state."<key>"]` tables are read, added and removed, the one shape Codex
+  writes itself (checked on this Mac through `config/batchWrite`). A `state` written any other way (an inline
+  table) is left alone and the install refuses, saying to trust the hooks from Codex's `/hooks` screen,
+  because a second definition of the same key would make the file invalid for Codex.
+
+### `SessionEnd` and `Interrupt` timeouts are capped at 3 s
+- **What the code does.** Those two entries are written with `timeout: 3`, the others with 5. A larger value
+  would draw a warning on every Codex start and be hashed as 3 anyway.
+
 ## Working on this Mac
 
 - **The installed app is the daily driver.** `AppleClamshellCausesSleep = No` is usually its arm. Run

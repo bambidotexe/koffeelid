@@ -11,20 +11,20 @@ final class ActivityTrimTests: XCTestCase {
             "tool_input": ["command": String(repeating: "x", count: 100_000)],
             "prompt": "secret", "last_assistant_message": "secret", "agent_id": "a1", "source": "startup",
             "notification_type": "idle_prompt",
-        ]), loggedAt: now)
+        ]), agent: .claude, loggedAt: now)
         XCTAssertEqual(e.event, .preToolUse); XCTAssertEqual(e.sessionId, "s1"); XCTAssertEqual(e.toolName, "Bash")
         XCTAssertEqual(e.agentId, "a1"); XCTAssertEqual(e.source, "startup"); XCTAssertEqual(e.notificationType, "idle_prompt")
         let text = String(decoding: try! ActivityCodec.encodeLine(e), as: UTF8.self)
         XCTAssertFalse(text.contains("secret")); XCTAssertLessThan(text.utf8.count, 400)
     }
     func testClampsMetadataTo200Chars() {
-        let e = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": String(repeating: "s", count: 500)]), loggedAt: now)
+        let e = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": String(repeating: "s", count: 500)]), agent: .claude, loggedAt: now)
         XCTAssertEqual(e.sessionId?.count, 200)
     }
     func testBackgroundTasksKeepOnlyShellOrUntypedIdsCapped() {
         var tasks: [Any] = [["id": "shell-1", "type": "shell"], ["id": "agent-1", "type": "subagent"], ["task_id": "untyped"], "plain-string"]
         tasks += (0..<20).map { ["id": "extra-\($0)-" + String(repeating: "y", count: 60), "type": "shell"] }
-        let e = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "s", "background_tasks": tasks]), loggedAt: now)
+        let e = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "s", "background_tasks": tasks]), agent: .claude, loggedAt: now)
         let ids = e.backgroundTaskIds ?? []
         XCTAssertTrue(ids.contains("shell-1")); XCTAssertTrue(ids.contains("untyped")); XCTAssertTrue(ids.contains("plain-string"))
         XCTAssertFalse(ids.contains("agent-1"))
@@ -32,13 +32,13 @@ final class ActivityTrimTests: XCTestCase {
         XCTAssertTrue(ids.allSatisfy { $0.count <= 40 })
     }
     func testAbsentBackgroundTasksLeavesNil() {
-        XCTAssertNil(ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "s"]), loggedAt: now).backgroundTaskIds)
+        XCTAssertNil(ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "s"]), agent: .claude, loggedAt: now).backgroundTaskIds)
     }
     func testGarbageBecomesParseErrorWithPrefix() {
-        let e = ActivityTrim.event(fromHookPayload: Data(String(repeating: "junk", count: 200).utf8), loggedAt: now)
+        let e = ActivityTrim.event(fromHookPayload: Data(String(repeating: "junk", count: 200).utf8), agent: .claude, loggedAt: now)
         XCTAssertEqual(e.event, .parseError); XCTAssertEqual(e.rawPrefix?.count, 300)
-        XCTAssertEqual(ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Unknown"]), loggedAt: now).event, .parseError)
-        XCTAssertEqual(ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "JobBegin"]), loggedAt: now).event, .parseError,
+        XCTAssertEqual(ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Unknown"]), agent: .claude, loggedAt: now).event, .parseError)
+        XCTAssertEqual(ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "JobBegin"]), agent: .claude, loggedAt: now).event, .parseError,
                        "our own line kinds must not be injectable through a hook payload")
     }
     func testCappedLineNeverExceeds4KB() throws {
@@ -54,18 +54,30 @@ final class ActivityTrimTests: XCTestCase {
         XCTAssertLessThanOrEqual(line.count, ActivityConstants.journalLineMaxBytes)
         XCTAssertEqual(ActivityCodec.decodeLine(line)?.event, .stop)
     }
+    func testAnAgentOnlyPassesItsOwnEvents() {
+        let interrupt = payload(["hook_event_name": "Interrupt", "session_id": "c1", "turn_id": "t1"])
+        let codex = ActivityTrim.event(fromHookPayload: interrupt, agent: .codex, loggedAt: now)
+        XCTAssertEqual(codex.event, .interrupt); XCTAssertEqual(codex.agent, .codex); XCTAssertEqual(codex.sessionId, "c1")
+        XCTAssertEqual(ActivityTrim.event(fromHookPayload: interrupt, agent: .claude, loggedAt: now).event, .parseError, "Claude Code has no Interrupt")
+        let notification = payload(["hook_event_name": "Notification", "session_id": "c1", "notification_type": "idle_prompt"])
+        XCTAssertEqual(ActivityTrim.event(fromHookPayload: notification, agent: .codex, loggedAt: now).event, .parseError, "Codex has no Notification")
+        XCTAssertEqual(ActivityTrim.event(fromHookPayload: notification, agent: .claude, loggedAt: now).event, .notification)
+        let stop = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "c1", "stop_hook_active": false, "last_assistant_message": "secret"]), agent: .codex, loggedAt: now)
+        XCTAssertEqual(stop.agent, .codex)
+        XCTAssertFalse(String(decoding: try! ActivityCodec.encodeLine(stop), as: UTF8.self).contains("secret"))
+    }
     func testLabelIsTrimmedTo60() {
         XCTAssertEqual(ActivityTrim.clampLabel(String(repeating: "a", count: 100)).count, 60)
     }
     func testFiltersBeforeCappingShellAfterSubagents() {
         let tasks: [Any] = (0..<16).map { ["id": "agent-\($0)", "type": "subagent"] } + [["id": "shell-late", "type": "shell"]]
-        let e = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "s", "background_tasks": tasks]), loggedAt: now)
+        let e = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "s", "background_tasks": tasks]), agent: .claude, loggedAt: now)
         let ids = e.backgroundTaskIds ?? []
         XCTAssertEqual(ids, ["shell-late"])
     }
     func testCapsAt16AfterFiltering() {
         let tasks: [Any] = (0..<20).map { ["id": "shell-\($0)", "type": "shell"] }
-        let e = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "s", "background_tasks": tasks]), loggedAt: now)
+        let e = ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "Stop", "session_id": "s", "background_tasks": tasks]), agent: .claude, loggedAt: now)
         let ids = e.backgroundTaskIds ?? []
         XCTAssertEqual(ids.count, 16)
         XCTAssertEqual(ids, (0..<16).map { "shell-\($0)" })

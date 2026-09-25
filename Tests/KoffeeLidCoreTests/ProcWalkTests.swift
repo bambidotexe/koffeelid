@@ -37,6 +37,18 @@ final class ProcWalkTests: XCTestCase {
         XCTAssertTrue(ProcWalk.isClaudeProcess(.init(pid: 1, ppid: 0, name: "2.1.246", path: "/x/claude/versions/2.1.246")))
         XCTAssertFalse(ProcWalk.isClaudeProcess(.init(pid: 1, ppid: 0, name: "node", path: "/usr/local/bin/node")))
     }
+    func testCodexPathShapes() {
+        XCTAssertTrue(ProcWalk.isCodexPath("/Users/x/.local/bin/codex"))
+        XCTAssertTrue(ProcWalk.isCodexPath("/Users/x/.codex/packages/standalone/current/bin/codex"))
+        XCTAssertTrue(ProcWalk.isCodexPath("/Users/x/.codex/packages/app-server-daemon/releases/0.157.0-aarch64-apple-darwin/bin/codex"))
+        XCTAssertFalse(ProcWalk.isCodexPath("/Users/x/.codex/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseClient"))
+        XCTAssertFalse(ProcWalk.isCodexPath("/Users/x/.local/bin/claude"))
+        XCTAssertTrue(ProcWalk.isCodexProcess(.init(pid: 1, ppid: 0, name: "codex", path: nil)))
+        XCTAssertFalse(ProcWalk.isCodexProcess(.init(pid: 1, ppid: 0, name: "claude", path: "/Users/x/.local/bin/claude")))
+        XCTAssertTrue(ProcWalk.isProcess(of: .codex, .init(pid: 1, ppid: 0, name: "codex", path: nil)))
+        XCTAssertFalse(ProcWalk.isProcess(of: .claude, .init(pid: 1, ppid: 0, name: "codex", path: nil)))
+        if let pid = ProcWalk.pid(of: .codex, inChainFrom: getpid()) { XCTAssertTrue(ProcWalk.looksLike(.codex, pid: pid)) }
+    }
     func testNoClaudeInAnOrdinaryChainAndAliveness() {
         // Run from a plain terminal the chain has no Claude; run from inside a Claude Code shell it does.
         // Either way the answer must be consistent with the per-process check.

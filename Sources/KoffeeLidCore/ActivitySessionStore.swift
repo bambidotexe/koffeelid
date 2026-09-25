@@ -2,15 +2,17 @@ import Foundation
 
 public enum ActivitySessionState: Equatable { case idle, working, waiting, done }
 
-/// One Claude Code session. Only `.working` counts as running.
+/// One Claude Code or Codex session. Only `.working` counts as running.
 public struct ActivitySession: Equatable {
     public var id: String
+    public var agent: ActivityAgent = .claude
     public var state: ActivitySessionState = .idle
     public var stateSince: Date
     public var lastEventAt: Date
     /// Last MAIN-agent event (not a helper's, not a Notification): what "the turn has gone quiet" is measured against.
     public var lastMainEventAt: Date
-    public var claudePid: Int32?
+    /// The agent process hosting the session.
+    public var agentPid: Int32?
     /// Helpers believed running, each with its last-seen time; there is no reliable end event.
     public var liveAgents: [String: Date] = [:]
     public var backgroundIds: Set<String> = []
@@ -36,17 +38,24 @@ public struct ActivitySessionStore {
     public private(set) var sessions: [String: ActivitySession] = [:]
     public init() {}
 
+    /// The tools whose call is a question to the user: Claude Code's `AskUserQuestion` and `ExitPlanMode`,
+    /// Codex's `request_user_input`. A session inside one is waiting, not working.
+    public static let dialogTools: Set<String> = ["AskUserQuestion", "ExitPlanMode", "request_user_input"]
+
     public var isRunning: Bool { sessions.values.contains { $0.state == .working } }
     public var workingCount: Int { sessions.values.filter { $0.state == .working }.count }
-    public var trackedPids: Set<Int32> { Set(sessions.values.compactMap(\.claudePid)) }
+    public func workingCount(of agent: ActivityAgent) -> Int { sessions.values.filter { $0.state == .working && $0.agent == agent }.count }
+    public var trackedPids: Set<Int32> { Set(sessions.values.compactMap(\.agentPid)) }
 
     public mutating func apply(_ e: ActivityEvent) {
-        guard ActivityEventName.claudeCodeEvents.contains(e.event), let sid = e.sessionId else { return }
+        let agent = e.effectiveAgent
+        guard ActivityEventName.hookEvents(for: agent).contains(e.event), let sid = e.sessionId else { return }
         let now = e.loggedAt
         if e.event == .sessionEnd { sessions.removeValue(forKey: sid); return }
         var s = sessions[sid] ?? ActivitySession(id: sid, at: now)
+        s.agent = agent
         s.lastEventAt = now
-        if let pid = e.claudePid { s.claudePid = pid }
+        if let pid = e.agentPid { s.agentPid = pid }
 
         if let agentId = e.agentId {
             // Helper events maintain the registry and never speak for the main agent — except that a helper
@@ -75,7 +84,7 @@ public struct ActivitySessionStore {
             clearPending(&s); set(&s, .working, now)
         case .preToolUse:
             clearPending(&s)
-            set(&s, (e.toolName == "AskUserQuestion" || e.toolName == "ExitPlanMode") ? .waiting : .working, now)
+            set(&s, e.toolName.map(Self.dialogTools.contains) ?? false ? .waiting : .working, now)
         case .permissionRequest, .stopFailure:
             clearPending(&s); set(&s, .waiting, now)
         case .notification:
@@ -91,6 +100,9 @@ public struct ActivitySessionStore {
             }
         case .stop:
             clearPending(&s); applyStopVerdict(&s, now: now)
+        case .interrupt:
+            // Esc in Codex ends the turn and its helpers at once; nothing is left out to hold it.
+            s.liveAgents.removeAll(); s.backgroundIds.removeAll(); clearPending(&s); set(&s, .done, now)
         case .sessionEnd, .subagentStart, .subagentStop, .parseError, .jobBegin, .jobEnd:
             break // handled above, or helper shapes without agent_id, which carry no signal
         }
@@ -114,10 +126,13 @@ public struct ActivitySessionStore {
         else { s.holdReleasedAt = nil }
     }
 
-    /// The Claude process died: every session it hosted is gone, no SessionEnd required.
-    public mutating func processExited(pid: Int32) { sessions = sessions.filter { $0.value.claudePid != pid } }
-    /// Startup prune after replay. Sessions without a pid are left to staleness.
-    public mutating func pruneDead(isAlive: (Int32) -> Bool) { sessions = sessions.filter { $0.value.claudePid.map(isAlive) ?? true } }
+    /// The agent process died: every session it hosted is gone, no SessionEnd required.
+    public mutating func processExited(pid: Int32) { sessions = sessions.filter { $0.value.agentPid != pid } }
+    /// Startup prune after replay: a session's pid must be alive and still run its agent. Sessions without
+    /// a pid are left to staleness.
+    public mutating func pruneDead(isAlive: (Int32, ActivityAgent) -> Bool) {
+        sessions = sessions.filter { entry in entry.value.agentPid.map { isAlive($0, entry.value.agent) } ?? true }
+    }
 
     /// Every time-based rule. Call with the wall clock; schedule the next call at `nextDeadline(after:)`.
     public mutating func tick(now: Date) {
@@ -144,21 +159,23 @@ public struct ActivitySessionStore {
                 deadlines.append(s.lastEventAt.addingTimeInterval(ActivityConstants.holdTTLSeconds))
             }
             if s.state == .done { deadlines.append(s.stateSince.addingTimeInterval(ActivityConstants.doneVisibleSeconds)) }
-            if s.state == .working, !s.pendingDone, s.claudePid != nil {
+            // The registry rescues are Claude Code's: a Codex session has no registry to ask.
+            if s.agent == .claude, s.state == .working, !s.pendingDone, s.agentPid != nil {
                 let eligibleAt = s.lastEventAt.addingTimeInterval(ActivityConstants.abandonQuietSeconds)
                 deadlines.append(eligibleAt > now ? eligibleAt : now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds))
             }
-            if s.state == .waiting, s.claudePid != nil { deadlines.append(now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds)) }
+            if s.agent == .claude, s.state == .waiting, s.agentPid != nil { deadlines.append(now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds)) }
             deadlines.append(s.lastEventAt.addingTimeInterval(ActivityConstants.staleSeconds))
         }
         return deadlines.filter { $0 > now }.min()
     }
 
-    /// Working sessions quiet for `abandonQuietSeconds` with nothing out, to be asked about at the source
-    /// (Claude Code's registry file). The read lives in the app.
+    /// Working Claude Code sessions quiet for `abandonQuietSeconds` with nothing out, to be asked about at
+    /// the source (Claude Code's registry file). The read lives in the app. Codex has no registry, and its
+    /// Interrupt hook says what Claude Code's registry says.
     public func abandonCandidates(at now: Date) -> [(sessionId: String, pid: Int32)] {
         sessions.values.compactMap { s in
-            guard s.state == .working, !s.pendingDone, let pid = s.claudePid, !s.hasLiveHelpers(at: now), s.backgroundIds.isEmpty,
+            guard s.agent == .claude, s.state == .working, !s.pendingDone, let pid = s.agentPid, !s.hasLiveHelpers(at: now), s.backgroundIds.isEmpty,
                   now.timeIntervalSince(s.lastEventAt) >= ActivityConstants.abandonQuietSeconds else { return nil }
             return (s.id, pid)
         }
@@ -176,7 +193,7 @@ public struct ActivitySessionStore {
     }
     public func openWaitCandidates() -> [(sessionId: String, pid: Int32, stateSince: Date)] {
         sessions.values.compactMap { s in
-            guard s.state == .waiting, let pid = s.claudePid else { return nil }
+            guard s.agent == .claude, s.state == .waiting, let pid = s.agentPid else { return nil }
             return (s.id, pid, s.stateSince)
         }
     }

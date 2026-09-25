@@ -6,8 +6,8 @@ The operating manual for an agent working in this tree. Read it whole before the
 
 KoffeeLid (bundle id `dev.rubens.koffeelid`) is a macOS menu-bar app that keeps a MacBook running with the lid
 closed. Three manual modes: **Off**, **Armed**, **Armed + screen on** (`ArmMode.caffeinate` in code and CLI,
-« Activé + écran allumé » in French). It also arms itself while Claude Code or a terminal command is working
-(Claude Code hooks and a zsh snippet feed an activity journal; the app reads it), and a lid gesture (Fn, or
+« Activé + écran allumé » in French). It also arms itself while Claude Code, Codex or a terminal command is
+working (Claude Code hooks, Codex hooks and a zsh snippet feed an activity journal; the app reads it), and a lid gesture (Fn, or
 Option, held while the lid closes) arms for one close. While armed, the built-in panel darkens when the lid
 shuts, a lid-close sound plays (at a forced volume if wanted), a closing-only Metal effect shows the desktop
 staying upright behind the glass, and the screen locks when the lid reopens. Safety rails end an arm: low
@@ -99,8 +99,8 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 | the lid-angle sensor and its sampling | `App/LidAngleSensor.swift`, `LidAngleObserver.swift`; `Core/AngleSampleFilter.swift`, `AngleSmoother.swift` | `macOS.md` § Lid-angle sensor; `architecture.md` § Threading |
 | the lid effect (fold, capture, shader) | `LidPlaneKit/EffectController.swift`, `DesktopCapture.swift`, `CaptureStartGate.swift`, `PlaneRenderer.swift`, `PlaneShader.swift`, `PlaneRemap.swift` (the tested reference maths), `EffectOverlayPanel.swift`; `Core/FoldTracker.swift`, `FoldGeometry.swift`, `EffectParameters.swift` | `functional.md` § The lid effect; `architecture.md` § The lid effect; `development.md` § How to add things (an effect tunable) |
 | the close sound, the closed-lid reminders, the volume override | `App/LidCloseSoundPlayer.swift`, `OutputVolumeOverride.swift`; `Core/VolumeOverridePolicy.swift`, `LidSoundRoute.swift`, `ClosedLidReminder.swift`; `KoffeeLidController.remindIfClosed`; `App/Resources/Sounds` | `functional.md` § Lid closed, lid open; `macOS.md` § Sounds |
-| auto-arm on activity | `Core/ActivityConstants.swift`, `ActivityEvent.swift`, `ActivitySessionStore.swift`, `ActivityJobStore.swift`, `ActivityArmPolicy.swift`, `ActivityTrim.swift`, `ClaudeRegistryRecord.swift`, `ProcWalk.swift`; `App/ActivityMonitor.swift`, `ActivityJournalTailer.swift`, `ActivityProcessWatcher.swift`, `ClaudeProcessRegistry.swift`, `LocalInputMonitor.swift`; `KoffeeLidController.applyAuto` | `functional.md` § Modes and arming (auto-arm); `architecture.md` § Auto-arm on activity; `macOS.md` § Claude Code; `pitfalls.md` § Claude Code hooks and the shell |
-| the hooks, the zsh snippet, the hook binary | `Hook/Sources/main.swift`; `Core/HookConfig.swift`, `HookSettingsFile.swift`, `ShellInit.swift`, `ActivityJournalWriter.swift`; `App/HookInstaller.swift`, `App/UI/Hooks.swift` (`HookCatalog`) | the same, plus `macOS.md` § zsh |
+| auto-arm on activity | `Core/ActivityConstants.swift`, `ActivityEvent.swift` (`ActivityAgent`, the two event lists), `ActivitySessionStore.swift`, `ActivityJobStore.swift`, `ActivityArmPolicy.swift` (`ActivityKind`), `ActivityTrim.swift`, `ClaudeRegistryRecord.swift`, `ProcWalk.swift`; `App/ActivityMonitor.swift`, `ActivityJournalTailer.swift`, `ActivityProcessWatcher.swift`, `ClaudeProcessRegistry.swift`, `LocalInputMonitor.swift`; `KoffeeLidController.applyAuto` | `functional.md` § Modes and arming (auto-arm); `architecture.md` § Auto-arm on activity; `macOS.md` § Claude Code, § Codex; `pitfalls.md` § Claude Code hooks and the shell, § Codex hooks |
+| the hooks, the zsh snippet, the hook binary | `Hook/Sources/main.swift`; `Core/HookConfig.swift` (one spec per agent), `HookSettingsFile.swift`, `CodexHookTrust.swift` (Codex's trust key and hash, the `config.toml` edit), `SHA256.swift`, `ShellInit.swift`, `ActivityJournalWriter.swift`; `App/HookInstaller.swift`, `App/UI/Hooks.swift` (`HookCatalog`) | the same, plus `macOS.md` § zsh, § Codex |
 | the CLI, `koffeelid://` URLs, App Intents | `App/main.swift`, `App/CommandServer.swift` (`CommandLineClient`), `Core/DeepLink.swift`, `App/Intents/KoffeeLidIntents.swift`; `KoffeeLidController.perform(_:source:)` | `functional.md` § User interface; `development.md` § How to add things (a CLI / URL verb) |
 | the menu, the status item, the menu-bar glyph | `App/StatusItemController.swift`, `MugShape.swift`, `App/Resources/Glyphs` | `functional.md` § User interface; `development.md` § Icons |
 | the app icon | `App/Resources/AppIcon.icon` (Icon Composer document), its `type: file` source entry in `project.yml` | `development.md` § Icons; `architecture.md` § Build, signing, entitlements |
@@ -129,7 +129,7 @@ script/install.sh                                     # skill: macos-install-loc
 script/publish.sh <patch|minor|major> --notes=<file> [--install]  # skill: macos-publish-release. The same build, plus a version bump, tag, push, GitHub release; installs only with --install
 # -------------------------------------------------------------------------------------------------
 
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (398); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (423); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -139,7 +139,7 @@ script/build.sh                                       # Release build, prints th
 script/release.sh                                     # the notarized disk image on its own, publishing and installing nothing
 script/run.sh                                         # install + launch + tail the diagnostics log (never returns)
 
-"/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLid" status   # CLI: arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings | install-hooks | uninstall-hooks | shell-init zsh
+"/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLid" status   # CLI: arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings | install-hooks [claude|codex] | uninstall-hooks [claude|codex] | shell-init zsh
 tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the primary debugging tool
 /usr/bin/log show --last 10m --predicate 'process == "powerd"'           # the unified log; `log` alone is a shell function here
 ```
@@ -179,11 +179,11 @@ Five targets, dependency direction strictly downward. Full version in `docs/arch
 
 | Target | Kind | Depends on | Contents |
 |---|---|---|---|
-| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `FnKeyReading`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `ClosedLidReminder`, `GestureArmHold`, `EffectParameters`, `VolumeOverridePolicy`/`LidSoundRoute`, `SleepInterruptionPolicy`/`SleepOverrideGuard`/`SleepLockSetup`, `CrashLoopGuard`, `PidFileRecord`/`AppSupport`, `DiagnosticFileWriter`, `DeepLink`, the update feature's `ReleaseVersion`/`LatestRelease`/`UpdateCheck`/`UpdateSchedule`/`UpdatePanel`/`UpdateSession`/`StagedUpdateCheck`/`UpdateInstallScript`/`DetachedProcess`/`UpdateResume`, `SettingsStatus`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`ShellInit`/`ProcWalk`, the Health page's `Health`/`HealthRules`/`HealthReport`/`CrashReports`. **All logic tests live against it.** |
+| `KoffeeLidCore` (`Sources/KoffeeLidCore`) | SwiftPM library, Foundation only | — | Every policy/state machine as a value type with injected time: `ArmMode`/`ModeCycle`, `ArmingPolicy`, `LidProgressDriver`, `OptionGateFilter`, `FnKeyReading`, `AngleSampleFilter`, `FoldTracker`, `AngleSmoother`, `FoldGeometry`, `ReopenCancelWatch`, `ReopenLockDecision`, `ClosedLidReminder`, `GestureArmHold`, `EffectParameters`, `VolumeOverridePolicy`/`LidSoundRoute`, `SleepInterruptionPolicy`/`SleepOverrideGuard`/`SleepLockSetup`, `CrashLoopGuard`, `PidFileRecord`/`AppSupport`, `DiagnosticFileWriter`, `DeepLink`, the update feature's `ReleaseVersion`/`LatestRelease`/`UpdateCheck`/`UpdateSchedule`/`UpdatePanel`/`UpdateSession`/`StagedUpdateCheck`/`UpdateInstallScript`/`DetachedProcess`/`UpdateResume`, `SettingsStatus`, the activity feature's `ActivityConstants`/`ActivityEvent`/`ActivityTrim`/`ActivitySessionStore`/`ActivityJobStore`/`ActivityArmPolicy`/`ClaudeRegistryRecord`/`HookConfig`/`HookSettingsFile`/`CodexHookTrust`/`SHA256`/`ShellInit`/`ProcWalk`, the Health page's `Health`/`HealthRules`/`HealthReport`/`CrashReports`. **All logic tests live against it.** |
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library | Core | The lid-close effect: `EffectController` turns lid angles into a fold (`FoldTracker`, closing only, threshold-gated) and runs a capture session only while folded: `DesktopCapture` (ScreenCaptureKit) → `PlaneRenderer` (Metal, shader in `PlaneShader.swift`; `PlaneRemap.swift` is the same maths in Swift, the tested reference) inside `EffectOverlayPanel`. |
 | `KoffeeLid` (`App/Sources`) | Xcode app target | Core, LidPlaneKit | `KoffeeLidController` is the **only** object that mutates arming state (`setMode(_:source:)` is the entry point; `perform(_:source:)` runs CLI/URL verbs); every other file is a collaborator that reports events to it via closures. `HookInstaller` is a stateless helper used by the CLI client and the Settings window; `UpdateController` owns the update feature (the checks, the notification, the update window, Install and Relaunch) and never touches arming state: it quits the app through `NSApp.terminate`. UI under `App/Sources/UI`: the Settings window is an AppKit toolbar window (`SettingsWindow`) hosting eight SwiftUI pages built only from the kit in `SettingsKit.swift`, sharing one `SettingsModel`, the Health page second to last with its own `HealthCheck`; the four-page onboarding is programmatic AppKit; `PermissionCatalog` and `HookCatalog` are the single lists of grants and hooks, read by both. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | Xcode tool, embedded in the app | Core | LaunchAgent that relaunches the app after an unclean exit (pid file present) and stands down otherwise. |
-| `KoffeeLidHook` (`Hook/Sources/main.swift`) | Xcode tool, embedded in the app | Core | `hook` and `job begin\|end` verbs, run once per Claude Code event and per zsh command: append a trimmed `ActivityEvent` line to `~/Library/Application Support/KoffeeLid/activity.jsonl`. Never launches the app, always exits 0. |
+| `KoffeeLidHook` (`Hook/Sources/main.swift`) | Xcode tool, embedded in the app | Core | `hook` (Claude Code), `hook codex` and `job begin\|end` verbs, run once per Claude Code event, per Codex event and per zsh command: append a trimmed `ActivityEvent` line to `~/Library/Application Support/KoffeeLid/activity.jsonl`. Never launches the app, always exits 0. |
 
 The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and calls
 `IOConnectCallScalarMethod(…, 12 /* kPMSetClamshellSleepState */, …)`. See `docs/architecture.md`
@@ -365,10 +365,11 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
    remembers the refusal for good; take activation when a flow reports back and the window lands on top of the
    pane it just opened, while never taking it leaves the window behind the user's terminal. Start from the
    `macos-building-onboarding` skill, not from instinct.
-6. **Hooks are not a complete signal.** Esc and Ctrl-C fire no hook, `SubagentStop` is often missing,
-   `idle_prompt` is a timer, a dialog can be answered without any hook, and hooks fire while the app is down.
-   The activity feature reads the registry and the process tree as well; do not tighten it against one
-   recording.
+6. **Hooks are not a complete signal.** In Claude Code, Esc and Ctrl-C fire no hook, `SubagentStop` is often
+   missing, `idle_prompt` is a timer, a dialog can be answered without any hook, and hooks fire while the app
+   is down. The activity feature reads the registry and the process tree as well; do not tighten it against
+   one recording. In Codex, a hook written into `hooks.json` never runs until `config.toml` carries its trust
+   (`docs/pitfalls.md` § Codex hooks); `install-hooks codex` writes both.
 
 ## Status
 
@@ -395,8 +396,16 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   it back when it quits. Every grant row is titled what System Settings titles the switch, quoted from the
   system's tables, and **nothing in the app asks for a permission without a click**. The rules and the traps
   are in the `macos-building-onboarding` skill; read it before touching that window or any permission row.
-- `swift test` is green (398 distinct cases: 376 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (423 distinct cases: 401 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-test-checklist.md` is its verification.
+- **Codex auto-arm is in the tree and not yet walked with the installed app.** What was checked on this Mac
+  from the tree: Codex CLI 0.157.0's `hooks/list` reports for a probe hook the same twelve hashes
+  `CodexHookTrust` computes, a trust written in the shape KoffeeLid writes is reported `trusted`, and one real
+  `codex exec` turn under a trusted probe hook fired `SessionStart`, `UserPromptSubmit`, `Stop` and `SessionEnd`
+  with the hook's parent being the `codex` process. Not seen: KoffeeLid's own binary under Codex, the Codex
+  rows of the onboarding (page 3 now holds three rows at 480 pt) and of Settings › Auto-Arm and Health, the
+  Interrupt path, and the eleven-check, six-reading Health limits in the running app
+  (`docs/manual-test-checklist.md` § Auto-arm on activity).
 - Not walked on hardware: the Settings window's checklist (`docs/manual-test-checklist.md` § Settings UI; the owner
   approved its look and wording in the running app, before the stop sign and the one colour rule for grants, and
   rejected the first Health page as far too long: the page is now two short tables, checks and readings, which the

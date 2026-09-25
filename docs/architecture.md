@@ -14,7 +14,7 @@ links the SwiftPM package; `Package.swift` defines the two libraries and their t
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library (AppKit, Metal, ScreenCaptureKit) | Core | The lid effect: `EffectController`, `DesktopCapture`, `PlaneRenderer`, `PlaneShader`, `EffectOverlayPanel`, `CaptureStartGate`, `PlaneRemap`. |
 | `KoffeeLid` (`App/Sources`) | app, `LSUIElement` | Core, LidPlaneKit | The coordinator, one adapter per system API, the UI, the update feature (`UpdateController` and what it runs), App Intents, the CLI client. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | LaunchAgent that relaunches the app after an unclean exit. |
-| `KoffeeLidHook` (`Hook/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | `hook` and `job begin\|end`: append one line to the activity journal. |
+| `KoffeeLidHook` (`Hook/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | `hook` (Claude Code), `hook codex` and `job begin\|end`: append one line to the activity journal. |
 
 Rule: what can be expressed without AppKit or IOKit and tested with an injected clock belongs in Core. App
 files are thin adapters around one system API with closures back to the coordinator (`onX`, `onLog`).
@@ -38,16 +38,17 @@ rules the pages apply are Core's: `SettingsStatus` colours a state (a missing gr
 onboarding's mark, is the same property) and `UpdatePanel` is the Updates group, whose state is the app's
 (`UpdateController.shared`) and not the page's. The Health page (`SettingsHealthPage`) is built the same way:
 two tables and nothing else. `HealthReport.checks(for:)` and `HealthReport.readings(for:)` (Core, tested in
-`HealthTests`, which holds them to `HealthLimits`: ten checks, five readings) turn a `HealthFacts` of plain
+`HealthTests`, which holds them to `HealthLimits`: eleven checks, six readings) turn a `HealthFacts` of plain
 values into `HealthItem`s (a level, a `HealthWord`, a `HealthDetail`, a `HealthFix`) and `HealthReading`s (a
 `HealthValue`, a `HealthDetail`), still out of any language; `HealthWords` (`HealthWords.swift`) puts them in the
 catalog's words as `HealthRow`s and `InfoRow`s. The facts come from three places: the model's poll (the grants,
 the sensor, the lid angle), the coordinator's read-only state as the page draws (`mode`, `isArmed`, `armSource`,
 `statusLine()`, `lidSleepFlagSet`, `lidSleepRestorePending`, `sleepLockEngaged`, `builtInFnReaderState`,
-`lastSafetyStop`, and `ActivityMonitor.lastClaudeEvent` / `lastTerminalEventAt`), and `HealthCheck`, which the
-window asks to read when it opens on Health, when Health is picked and on Check Again, never on a timer, all off
-the main thread: the crash reports (`CrashReports`), whether the watchdog runs (`ProcWalk.isRunning`, by file
-identity) and `~/.claude/settings.json`'s hook count. Check Again shows a spinner until they land, and at least
+`lastSafetyStop`, and `ActivityMonitor.lastClaudeEvent` / `lastCodexEvent` / `lastTerminalEventAt`), and
+`HealthCheck`, which the window asks to read when it opens on Health, when Health is picked and on Check Again,
+never on a timer, all off the main thread: the crash reports (`CrashReports`), whether the watchdog runs
+(`ProcWalk.isRunning`, by file identity), `~/.claude/settings.json`'s hook count and Codex's trusted hook count
+(`HookInstaller.codexInstalledCount`). Check Again shows a spinner until they land, and at least
 `HealthConstants.minimumBusy`. The
 onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. It is a normal window
 too, at the normal level and with the default collection behaviour, like the other two: `AppDelegate` activates
@@ -253,6 +254,7 @@ with `CaptureStartGate` (a stop landing during an in-flight start wins; the toke
 
 ```
 Claude Code hook ─┐
+Codex hook ───────┤
 zsh preexec/precmd ┴▶ KoffeeLidHook ─▶ activity.jsonl ─▶ ActivityJournalTailer ─▶ ActivityMonitor
                                                            ActivitySessionStore + ActivityJobStore
                                                            ActivityProcessWatcher (kqueue exit)
@@ -263,33 +265,40 @@ zsh preexec/precmd ┴▶ KoffeeLidHook ─▶ activity.jsonl ─▶ ActivityJou
 A file, not a socket: hooks fire while the app is down or being relaunched, and the journal is replayed at
 launch (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`; dead or recycled pids pruned;
 the tailer starts at the byte offset the replay consumed). A separate tiny binary, not the app: it runs inside
-every Claude Code turn and every shell command, so it must start fast, never launch the app and never block.
+every Claude Code turn, every Codex turn and every shell command, so it must start fast, never launch the app
+and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
+Codex), never the payload: both agents send the same event names.
 
 `ActivityTrim` reduces a hook payload to event name, session id, agent id, tool name, notification type,
-source and background task ids, caps every field and the line (4 KB), and turns anything unparseable, or any
-name outside `ActivityEventName.claudeCodeEvents`, into a `ParseError` line. `ActivityJournalWriter.append` is
-one `write` on an `O_APPEND` descriptor. The journal rotates to `activity.1.jsonl` above 20 MB, or above 5 MB
-while idle.
+source and background task ids, stamps it with the agent, caps every field and the line (4 KB), and turns
+anything unparseable, or any name outside that agent's events (`ActivityEventName.claudeCodeEvents`,
+`codexEvents`), into a `ParseError` line. Each line carries the pid of the nearest ancestor running its agent
+(`ProcWalk.pid(of:inChainFrom:)`; a Codex started from a Claude Code tool call has both in its chain).
+`ActivityJournalWriter.append` is one `write` on an `O_APPEND` descriptor. The journal rotates to
+`activity.1.jsonl` above 20 MB, or above 5 MB while idle.
 
-`ActivitySessionStore` (pure, replay and live events share one path), per session:
+`ActivitySessionStore` (pure, replay and live events share one path), per session, whichever agent hosts it:
 
 | Event | State |
 |---|---|
 | `SessionStart` | `idle` (`working` when `source == "compact"`); helpers and background ids cleared otherwise |
 | `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionDenied`, `PreCompact`, `PostCompact` | `working` |
-| `PreToolUse` | `working`; `waiting` for `AskUserQuestion` and `ExitPlanMode` |
+| `PreToolUse` | `working`; `waiting` for `AskUserQuestion`, `ExitPlanMode` (Claude Code) and `request_user_input` (Codex) |
 | `PermissionRequest`, `StopFailure`; `Notification` of type `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog` | `waiting` |
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |
+| `Interrupt` (Codex only) | `done`, helpers and background ids cleared: Esc ended everything |
 | `Notification` `idle_prompt` / `agent_needs_input`, state `working`, 50 s of main-agent quiet | treated as a lost `Stop` |
 | helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`), and the next helper event ends that wait; a helper active after `done` reopens it |
 | `SessionEnd`, process exit | session removed |
 
 Time rules (`tick`): a helper counts as live for 240 s after its last event; a held `Stop` becomes `done` 90 s
 after everything cleared, or 30 min after the last event; `done` becomes `idle` after 20 min; a session silent
-for 2 h is removed. Registry rescues (`ActivityMonitor.checkRegistry`): a `working` session quiet for 20 s
-with nothing out is checked every 15 s; registry `idle` stamped after the last main event → `turnOver`;
-registry `busy` → `noteBusy` (and one warning after 5 min without a hook); a `waiting` session whose registry
-says `busy` stamped 2 s after the wait began → `dialogAnswered`. Only `working` counts as running.
+for 2 h is removed. Registry rescues (`ActivityMonitor.checkRegistry`), for Claude Code sessions only, Codex
+having no registry and an `Interrupt` hook instead: a `working` session quiet for 20 s with nothing out is
+checked every 15 s; registry `idle` stamped after the last main event → `turnOver`; registry `busy` →
+`noteBusy` (and one warning after 5 min without a hook); a `waiting` session whose registry says `busy`
+stamped 2 s after the wait began → `dialogAnswered`. Only `working` counts as running, and the snapshot
+counts it per agent (`claudeSessions`, `codexSessions`).
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
 `job end`, on the owner shell's exit, or after 2 h.
@@ -301,13 +310,21 @@ accumulates the kinds seen (`involved`); when nothing runs, `offAt = idleSince +
 `armFailed()` zero it and suppress it until the running set empties. The coordinator schedules one timer at
 `nextDeadline` and a 2 s local-input poll while a countdown runs.
 
-`HookInstaller` is stateless and has no link to the coordinator; the CLI verbs `install-hooks`,
-`uninstall-hooks` and `shell-init zsh` run it in-process without contacting the app. `HookConfig` transforms
-the `hooks` object of `~/.claude/settings.json` (entries recognised by the suffix
-`/Contents/MacOS/KoffeeLidHook hook`, other tools' entries untouched), `HookSettingsFile` loads strictly and
-backs up to `settings.json.backup-koffeelid` before writing, `ShellInit` builds the snippet and edits
-`~/.zshrc` (it removes only what sits between its two header lines, its marker comment, and uncommented
-`shell-init zsh` lines that name KoffeeLid).
+`HookInstaller` is stateless and has no link to the coordinator; the CLI verbs `install-hooks [claude|codex]`,
+`uninstall-hooks [claude|codex]` and `shell-init zsh` run it in-process without contacting the app.
+`HookConfig` is one spec per agent (`HookConfig.claude`, `HookConfig.codex`: the events, the marker that
+recognises our entries whatever bundle path they were installed from, the matcher, the timeouts) and
+transforms the `hooks` object of `~/.claude/settings.json` or `~/.codex/hooks.json` (entries recognised by
+the suffix `/Contents/MacOS/KoffeeLidHook hook`, or `… hook codex`, other tools' entries untouched, ours
+appended after them so their indices stand). `HookSettingsFile` loads either JSON file strictly and backs it
+up to `<file>.backup-koffeelid` before writing. `CodexHookTrust` is what Codex wants on top: per hook the
+key `<hooks.json path>:<event label>:<group index>:<handler index>` and the hash Codex computes from the
+entry's identity (SHA-256, `SHA256.swift`, of its canonical JSON), written as `[hooks.state."<key>"]` tables
+with a `trusted_hash` at the end of `~/.codex/config.toml` (backed up to `config.toml.backup-koffeelid`),
+the one shape Codex itself writes; it reads that shape back for the row's state, recognises a stale table of
+ours by its hash, and refuses to write beside a state kept in another TOML form. `ShellInit` builds the
+snippet and edits `~/.zshrc` (it removes only what sits between its two header lines, its marker comment,
+and uncommented `shell-init zsh` lines that name KoffeeLid).
 
 ## Updates
 
@@ -355,8 +372,9 @@ defaults, registered in `Preferences.init`. `effectParameters` is a JSON `Effect
 that does not decode falls back to `EffectParameters.default`, and every read and write is `clamped()`.
 
 Outside the app's own folder: `/etc/sudoers.d/koffeelid`, `~/.claude/settings.json` (+ `.backup-koffeelid`),
-`~/.zshrc`, `/usr/local/bin/koffeelid` (a zsh `exec` wrapper written by `script/install.sh`; a symlink would
-break `Bundle.main`).
+`~/.codex/hooks.json` and `~/.codex/config.toml` (each + `.backup-koffeelid`), `~/.zshrc`,
+`/usr/local/bin/koffeelid` (a zsh `exec` wrapper written by `script/install.sh`; a symlink would break
+`Bundle.main`).
 
 ## Privilege boundary
 

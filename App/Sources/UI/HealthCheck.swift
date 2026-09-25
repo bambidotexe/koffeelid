@@ -1,8 +1,8 @@
 import Foundation
 import KoffeeLidCore
 
-/// The readings only the Health page takes: whether the crash watchdog runs, how many Claude Code hook events
-/// point at this copy, and KoffeeLid's crash reports. What the rest of the window also shows (a grant, the
+/// The readings only the Health page takes: whether the crash watchdog runs, how many Claude Code and Codex
+/// hook events point at this copy, and KoffeeLid's crash reports. What the rest of the window also shows (a grant, the
 /// lid) is `SettingsModel`'s poll, and KoffeeLid's own state (the mode, the kernel flag, the sleep lock, the
 /// hooks' last events) is read from the coordinator each time the page draws; these are read when the page
 /// is shown and when Check Again is pressed, and never on a timer, so a page nobody is looking at costs
@@ -19,6 +19,8 @@ final class HealthCheck: ObservableObject {
         var watchdogRunning: Bool?
         var claudeHookEvents: Int?
         var claudeSettingsUnreadable = false
+        var codexHookEvents: Int?
+        var codexHooksUnreadable = false
     }
 
     @Published private(set) var readings = Readings()
@@ -40,9 +42,14 @@ final class HealthCheck: ObservableObject {
         let watchdog = WatchdogProcess.executableURL
         let settingsURL = HookInstaller.settingsURL
         let command = HookInstaller.command
+        let codexHooksURL = HookInstaller.codexHooksURL, codexConfigURL = HookInstaller.codexConfigURL
+        let codexCommand = HookInstaller.codexCommand
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let fresh = Self.readSlowly(process: process, watchdog: watchdog, settingsURL: settingsURL,
+            var fresh = Self.readSlowly(process: process, watchdog: watchdog, settingsURL: settingsURL,
                                         command: command, now: started)
+            let codex = HookInstaller.codexInstalledCount(hooksURL: codexHooksURL, configURL: codexConfigURL, command: codexCommand)
+            fresh.codexHookEvents = codex
+            fresh.codexHooksUnreadable = codex == nil
             let wait = max(0, minimumBusy - Date().timeIntervalSince(started))
             DispatchQueue.main.asyncAfter(deadline: .now() + wait) {
                 MainActor.assumeIsolated {
@@ -69,7 +76,7 @@ final class HealthCheck: ObservableObject {
         slow.watchdogRunning = ProcWalk.isRunning(executableAt: watchdog)
         do {
             let root = try HookSettingsFile.load(at: settingsURL) ?? [:]
-            slow.claudeHookEvents = HookConfig.installedCount(in: root, command: command)
+            slow.claudeHookEvents = HookConfig.claude.installedCount(in: root, command: command)
         } catch {
             slow.claudeSettingsUnreadable = true
         }
@@ -89,10 +96,11 @@ final class HealthCheck: ObservableObject {
             sleepLockEngaged: controller.sleepLockEngaged, lastSafetyStop: controller.lastSafetyStop,
             gestureEnabled: prefs.armWithOption, gestureUsesFn: prefs.gestureModifier == .fn,
             fnReader: Self.fnReader(controller.builtInFnReaderState),
-            lastClaudeEvent: controller.activity.lastClaudeEvent,
+            lastClaudeEvent: controller.activity.lastClaudeEvent, lastCodexEvent: controller.activity.lastCodexEvent,
             lastTerminalEventAt: controller.activity.lastTerminalEventAt,
             watchdogRunning: readings.watchdogRunning, agentPlistName: RelaunchAgentController.plistName,
             claudeHookEvents: readings.claudeHookEvents, claudeSettingsUnreadable: readings.claudeSettingsUnreadable,
+            codexHookEvents: readings.codexHookEvents, codexHooksUnreadable: readings.codexHooksUnreadable,
             recentCrashes: readings.recentCrashes)
     }
 

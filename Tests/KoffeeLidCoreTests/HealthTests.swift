@@ -13,9 +13,10 @@ final class HealthTests: XCTestCase {
                     lidSleepRestorePending: false, sleepLockEngaged: false, lastSafetyStop: nil,
                     gestureEnabled: true, gestureUsesFn: true, fnReader: .reading,
                     lastClaudeEvent: HookEventSeen(name: "Stop", at: now.addingTimeInterval(-600)),
+                    lastCodexEvent: HookEventSeen(name: "Interrupt", at: now.addingTimeInterval(-120)),
                     lastTerminalEventAt: now.addingTimeInterval(-30), watchdogRunning: true,
                     agentPlistName: "dev.rubens.koffeelid.agent.plist", claudeHookEvents: 15,
-                    claudeSettingsUnreadable: false, recentCrashes: [])
+                    claudeSettingsUnreadable: false, codexHookEvents: 12, codexHooksUnreadable: false, recentCrashes: [])
     }
 
     /// The same Mac, armed, with the flag and the lock holding.
@@ -43,7 +44,7 @@ final class HealthTests: XCTestCase {
             let checks = HealthReport.checks(for: facts)
             XCTAssertTrue(checks.allSatisfy { $0.level == .good })
             XCTAssertEqual(checks.map(\.id), [.sleepLock, .crashWatchdog, .screenRecording, .inputMonitoring,
-                                              .notifications, .claudeHooks, .zshHook, .lidSensor])
+                                              .notifications, .claudeHooks, .codexHooks, .zshHook, .lidSensor])
         }
     }
 
@@ -51,7 +52,7 @@ final class HealthTests: XCTestCase {
         let lines: [SettingsGrant: HealthItemID] = [
             .sleepLock: .sleepLock, .loginItems: .crashWatchdog, .screenRecording: .screenRecording,
             .inputMonitoring: .inputMonitoring, .notifications: .notifications, .claudeHooks: .claudeHooks,
-            .zshHook: .zshHook,
+            .codexHooks: .codexHooks, .zshHook: .zshHook,
         ]
         for (grant, id) in lines {
             var facts = healthy()
@@ -146,10 +147,16 @@ final class HealthTests: XCTestCase {
     }
 
     func testTheHooksSayHowManyEventsPointHere() {
-        XCTAssertEqual(check(.claudeHooks, healthy())?.detail, .hookEvents(installed: 15, of: HookConfig.events.count))
+        XCTAssertEqual(check(.claudeHooks, healthy())?.detail, .hookEvents(installed: 15, of: HookConfig.claude.events.count))
+        XCTAssertEqual(check(.codexHooks, healthy())?.detail, .hookEvents(installed: 12, of: 12))
         var facts = healthy()
         facts.claudeSettingsUnreadable = true
+        facts.codexHooksUnreadable = true
         XCTAssertEqual(check(.claudeHooks, facts)?.detail, .settingsUnreadable)
+        XCTAssertEqual(check(.codexHooks, facts)?.detail, .codexFilesUnreadable)
+        facts.held.remove(.codexHooks)
+        XCTAssertEqual(check(.codexHooks, facts)?.word, .disabled)
+        XCTAssertEqual(check(.codexHooks, facts)?.fix, .setUpCodex)
         facts.held.remove(.zshHook)
         XCTAssertEqual(check(.zshHook, facts)?.word, .disabled)
         XCTAssertEqual(check(.zshHook, facts)?.fix, .setUpTerminal)
@@ -182,7 +189,7 @@ final class HealthTests: XCTestCase {
 
     func testTheReadingsOfAnIdleMac() {
         XCTAssertEqual(HealthReport.readings(for: healthy()).map(\.id),
-                       [.state, .lidAngle, .lastClaudeEvent, .lastTerminalCommand])
+                       [.state, .lidAngle, .lastClaudeEvent, .lastCodexEvent, .lastTerminalCommand])
         XCTAssertEqual(reading(.state, healthy()), HealthReading(.state, .mode(.off), detail: .text("mode: off · lid: open")))
         XCTAssertEqual(reading(.lidAngle, healthy())?.value, .degrees(112))
         XCTAssertEqual(reading(.lastClaudeEvent, healthy()),
@@ -211,14 +218,20 @@ final class HealthTests: XCTestCase {
         // A hook that is not set up reports nothing; one that is set up and silent says so.
         facts = healthy()
         facts.held.remove(.claudeHooks)
+        facts.held.remove(.codexHooks)
         facts.held.remove(.zshHook)
         XCTAssertNil(reading(.lastClaudeEvent, facts))
+        XCTAssertNil(reading(.lastCodexEvent, facts))
         XCTAssertNil(reading(.lastTerminalCommand, facts))
         facts = healthy()
         facts.lastClaudeEvent = nil
+        facts.lastCodexEvent = nil
         facts.lastTerminalEventAt = nil
         XCTAssertEqual(reading(.lastClaudeEvent, facts)?.value, .noneYet)
+        XCTAssertEqual(reading(.lastCodexEvent, facts)?.value, .noneYet)
         XCTAssertEqual(reading(.lastTerminalCommand, facts)?.value, .noneYet)
+        XCTAssertEqual(reading(.lastCodexEvent, healthy())?.value, .ago(.minutes(2)))
+        XCTAssertEqual(HealthReport.readings(for: healthy()).map(\.id), [.state, .lidAngle, .lastClaudeEvent, .lastCodexEvent, .lastTerminalCommand])
     }
 
     func testTheLastSafetyStopSaysWhichRailAndWhen() {

@@ -6,7 +6,7 @@ final class ActivitySessionStoreTimeTests: XCTestCase {
     var store = ActivitySessionStore()
     func at(_ dt: TimeInterval) -> Date { t0.addingTimeInterval(dt) }
     func ev(_ name: ActivityEventName, at dt: TimeInterval = 0, agent: String? = nil, bg: [String]? = nil) -> ActivityEvent {
-        var e = ActivityEvent(loggedAt: at(dt), event: name); e.sessionId = "s1"; e.agentId = agent; e.backgroundTaskIds = bg; e.claudePid = 100; return e
+        var e = ActivityEvent(loggedAt: at(dt), event: name); e.sessionId = "s1"; e.agentId = agent; e.backgroundTaskIds = bg; e.agentPid = 100; return e
     }
     var state: ActivitySessionState? { store.sessions["s1"]?.state }
 
@@ -46,7 +46,7 @@ final class ActivitySessionStoreTimeTests: XCTestCase {
         XCTAssertEqual(store.abandonCandidates(at: at(20)).map(\.pid), [100])
         store.apply(ev(.subagentStart, at: 21, agent: "a1"))
         XCTAssertTrue(store.abandonCandidates(at: at(60)).isEmpty, "a live helper is not quiet")
-        var e = ev(.userPromptSubmit, at: 0); e.sessionId = "nopid"; e.claudePid = nil; store.apply(e)
+        var e = ev(.userPromptSubmit, at: 0); e.sessionId = "nopid"; e.agentPid = nil; store.apply(e)
         XCTAssertFalse(store.abandonCandidates(at: at(100)).contains { $0.sessionId == "nopid" })
     }
     func testTurnOverIsDoneAndNoteBusyExtendsLiveness() {

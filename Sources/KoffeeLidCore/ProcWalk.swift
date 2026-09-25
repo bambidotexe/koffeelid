@@ -1,7 +1,8 @@
 import Foundation
 
 /// Reads the process ancestor chain via sysctl — microseconds, no subprocesses. Used by the hook to find
-/// the Claude Code process it runs under, and by the app to prune sessions whose pid died or was recycled.
+/// the Claude Code or Codex process it runs under, and by the app to prune sessions whose pid died or was
+/// recycled.
 public enum ProcWalk {
     public struct ProcInfo: Equatable {
         public let pid: Int32, ppid: Int32, name: String, path: String?
@@ -77,10 +78,31 @@ public enum ProcWalk {
         if let argv0 = execPath(for: info.pid), isClaudePath(argv0) { return true }
         return false
     }
+    /// Codex's two install shapes: the launcher `~/.local/bin/codex` (a symlink) and the binary it points
+    /// at, `~/.codex/packages/standalone/<version>/bin/codex`; the app-server daemon runs the same binary.
+    public static func isCodexPath(_ path: String) -> Bool {
+        path.hasSuffix("/codex") || path.split(separator: "/").contains("codex")
+    }
+    public static func isCodexProcess(_ info: ProcInfo) -> Bool {
+        if info.name == "codex" { return true }
+        if let path = info.path, isCodexPath(path) { return true }
+        if let argv0 = execPath(for: info.pid), isCodexPath(argv0) { return true }
+        return false
+    }
+    public static func isProcess(of agent: ActivityAgent, _ info: ProcInfo) -> Bool {
+        agent == .claude ? isClaudeProcess(info) : isCodexProcess(info)
+    }
+    /// The nearest ancestor of `pid` (inclusive) running `agent`, or nil. A Codex started from a Claude Code
+    /// tool call, or the reverse, has both in its chain, and the nearest of the asked kind is the one the
+    /// hook ran under.
+    public static func pid(of agent: ActivityAgent, inChainFrom pid: Int32) -> Int32? {
+        chain(from: pid).first { isProcess(of: agent, $0) }?.pid
+    }
     /// The nearest Claude Code ancestor of `pid` (inclusive), or nil.
-    public static func claudePid(inChainFrom pid: Int32) -> Int32? { chain(from: pid).first(where: isClaudeProcess)?.pid }
+    public static func claudePid(inChainFrom pid: Int32) -> Int32? { self.pid(of: .claude, inChainFrom: pid) }
     /// kill(0) proves a process, not THE process: a pid recycled while the app was down must not keep a dead session alive.
-    public static func looksLikeClaude(pid: Int32) -> Bool { info(for: pid).map(isClaudeProcess) ?? false }
+    public static func looksLike(_ agent: ActivityAgent, pid: Int32) -> Bool { info(for: pid).map { isProcess(of: agent, $0) } ?? false }
+    public static func looksLikeClaude(pid: Int32) -> Bool { looksLike(.claude, pid: pid) }
     public static func isAlive(pid: Int32) -> Bool { kill(pid, 0) == 0 || errno == EPERM }
 
     /// Whether any process runs the executable at `url`. Compared by file identity (device and inode), not

@@ -2,7 +2,7 @@
 
 KoffeeLid is a macOS menu-bar app (bundle id `dev.rubens.koffeelid`, no Dock icon) that keeps a MacBook
 running with the lid closed. It can be armed by hand, for one close with a lid gesture, or by itself while
-Claude Code or a terminal command is working. While armed it darkens the built-in panel when the lid shuts,
+Claude Code, Codex or a terminal command is working. While armed it darkens the built-in panel when the lid shuts,
 plays a sound, shows a closing-only "the desktop stays upright behind the glass" effect, and locks the screen
 when the lid reopens. A `koffeelid` command line, `koffeelid://` URLs and App Intents drive the same modes.
 English and French; it looks for a newer release on GitHub by itself and installs one on request; no licensing.
@@ -78,27 +78,37 @@ key counts: an external keyboard's Fn/Globe key never arms. Without the grant an
 
 ### Auto-arm on activity
 
-Off by default ("Arm while Claude Code or a terminal command is running", Settings › Auto-Arm). Setting up
-either hook from that page or from the onboarding turns it on.
+Off by default ("Arm while Claude Code, Codex or a terminal command is running", Settings › Auto-Arm). Setting
+up any of the three hooks from that page or from the onboarding turns it on.
 
 - **Claude Code**: 15 hook events in `~/.claude/settings.json` run the embedded `KoffeeLidHook hook`, which
   appends one trimmed line per event to `~/Library/Application Support/KoffeeLid/activity.jsonl`. A session
   counts as working from a prompt or tool event until its `Stop`. A session blocked on a question, a plan
   approval or a permission does not count. A `Stop` while helpers or background shells are still out keeps the
   turn running until they finish or fall silent (240 s per helper, 90 s grace, 30 min cap).
+- **Codex**: 12 hook events in `~/.codex/hooks.json` run `KoffeeLidHook hook codex`, which appends the same
+  kind of line. Codex runs a hook of the user's only once it is trusted, so the set-up also writes each hook's
+  trust (its key and the hash Codex computes for it) under `[hooks.state]` in `~/.codex/config.toml`; both files
+  are backed up first (`hooks.json.backup-koffeelid`, `config.toml.backup-koffeelid`). The hook counts as set up
+  only while all 12 events point at this copy **and** are trusted and not disabled there. A session counts as
+  working from a prompt or tool event until its `Stop` or its `Interrupt` (Esc, Ctrl-C), which also ends its
+  helpers at once. A session blocked on a permission or on `request_user_input` does not count. Helpers hold a
+  `Stop` as they do for Claude Code.
 - **Terminal (zsh)**: a `preexec`/`precmd` snippet in `~/.zshrc` reports each command. A command counts once it
   has run longer than "Ignore commands shorter than" (default 5 s, `KOFFEELID_ARM_AFTER` per shell).
-  Interactive programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `claude`, …) never count.
-- **Without an end event**: a Claude process or shell that exits drops its sessions and jobs at once (kqueue). A
-  turn ended with Esc or Ctrl-C fires no hook; Claude Code's own `sessions/<pid>.json` record going `idle`
-  ends it within about 35 s, and an `idle_prompt` or `agent_needs_input` notification after 50 s of
-  main-agent quiet ends it too. Anything silent for 2 h is dropped.
+  Interactive programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `claude`, `codex`, …)
+  never count.
+- **Without an end event**: a Claude Code or Codex process or a shell that exits drops its sessions and jobs at
+  once (kqueue). A Claude Code turn ended with Esc or Ctrl-C fires no hook; Claude Code's own
+  `sessions/<pid>.json` record going `idle` ends it within about 35 s, and an `idle_prompt` or
+  `agent_needs_input` notification after 50 s of main-agent quiet ends it too. Codex has no registry and no
+  notification hook, and its `Interrupt` hook fires instead. Anything silent for 2 h is dropped.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after
-  Claude Code, 1 min after a command (Settings › Auto-Arm). Work that resumes inside the wait cancels it. Keyboard,
-  trackpad or mouse input at the Mac after the work ended drops the level at once: the wait exists for a
-  remote user. When the level falls the Mac disarms only if the manual mode is Off.
+  Claude Code, 30 min after Codex, 1 min after a command (Settings › Auto-Arm). Work that resumes inside the
+  wait cancels it. Keyboard, trackpad or mouse input at the Mac after the work ended drops the level at once:
+  the wait exists for a remote user. When the level falls the Mac disarms only if the manual mode is Off.
 - **"Disarm once finished"** (menu item, present when a hook is set up): the wait becomes one minute and the
   manual mode is released with it. It stays pending until it fires, is clicked again, or a safety rail fires.
 - After a safety rail or a refused auto-arm, the level stays off until the running work stops and something
@@ -193,8 +203,9 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   every armed behaviour work exactly as before; right-clicking to arm and the lid angle simply have no icon
   left to use.
 - **Menu.** Header with the mode; a greyed line while the auto level holds ("Auto-armed while Claude Code
-  works", "… while a command runs", "… and a command run", or "Auto-armed, off in N min"); the three modes;
-  "Disarm once finished"; Settings…; Quit.
+  works", "… while Codex works", "… while a command runs", "… while Claude Code and Codex work", "… while
+  Claude Code and a command run", "… while Codex and a command run", "… while Claude Code, Codex and a
+  command run", or "Auto-armed, off in N min"); the three modes; "Disarm once finished"; Settings…; Quit.
 - **Opening the app.** KoffeeLid has no Dock icon. Opening it again from Finder, Spotlight, the Applications
   folder or `open -b dev.rubens.koffeelid` while it runs opens Settings — the way back in when the menu-bar
   cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,
@@ -210,7 +221,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   |---|---|
   | General | the app icon; Startup (launch at login, show in menu bar, and a note naming the way back to this window once the icon is hidden); Updates; Quit ("Quit KoffeeLid" is the menu's Quit: disarms, clears the kernel flag, releases the sleep lock, then exits); Uninstall (see below) |
   | Arming | Lid gesture (the switch, the key to hold, the two travels); Menu bar and shortcuts (right-click, the two shortcuts); Low battery (the switch and its level) |
-  | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
+  | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code, Codex and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
   | Lid Effect | Effect (the switch, and the Screen Recording grant while it is on); Lid angle (the live angle, the angle in the menu bar); When it starts; Look; Preview (reset to defaults, simulate a fold) |
   | Sound | Lid-close sound (the switch, the charger and display switches of the closed-lid reminders, and the clip as a pop-up menu: picking one plays it); Volume (the forced volume and its level) |
   | System | Staying awake safely (sleep lock, Background App Activity, each with its button while missing); Permissions (Screen Recording, Input Monitoring, Notifications, each with its Allow button and a warning naming its switch in System Settings while denied); Diagnostics (the log's switch, open the log); Start over (show the onboarding again, reset everything). Only states with a control beside them: a bare verdict is on Health |
@@ -235,8 +246,8 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   the same on every page (`SettingsStatus`, `HealthRules`): **a grant that is missing is red when the onboarding
   marks it required and orange otherwise, never blue.** The sleep lock (Available / Missing) and Background App
   Activity (Enabled / Disabled) are required, so red while missing; Screen Recording, Input Monitoring and
-  Notifications (Granted / Denied) and the two hooks (Enabled / Disabled) are optional, so orange while missing,
-  whatever the switches. Auto-arm switched on with neither hook set up also puts a warning under its switch. A
+  Notifications (Granted / Denied) and the three hooks (Enabled / Disabled) are optional, so orange while missing,
+  whatever the switches. Auto-arm switched on with no hook set up also puts a warning under its switch. A
   state the user can fix has a button under it only while it is wrong; once it is right the button goes and the
   row stays. A state with nothing to press beside it is on the Health page alone, unless it is the context of what
   its page holds (a grant above its button, the lid angle beside the angle sliders, the work running now beside
@@ -253,23 +264,24 @@ lid closes, only on the built-in display, and captures nothing while the lid res
     watchdog it runs, one line: Running green; Disabled red while Background App Activity is off; Stopped orange
     while it is on and the watchdog is not running), **Screen Recording permission**, **Input Monitoring
     permission** (also Failed orange while the lid gesture uses 🌐 Fn and this Mac's own keyboard cannot be read),
-    **Notifications permission** (Granted green, Denied orange), **Claude Code hooks** and **Terminal hook (zsh)**
-    (Enabled green, Disabled orange; the first's tooltip says how many of the 15 hook events point at this copy
-    of KoffeeLid), **Lid angle sensor** (Available green, Missing orange). Only while wrong: **Lid sleep**, second
-    (Enabled red while armed, Disabled orange while a clear is being retried), and **Crashes in the last 7 days**,
-    last (the count, orange, the last one's date in the tooltip, from `~/Library/Logs/DiagnosticReports`). At most
-    ten lines, with everything wrong at once.
-  - **Information** (Informations): at most five readings, blue. **State** (Off, Armed, Armed + screen on,
+    **Notifications permission** (Granted green, Denied orange), **Claude Code hooks**, **Codex hooks** and
+    **Terminal hook (zsh)** (Enabled green, Disabled orange; the first two's tooltips say how many of the 15, or
+    the 12, hook events point at this copy of KoffeeLid, Codex's counting only the trusted ones), **Lid angle
+    sensor** (Available green, Missing orange). Only while wrong: **Lid sleep**, second (Enabled red while armed,
+    Disabled orange while a clear is being retried), and **Crashes in the last 7 days**, last (the count, orange,
+    the last one's date in the tooltip, from `~/Library/Logs/DiagnosticReports`). At most eleven lines, with
+    everything wrong at once.
+  - **Information** (Informations): at most six readings, blue. **State** (Off, Armed, Armed + screen on,
     Auto-armed, Armed for one close; the tooltip is the command line's status line); **Lid angle now** (with the
-    sensor); **Last Claude Code event** and **Last terminal command** (each while its hook is set up: how long
-    ago, or "None yet"; the tooltip names the event and its time); **Last turned itself off** (the safety rail and
-    how long ago, once one has ended an arm since launch).
+    sensor); **Last Claude Code event**, **Last Codex event** and **Last terminal command** (each while its hook
+    is set up: how long ago, or "None yet"; the tooltip names the event and its time); **Last turned itself off**
+    (the safety rail and how long ago, once one has ended an arm since launch).
 
-  Its own readings (whether the watchdog runs, the Claude Code settings file, crash reports) are taken off the
-  main thread when the page is shown and on Check Again, never on a timer; the grants and the lid come from the
-  window's poll, and KoffeeLid's own state from the coordinator as the page draws. The version and updates are
-  not health: they stay on General.
-- **Onboarding.** Four pages in an ordinary window: pitch, Permissions, "Arm while you work" (hooks), All set.
+  Its own readings (whether the watchdog runs, the Claude Code settings file, Codex's hooks file and its trust
+  in `config.toml`, crash reports) are taken off the main thread when the page is shown and on Check Again,
+  never on a timer; the grants and the lid come from the window's poll, and KoffeeLid's own state from the
+  coordinator as the page draws. The version and updates are not health: they stay on General.
+- **Onboarding.** Four pages in an ordinary window: pitch, Permissions, "Arm while you work" (the three hooks), All set.
   Shown at first launch and from Settings › System › "Show Onboarding Again". It opens in front because it is
   the last window to open, and from then on it behaves like any other window: a permission dialog, the
   administrator dialog and System Settings all open over it and stay there until the user leaves them, and the
@@ -289,10 +301,11 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   or display change; lock failed; lid sleep restoration pending or failed; sleep could not be re-enabled; a
   newer release found by an automatic check, the only one with a button (§ Updates).
 - **CLI.** `koffeelid arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings |
-  install-hooks | uninstall-hooks | shell-init zsh`. The arming verbs launch the app if needed and print the
-  status line. `status` with the app not running prints `mode: off (KoffeeLid is not running)`. Exit codes:
-  0, 1 (`did not …`, no answer), 2 (usage). The status line reads, for example,
-  `mode: armed + screen on · auto-armed (activity) · lid: open · sleep lock: on · activity: 1 session working, 0 commands`.
+  install-hooks [claude|codex] | uninstall-hooks [claude|codex] | shell-init zsh`. The hook verbs take the
+  agent as an optional word, Claude Code when none is given. The arming verbs launch the app if needed and
+  print the status line. `status` with the app not running prints `mode: off (KoffeeLid is not running)`. Exit
+  codes: 0, 1 (`did not …`, no answer), 2 (usage). The status line reads, for example,
+  `mode: armed + screen on · auto-armed (activity) · lid: open · sleep lock: on · activity: 1 session working (Claude Code 1, Codex 0), 0 commands`.
 - **App Intents.** Arm, Arm + screen on, Turn Off, Toggle, Toggle screen on, Status.
 
 ## Settings and defaults
@@ -307,8 +320,8 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Arming › Menu bar and shortcuts | Right-click the menu bar icon to arm | `armWithRightClick` | on | |
 | Arming › Menu bar and shortcuts | Press ⌃⌥⌘L to arm, or to turn off / Press ⌃⌥⌘K to arm with the screen on, or to turn off | `armWithShortcut` / `armWithCaffeinateShortcut` | on / on | combos fixed: `hotKeyCode`, `hotKeyModifiers`, `caffeinateHotKeyCode`, `caffeinateHotKeyModifiers` have no UI |
 | Arming › Low battery | Turn off when the battery runs low, Battery level | `lowBatteryDisarm`, `lowBatteryDisarmPercent` | on, 10 % | 5–50 % |
-| Auto-Arm › While you work | Arm while Claude Code or a terminal command is running | `armOnActivity` | off | |
-| Auto-Arm › Claude Code / Terminal | Stay armed after Claude Code finishes / Stay armed after a command finishes | `activityHoldOff.claude` / `activityHoldOff.terminal` | 30 min / 60 s | 1–120 min / 10–600 s |
+| Auto-Arm › While you work | Arm while Claude Code, Codex or a terminal command is running | `armOnActivity` | off | |
+| Auto-Arm › Claude Code / Codex / Terminal | Stay armed after Claude Code finishes / Stay armed after Codex finishes / Stay armed after a command finishes | `activityHoldOff.claude` / `activityHoldOff.codex` / `activityHoldOff.terminal` | 30 min / 30 min / 60 s | 1–120 min / 1–120 min / 10–600 s |
 | Auto-Arm › Terminal | Ignore commands shorter than | `activityJobArmAfterSeconds` | 5 s | 0–30 s |
 | Lid Effect | Show the desktop folding away as the lid closes, every slider of When it starts and Look, Show the lid angle in the menu bar | `effectParameters` (JSON) | enabled; start below 95° with the gesture / 75° otherwise; flatten again 0.5 s; zoom 80 %; perspective 40 %; blur 0.15×; soft edges 100 %; shading 100 %; responsiveness 70 %; angle in menu bar off | 30–120° / 30–90° (the second never above the first); 0.25–10 s; 0–200 %; 0–2×; 0–100 % |
 | Sound › Lid-close sound | Play a sound when the lid closes, Sound | `lidCloseSoundEnabled`, `lidCloseSoundName` | on, `blip-pop` | six clips; an unknown name falls back to the first |
@@ -345,15 +358,15 @@ one exception, and the button says so ("Open Login Items"): macOS offers no dial
 grant's whole flow. The sleep lock's button shows the administrator-password dialog.
 
 Settings › System › "Reset KoffeeLid…" asks for confirmation, then disarms, removes the sudoers rule, unregisters the
-login items, resets Screen Recording, Input Monitoring and notifications, removes the hooks and the zsh block, clears the
-preferences and whatever an update left in Application Support, and reopens onboarding.
+login items, resets Screen Recording, Input Monitoring and notifications, removes the Claude Code hooks, the Codex hooks
+and the zsh block, clears the preferences and whatever an update left in Application Support, and reopens onboarding.
 
 ## Uninstall
 
 Settings › General › Uninstall takes KoffeeLid off the Mac. The group always shows a warning, because what it warns
 about is not a state that can be put right but the hazard of the other way out: **dragging the bundle to the Trash is
 not an uninstall.** It removes the app and nothing else, and what is left goes on running against an app that is gone,
-the Claude Code hooks calling a binary that is not there once per event for ever.
+the Claude Code and Codex hooks calling a binary that is not there once per event for ever.
 
 "Uninstall KoffeeLid" asks for confirmation, then, in this order:
 
@@ -367,7 +380,7 @@ the Claude Code hooks calling a binary that is not there once per event for ever
    they name it (`tccutil reset` against a bundle identifier with no bundle behind it fails, and nothing puts that
    right afterwards);
 4. unregisters the watchdog agent and launch at login, and registers neither back;
-5. removes the Claude Code hooks, the zsh block and the settings backup the hooks left;
+5. removes the Claude Code hooks, the Codex hooks with their trust, the zsh block and the backups the hooks left;
 6. removes `/etc/sudoers.d/koffeelid` and `/usr/local/bin/koffeelid` in one administrator-password dialog, and only
    if one of them is there (`UninstallPlan`);
 7. clears the preferences;

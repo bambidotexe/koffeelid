@@ -28,7 +28,7 @@ public enum FnKeyReaderState: Equatable {
     case failed
 }
 
-/// The last Claude Code hook event that reached the activity journal.
+/// The last Claude Code or Codex hook event that reached the activity journal.
 public struct HookEventSeen: Equatable {
     /// The event's own name (`PostToolUse`): a detail for a bug report, never translated.
     public let name: String
@@ -73,6 +73,7 @@ public struct HealthFacts: Equatable {
 
     // The hooks' last word.
     public var lastClaudeEvent: HookEventSeen?
+    public var lastCodexEvent: HookEventSeen?
     public var lastTerminalEventAt: Date?
 
     // Read when the page is shown.
@@ -83,6 +84,10 @@ public struct HealthFacts: Equatable {
     /// settings file could not be read.
     public var claudeHookEvents: Int?
     public var claudeSettingsUnreadable: Bool
+    /// How many of the Codex hook events point at this copy of KoffeeLid and are trusted by Codex; nil until
+    /// read or when either of Codex's two files could not be read.
+    public var codexHookEvents: Int?
+    public var codexHooksUnreadable: Bool
     /// When each crash report of KoffeeLid in the last `HealthConstants.crashWindow` was written, newest first.
     public var recentCrashes: [Date]
 
@@ -90,8 +95,9 @@ public struct HealthFacts: Equatable {
                 armed: Bool, oneCloseArm: Bool, statusLine: String, lidSleepFlagSet: Bool,
                 lidSleepRestorePending: Bool, sleepLockEngaged: Bool, lastSafetyStop: SafetyStop?,
                 gestureEnabled: Bool, gestureUsesFn: Bool, fnReader: FnKeyReaderState,
-                lastClaudeEvent: HookEventSeen?, lastTerminalEventAt: Date?, watchdogRunning: Bool?,
-                agentPlistName: String, claudeHookEvents: Int?, claudeSettingsUnreadable: Bool,
+                lastClaudeEvent: HookEventSeen?, lastCodexEvent: HookEventSeen?, lastTerminalEventAt: Date?,
+                watchdogRunning: Bool?, agentPlistName: String, claudeHookEvents: Int?,
+                claudeSettingsUnreadable: Bool, codexHookEvents: Int?, codexHooksUnreadable: Bool,
                 recentCrashes: [Date]) {
         self.now = now
         self.held = held
@@ -109,11 +115,14 @@ public struct HealthFacts: Equatable {
         self.gestureUsesFn = gestureUsesFn
         self.fnReader = fnReader
         self.lastClaudeEvent = lastClaudeEvent
+        self.lastCodexEvent = lastCodexEvent
         self.lastTerminalEventAt = lastTerminalEventAt
         self.watchdogRunning = watchdogRunning
         self.agentPlistName = agentPlistName
         self.claudeHookEvents = claudeHookEvents
         self.claudeSettingsUnreadable = claudeSettingsUnreadable
+        self.codexHookEvents = codexHookEvents
+        self.codexHooksUnreadable = codexHooksUnreadable
         self.recentCrashes = recentCrashes
     }
 }
@@ -123,12 +132,12 @@ public struct HealthFacts: Equatable {
 /// Which line of the Health table, whatever its words say. The raw value is the line's stable identity.
 public enum HealthItemID: String, CaseIterable {
     case sleepLock, lidSleep, crashWatchdog, screenRecording, inputMonitoring, notifications
-    case claudeHooks, zshHook, lidSensor, crashes
+    case claudeHooks, codexHooks, zshHook, lidSensor, crashes
 }
 
 /// Which line of the Information table. The raw value is the line's stable identity.
 public enum HealthReadingID: String, CaseIterable {
-    case state, lidAngle, lastClaudeEvent, lastTerminalCommand, lastSafetyStop
+    case state, lidAngle, lastClaudeEvent, lastCodexEvent, lastTerminalCommand, lastSafetyStop
 }
 
 /// A span of time, to the minute, in the two largest units that mean anything. The app words it.
@@ -187,6 +196,8 @@ public enum HealthDetail: Equatable {
     case hookEvents(installed: Int, of: Int)
     /// `~/.claude/settings.json` exists and could not be read.
     case settingsUnreadable
+    /// `~/.codex/hooks.json` or `~/.codex/config.toml` exists and could not be read.
+    case codexFilesUnreadable
 }
 
 /// How to put a line right, before it is put in a language. Each names the page or the pane it is done in.
@@ -196,7 +207,7 @@ public enum HealthFix: Equatable {
     case lidSleepOnWhileArmed, lidSleepRestorePending
     case backgroundActivity, crashWatchStopped
     case noBuiltInKeyboard, fnKeyUnreadable
-    case setUpClaudeCode, setUpTerminal
+    case setUpClaudeCode, setUpCodex, setUpTerminal
     case noLidSensor, crashes
 }
 
@@ -237,7 +248,7 @@ public struct HealthReading: Equatable {
 /// The Health page's two tables: the checks, green, orange or red, and the readings, blue.
 ///
 /// **A check is something that has to be in place or running for KoffeeLid to work**: the sleep lock, the
-/// kernel's lid-sleep flag while armed, the crash watchdog, the three permissions, the two hooks, the lid
+/// kernel's lid-sleep flag while armed, the crash watchdog, the three permissions, the three hooks, the lid
 /// angle sensor. Red is what stops KoffeeLid from keeping a closed Mac awake, or from doing it safely: a
 /// grant the onboarding marks required (the sleep lock, Background App Activity), the lid-sleep flag not
 /// held while armed, a sleep lock that did not engage. Everything that degrades a feature is orange. A
@@ -256,9 +267,13 @@ public enum HealthReport {
         items.append(grant(.notifications, .notifications, facts: facts, yes: .granted, no: .denied,
                            fix: .notifications))
         let hookDetail: HealthDetail? = facts.claudeSettingsUnreadable ? .settingsUnreadable
-            : facts.claudeHookEvents.map { .hookEvents(installed: $0, of: HookConfig.events.count) }
+            : facts.claudeHookEvents.map { .hookEvents(installed: $0, of: HookConfig.claude.events.count) }
         items.append(grant(.claudeHooks, .claudeHooks, facts: facts, yes: .enabled, no: .disabled,
                            detail: hookDetail, fix: .setUpClaudeCode))
+        let codexDetail: HealthDetail? = facts.codexHooksUnreadable ? .codexFilesUnreadable
+            : facts.codexHookEvents.map { .hookEvents(installed: $0, of: HookConfig.codex.events.count) }
+        items.append(grant(.codexHooks, .codexHooks, facts: facts, yes: .enabled, no: .disabled,
+                           detail: codexDetail, fix: .setUpCodex))
         items.append(grant(.zshHook, .zshHook, facts: facts, yes: .enabled, no: .disabled, fix: .setUpTerminal))
         items.append(HealthItem(.lidSensor, HealthRules.lidSensor(present: facts.sensorPresent),
                                 facts.sensorPresent ? .available : .missing, fix: .noLidSensor))
@@ -289,6 +304,11 @@ public enum HealthReport {
             readings.append(facts.lastClaudeEvent.map {
                 HealthReading(.lastClaudeEvent, .ago(since($0.at, facts)), detail: .event($0.name, at: $0.at))
             } ?? HealthReading(.lastClaudeEvent, .noneYet))
+        }
+        if facts.held.contains(.codexHooks) {
+            readings.append(facts.lastCodexEvent.map {
+                HealthReading(.lastCodexEvent, .ago(since($0.at, facts)), detail: .event($0.name, at: $0.at))
+            } ?? HealthReading(.lastCodexEvent, .noneYet))
         }
         if facts.held.contains(.zshHook) {
             readings.append(facts.lastTerminalEventAt.map {

@@ -6,10 +6,10 @@ final class ActivitySessionStoreTests: XCTestCase {
     var store = ActivitySessionStore()
 
     func ev(_ name: ActivityEventName, _ sid: String = "s1", at dt: TimeInterval = 0, tool: String? = nil, agent: String? = nil,
-            notif: String? = nil, source: String? = nil, bg: [String]? = nil, pid: Int32? = 100) -> ActivityEvent {
+            notif: String? = nil, source: String? = nil, bg: [String]? = nil, pid: Int32? = 100, by: ActivityAgent? = nil) -> ActivityEvent {
         var e = ActivityEvent(loggedAt: t0.addingTimeInterval(dt), event: name)
         e.sessionId = sid; e.toolName = tool; e.agentId = agent; e.notificationType = notif; e.source = source
-        e.backgroundTaskIds = bg; e.claudePid = pid
+        e.backgroundTaskIds = bg; e.agentPid = pid; e.agent = by
         return e
     }
     func state(_ sid: String = "s1") -> ActivitySessionState? { store.sessions[sid]?.state }
@@ -17,7 +17,7 @@ final class ActivitySessionStoreTests: XCTestCase {
     func testStartIsIdleAndPromptIsWorking() {
         store.apply(ev(.sessionStart, source: "startup")); XCTAssertEqual(state(), .idle); XCTAssertFalse(store.isRunning)
         store.apply(ev(.userPromptSubmit, at: 1)); XCTAssertEqual(state(), .working); XCTAssertTrue(store.isRunning)
-        XCTAssertEqual(store.sessions["s1"]?.claudePid, 100)
+        XCTAssertEqual(store.sessions["s1"]?.agentPid, 100); XCTAssertEqual(store.sessions["s1"]?.agent, .claude)
     }
     func testCompactionIsWorking() {
         store.apply(ev(.sessionStart, source: "compact")); XCTAssertEqual(state(), .working)
@@ -88,7 +88,51 @@ final class ActivitySessionStoreTests: XCTestCase {
     }
     func testPruneDeadDropsOnlyDeadPids() {
         store.apply(ev(.userPromptSubmit)); store.apply(ev(.userPromptSubmit, "s2", pid: 200)); store.apply(ev(.userPromptSubmit, "s3", pid: nil))
-        store.pruneDead(isAlive: { $0 == 100 })
+        store.pruneDead { pid, _ in pid == 100 }
         XCTAssertEqual(Set(store.sessions.keys), ["s1", "s3"]); XCTAssertEqual(store.trackedPids, [100])
+    }
+
+    // MARK: Codex
+
+    func testACodexSessionCountsLikeAClaudeOneAndIsToldApart() {
+        store.apply(ev(.sessionStart, "c1", source: "startup", pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .idle)
+        store.apply(ev(.userPromptSubmit, "c1", at: 1, pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .working)
+        store.apply(ev(.userPromptSubmit, at: 2))
+        XCTAssertEqual(store.workingCount, 2); XCTAssertEqual(store.workingCount(of: .codex), 1); XCTAssertEqual(store.workingCount(of: .claude), 1)
+        XCTAssertEqual(store.sessions["c1"]?.agent, .codex); XCTAssertEqual(store.trackedPids, [100, 300])
+        store.apply(ev(.stop, "c1", at: 3, pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .done); XCTAssertEqual(store.workingCount(of: .codex), 0)
+        store.apply(ev(.sessionEnd, "c1", at: 4, pid: 300, by: .codex)); XCTAssertNil(store.sessions["c1"])
+    }
+    func testInterruptEndsACodexTurnAndItsHelpersAtOnce() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))
+        store.apply(ev(.subagentStart, "c1", at: 1, agent: "a1", pid: 300, by: .codex))
+        store.apply(ev(.interrupt, "c1", at: 2, pid: 300, by: .codex))
+        XCTAssertEqual(state("c1"), .done); XCTAssertFalse(store.isRunning)
+        XCTAssertTrue(store.sessions["c1"]!.liveAgents.isEmpty); XCTAssertFalse(store.sessions["c1"]!.pendingDone)
+        store.apply(ev(.stop, "c1", at: 3, pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .done, "a Stop after the Interrupt changes nothing")
+        store.apply(ev(.interrupt, at: 4)); XCTAssertNil(state(), "Claude Code has no Interrupt: the line is ignored")
+    }
+    func testCodexsQuestionToTheUserIsWaiting() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))
+        store.apply(ev(.preToolUse, "c1", at: 1, tool: "request_user_input", pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .waiting)
+        store.apply(ev(.postToolUse, "c1", at: 2, tool: "request_user_input", pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .working)
+        store.apply(ev(.permissionRequest, "c1", at: 3, tool: "shell", pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .waiting)
+        store.apply(ev(.preToolUse, "c1", at: 4, tool: "shell", pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .working)
+    }
+    func testTheRegistryRescuesAreClaudeCodesAlone() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex)); store.apply(ev(.userPromptSubmit))
+        let quiet = t0.addingTimeInterval(ActivityConstants.abandonQuietSeconds + 1)
+        XCTAssertEqual(store.abandonCandidates(at: quiet).map(\.sessionId), ["s1"])
+        store.apply(ev(.permissionRequest, "c1", at: 1, pid: 300, by: .codex)); store.apply(ev(.permissionRequest, at: 1))
+        XCTAssertEqual(store.openWaitCandidates().map(\.sessionId), ["s1"])
+        var codexOnly = ActivitySessionStore()
+        codexOnly.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))
+        XCTAssertEqual(codexOnly.nextDeadline(after: t0), t0.addingTimeInterval(ActivityConstants.staleSeconds), "no recheck timer for a session with no registry")
+    }
+    func testPruneAsksAboutEachSessionsOwnAgent() {
+        store.apply(ev(.userPromptSubmit)); store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))
+        var asked: [ActivityAgent] = []
+        store.pruneDead { _, agent in asked.append(agent); return agent == .codex }
+        XCTAssertEqual(Set(asked), [.claude, .codex]); XCTAssertEqual(Set(store.sessions.keys), ["c1"])
     }
 }

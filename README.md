@@ -6,8 +6,8 @@
 
 <p align="center">
   <strong>Close the lid. The work goes on.</strong><br>
-  A menu-bar app that keeps your MacBook awake with the lid shut, on its own while Claude Code or a terminal
-  command is running. It folds the desktop away like the iPhone Duo closing, with a sound to match.
+  A menu-bar app that keeps your MacBook awake with the lid shut, on its own while Claude Code, Codex or a
+  terminal command is running. It folds the desktop away like the iPhone Duo closing, with a sound to match.
 </p>
 
 <p align="center">
@@ -16,12 +16,12 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-MacBook-333333?logo=apple&logoColor=white">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6%20toolchain-F05138?logo=swift&logoColor=white">
   <img alt="AppKit + Metal" src="https://img.shields.io/badge/AppKit-%2B%20Metal-1f6feb">
-  <img alt="Unit tests" src="https://img.shields.io/badge/tests-398%20passing-2ea44f">
+  <img alt="Unit tests" src="https://img.shields.io/badge/tests-423%20passing-2ea44f">
 </p>
 
 ## The problem
 
-You start a long turn in Claude Code, a build, a deploy, a download. Then you close the lid to go make a coffee,
+You start a long turn in Claude Code or Codex, a build, a deploy, a download. Then you close the lid to go make a coffee,
 catch a train, or move to the couch with your phone. macOS puts the Mac to sleep, the session dies, and the
 prompt you send from your phone twenty minutes later lands on a machine that is no longer listening.
 
@@ -29,12 +29,15 @@ KoffeeLid keeps the Mac awake with the lid closed. The point is that it knows *w
 
 ## It arms itself while you work
 
-This is the headline feature. Set it up once, from onboarding or Settings › Auto-Arm, and KoffeeLid watches two
+This is the headline feature. Set it up once, from onboarding or Settings › Auto-Arm, and KoffeeLid watches three
 things:
 
 - **Claude Code.** Hooks in `~/.claude/settings.json` report every session event: a prompt sent, a tool
   running, a turn finished. While a session is working, the Mac is armed. When the turn ends, KoffeeLid waits **30 minutes**
   before letting go, so a follow-up prompt sent from your phone still finds the Mac awake.
+- **Codex.** The same, through hooks in `~/.codex/hooks.json`, which KoffeeLid also marks as trusted in
+  `~/.codex/config.toml` so that Codex runs them without a visit to its `/hooks` screen. Esc ends the turn for
+  KoffeeLid the moment it ends it for Codex.
 - **The terminal.** A zsh snippet reports every command that runs longer than a few seconds, as it starts and ends. A `make`, a `docker
   compose up`, a `rsync`: closing the lid while one runs no longer kills it. When the command finishes,
   KoffeeLid waits a minute, then stands down.
@@ -123,7 +126,7 @@ Download `KoffeeLid-<version>.dmg` from the [latest release](https://github.com/
 open it, drag `KoffeeLid.app` to Applications and launch it. A four-page onboarding asks for what it needs: the
 sleep lock (administrator password, once), Login Items (crash recovery), Screen Recording (the fold),
 Input Monitoring (optional: only the built-in keyboard's 🌐 Fn key then arms the gesture), notifications (optional),
-and offers to set up the Claude Code hooks and the zsh snippet. Settings › Health then shows at a glance whether
+and offers to set up the Claude Code hooks, the Codex hooks and the zsh snippet. Settings › Health then shows at a glance whether
 everything KoffeeLid relies on is in place and working, in green, orange or red, and says where to put right
 whatever is not, with a few readings beside it: what KoffeeLid is doing, the lid's angle, when each hook last
 reported.
@@ -136,7 +139,7 @@ app: the install is refused while quitting would put the Mac to sleep, and the n
 mode that was on.
 
 Settings › General › Uninstall takes KoffeeLid off the Mac again: the sleep lock, what starts it at login, what
-it added to Claude Code and to the shell, its settings and its logs, and then the app itself.
+it added to Claude Code, to Codex and to the shell, its settings and its logs, and then the app itself.
 
 Releases are signed with the Wooflab team's Developer ID and notarized, so they open on any Mac without a
 Gatekeeper warning.
@@ -147,9 +150,10 @@ Gatekeeper warning.
   (Mac16,x and later); arming from the menu, the shortcuts, the command line and the hooks works on any MacBook.
 - Screen Recording permission for the fold, Login Items approval for crash recovery, and the sleep lock (one
   administrator password): all from the onboarding or Settings › System.
-- For auto-arm: Claude Code (the hooks go into `~/.claude/settings.json`, backed up first) and zsh (the snippet
-  goes into `~/.zshrc`, between two `# ---------- KoffeeLid ----------` lines it owns). Both are removable from
-  Settings with one button.
+- For auto-arm: Claude Code (the hooks go into `~/.claude/settings.json`, backed up first), Codex (the hooks go
+  into `~/.codex/hooks.json` and their trust into `~/.codex/config.toml`, both backed up first) and zsh (the
+  snippet goes into `~/.zshrc`, between two `# ---------- KoffeeLid ----------` lines it owns). All three are
+  removable from Settings with one button.
 
 ## Build from source
 

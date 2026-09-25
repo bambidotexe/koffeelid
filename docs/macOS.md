@@ -288,6 +288,42 @@ Three surfaces the activity feature depends on, none documented upstream:
 Hooks are installed in `~/.claude/settings.json` (symlinks resolved), one entry per event:
 `{"matcher": "*", "hooks": [{"type": "command", "command": "<bundle>/Contents/MacOS/KoffeeLidHook hook", "timeout": 5}]}`.
 
+## Codex
+
+Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) and checked against Codex CLI
+0.157.0 on this Mac: its `hooks/list` answer, one real turn under a probe hook, and a trust it wrote itself.
+
+- **Hook events and payload keys.** The 12 event names in `ActivityEventName.codexEvents`: Claude Code's list
+  without `Notification`, `PermissionDenied`, `PostToolUseFailure` and `StopFailure`, plus `Interrupt`, which
+  Esc and Ctrl-C fire. Every payload carries `session_id` and `hook_event_name`; `turn_id` on everything but
+  `SessionStart` and `SessionEnd`; `agent_id` and `agent_type` on a helper's events; `tool_name` on the tool
+  events; `source` on `SessionStart` (`startup`, `resume`, `clear`, `compact`, `fork`); `reason` on
+  `SessionEnd`. `Stop` fires for the main agent only, `SubagentStop` for a helper. The tool a question to the
+  user goes through is `request_user_input`.
+- **`~/.codex/hooks.json`** (`$CODEX_HOME/hooks.json`, the same `hooks` object as Claude Code's, under a root
+  that may also hold a `description`). A missing `matcher` matches everything; `"*"` does too, but a matcher is
+  otherwise a regular expression. The `hooks` feature is on by default. Hooks can also live in `config.toml`
+  under `[hooks]`; loading both draws a warning, so only the JSON file is written.
+- **Trust.** Codex runs a user hook only while `config.toml` holds `[hooks.state."<key>"]` with
+  `trusted_hash` equal to the hash it computes for the hook, and `enabled` not `false`. The key is
+  `<hooks.json path>:<event label>:<group index>:<handler index>`, the label the event's snake_case name,
+  the path Codex's home with symlinks resolved. The hash is `sha256:` and the SHA-256 of the canonical JSON
+  (keys sorted, no spaces) of `{"event_name": <label>, "hooks": [<the entry, normalised>]}`; a normalised
+  command entry is `{"async": false, "command", "timeout", "type": "command"}` plus the matcher when there is
+  one, and Codex clamps the timeout of `SessionEnd` and `Interrupt` to 1–3 s before hashing (the entries are
+  written with 3 there and 5 elsewhere). A hook whose hash no longer matches reads as `modified` in Codex's
+  `/hooks` screen and stops running. `CodexHookTrust` reproduces key and hash, `CodexHookTrustTests` pins
+  them to the hashes Codex reported.
+- **How the hook runs.** `$SHELL -lc "<command>"` from the session's environment snapshot, in the session's
+  cwd, the payload on stdin; the shell usually execs the hook, so its parent is the `codex` process itself,
+  and a `codex` started from a Claude Code tool call has `claude` further up the chain.
+  `ProcWalk.pid(of: .codex, inChainFrom:)` takes the nearest `codex`.
+- **Process shapes.** `~/.local/bin/codex` is a symlink to `~/.codex/packages/standalone/<version>/bin/codex`;
+  the shared app-server daemon runs the same binary. `p_comm` is `codex`. No per-process registry exists:
+  what a lost `Stop` costs Claude Code, Codex covers with `Interrupt` and `SessionEnd`.
+- **`CODEX_HOME`.** Relocates the whole folder. Like `CLAUDE_CONFIG_DIR`, it is invisible from another
+  process, so the installer and the Health page use `~/.codex`.
+
 ## zsh
 
 The snippet printed by `koffeelid shell-init zsh` registers `preexec` and `precmd` hooks. `precmd` must read

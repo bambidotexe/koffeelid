@@ -301,12 +301,12 @@
         }
       }
     },
-    "Arm while Claude Code or a terminal command is running": {
+    "Arm while Claude Code, Codex or a terminal command is running": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Activer tant que Claude Code ou une commande du terminal tourne"
+            "value": "Activer tant que Claude Code, Codex ou une commande du terminal tourne"
           }
         }
       }
@@ -421,6 +421,36 @@
         }
       }
     },
+    "Auto-armed while Claude Code and Codex work": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant que Claude Code et Codex travaillent"
+          }
+        }
+      }
+    },
+    "Auto-armed while Codex and a command run": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant que Codex et une commande tournent"
+          }
+        }
+      }
+    },
+    "Auto-armed while Claude Code, Codex and a command run": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant que Claude Code, Codex et une commande tournent"
+          }
+        }
+      }
+    },
     "Auto-armed": {
       "localizations": {
         "fr": {
@@ -437,6 +467,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Activé automatiquement tant que Claude Code travaille"
+          }
+        }
+      }
+    },
+    "Auto-armed while Codex works": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant que Codex travaille"
           }
         }
       }
@@ -621,12 +661,32 @@
         }
       }
     },
-    "Claude Code: %d, commands: %d": {
+    "Codex": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude Code : %d, commandes : %d"
+            "value": "Codex"
+          }
+        }
+      }
+    },
+    "Codex hooks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivi de Codex"
+          }
+        }
+      }
+    },
+    "Claude Code: %d, Codex: %d, commands: %d": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code : %d, Codex : %d, commandes : %d"
           }
         }
       }
@@ -801,6 +861,16 @@
         }
       }
     },
+    "Last Codex event": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernier événement de Codex"
+          }
+        }
+      }
+    },
     "Last one %@": {
       "localizations": {
         "fr": {
@@ -931,6 +1001,16 @@
         }
       }
     },
+    "Set up Codex on the Auto-Arm page.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurez Codex dans la page Activation auto."
+          }
+        }
+      }
+    },
     "Set up the sleep lock on the System page. It asks for your administrator password once.": {
       "localizations": {
         "fr": {
@@ -1041,12 +1121,12 @@
         }
       }
     },
-    "Close the MacBook and walk away: Claude Code, builds, servers and downloads keep running on a dark, silent display. Open the lid and your Mac locks.": {
+    "Close the MacBook and walk away: Claude Code, Codex, builds, servers and downloads keep running on a dark, silent display. Open the lid and your Mac locks.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rabattez l’écran et partez : Claude Code, vos builds, serveurs et téléchargements continuent sur un écran noir et silencieux. Rouvrez-le et votre Mac se verrouille."
+            "value": "Rabattez l’écran et partez : Claude Code, Codex, vos builds, serveurs et téléchargements continuent sur un écran noir et silencieux. Rouvrez-le et votre Mac se verrouille."
           }
         }
       }
@@ -1387,6 +1467,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "KoffeeLid ajoute ses hooks à ~/.claude/settings.json, après en avoir fait une copie. L’attente vous laisse le temps de reprendre une session depuis un autre appareil : toucher au clavier ou au trackpad de ce Mac y met fin aussitôt."
+          }
+        }
+      }
+    },
+    "KoffeeLid adds its hooks to ~/.codex/hooks.json, marks them trusted in ~/.codex/config.toml, and backs both files up first. The wait leaves you time to pick a session up from another device: touching this Mac's keyboard or trackpad ends it at once.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ajoute ses hooks à ~/.codex/hooks.json et les marque comme fiables dans ~/.codex/config.toml, après avoir fait une copie des deux fichiers. L’attente vous laisse le temps de reprendre une session depuis un autre appareil : toucher au clavier ou au trackpad de ce Mac y met fin aussitôt."
           }
         }
       }
@@ -1911,12 +2001,12 @@
         }
       }
     },
-    "Optional. Let KoffeeLid arm itself while Claude Code or a terminal command is running, and disarm a minute after nothing is. Setting up either turns auto-arm on; both can be changed later in Settings.": {
+    "Optional. Let KoffeeLid arm itself while Claude Code, Codex or a terminal command is running, and disarm a minute after nothing is. Setting up any of them turns auto-arm on; all three can be changed later in Settings.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Facultatif. Laissez KoffeeLid s’activer tout seul quand Claude Code ou une commande du terminal tourne, et se désactiver une minute après que plus rien ne tourne. Configurer l’un ou l’autre active cette option ; tout se modifie ensuite dans Réglages."
+            "value": "Facultatif. Laissez KoffeeLid s’activer tout seul quand Claude Code, Codex ou une commande du terminal tourne, et se désactiver une minute après que plus rien ne tourne. Configurer l’un d’eux active cette option ; les trois se modifient ensuite dans Réglages."
           }
         }
       }
@@ -2101,6 +2191,16 @@
         }
       }
     },
+    "Remove from Codex": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer de Codex"
+          }
+        }
+      }
+    },
     "Remove from the Terminal": {
       "localizations": {
         "fr": {
@@ -2271,6 +2371,16 @@
         }
       }
     },
+    "Set Up Codex": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurer Codex"
+          }
+        }
+      }
+    },
     "Set Up Sleep Lock…": {
       "localizations": {
         "fr": {
@@ -2301,12 +2411,12 @@
         }
       }
     },
-    "Set up Claude Code or the terminal below. Until then, KoffeeLid cannot tell when work is running.": {
+    "Set up Claude Code, Codex or the terminal below. Until then, KoffeeLid cannot tell when work is running.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Configurez Claude Code ou le terminal ci-dessous. D’ici là, KoffeeLid ne peut pas savoir quand du travail tourne."
+            "value": "Configurez Claude Code, Codex ou le terminal ci-dessous. D’ici là, KoffeeLid ne peut pas savoir quand du travail tourne."
           }
         }
       }
@@ -2511,6 +2621,16 @@
         }
       }
     },
+    "Stay armed after Codex finishes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rester activé après la fin de Codex"
+          }
+        }
+      }
+    },
     "Stay armed after a command finishes": {
       "localizations": {
         "fr": {
@@ -2557,6 +2677,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Indique à KoffeeLid quand une session Claude Code travaille : il s’active pendant que vous fermez l’écran et se désactive une fois le tour terminé. Ajoute des hooks à ~/.claude/settings.json (sauvegardé d’abord)."
+          }
+        }
+      }
+    },
+    "Tells KoffeeLid when a Codex session is working, so it arms while you close the lid and disarms once the turn is over. Adds hooks to ~/.codex/hooks.json and marks them trusted in ~/.codex/config.toml (both backed up first).": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indique à KoffeeLid quand une session Codex travaille : il s’active pendant que vous fermez l’écran et se désactive une fois le tour terminé. Ajoute des hooks à ~/.codex/hooks.json et les marque comme fiables dans ~/.codex/config.toml (les deux fichiers sont sauvegardés d’abord)."
           }
         }
       }
@@ -3101,6 +3231,16 @@
         }
       }
     },
+    "~/.codex/hooks.json or ~/.codex/config.toml could not be read": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~/.codex/hooks.json ou ~/.codex/config.toml n’a pas pu être lu"
+          }
+        }
+      }
+    },
     "“Disarm once finished” in the menu also ends your own arm, one minute after the work is over.": {
       "localizations": {
         "fr": {
@@ -3141,12 +3281,12 @@
         }
       }
     },
-    "Removes everything KoffeeLid set up outside its own folder: what starts it at login, what lets it hold the Mac awake, what it added to Claude Code and to the shell, and its settings and logs. KoffeeLid then moves itself to the Trash and quits.": {
+    "Removes everything KoffeeLid set up outside its own folder: what starts it at login, what lets it hold the Mac awake, what it added to Claude Code, to Codex and to the shell, and its settings and logs. KoffeeLid then moves itself to the Trash and quits.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Retire tout ce que KoffeeLid a installé hors de son propre dossier : ce qui le lance à l’ouverture de session, ce qui lui permet de garder le Mac allumé, ce qu’il a ajouté à Claude Code et au shell, ainsi que ses réglages et ses journaux. KoffeeLid se met ensuite à la corbeille et quitte."
+            "value": "Retire tout ce que KoffeeLid a installé hors de son propre dossier : ce qui le lance à l’ouverture de session, ce qui lui permet de garder le Mac allumé, ce qu’il a ajouté à Claude Code, à Codex et au shell, ainsi que ses réglages et ses journaux. KoffeeLid se met ensuite à la corbeille et quitte."
           }
         }
       }
@@ -3161,12 +3301,12 @@
         }
       }
     },
-    "KoffeeLid stops holding the Mac awake, gives back the permissions it was granted, removes what starts it at login, what it added to Claude Code and to the shell, and its settings and logs. It then moves itself to the Trash and quits. Removing the sleep lock asks for an administrator password.": {
+    "KoffeeLid stops holding the Mac awake, gives back the permissions it was granted, removes what starts it at login, what it added to Claude Code, to Codex and to the shell, and its settings and logs. It then moves itself to the Trash and quits. Removing the sleep lock asks for an administrator password.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "KoffeeLid cesse de garder le Mac allumé, rend les autorisations qui lui ont été accordées, retire ce qui le lance à l’ouverture de session, ce qu’il a ajouté à Claude Code et au shell, ainsi que ses réglages et ses journaux. Il se met ensuite à la corbeille et quitte. Le retrait du verrou de veille demande un mot de passe administrateur."
+            "value": "KoffeeLid cesse de garder le Mac allumé, rend les autorisations qui lui ont été accordées, retire ce qui le lance à l’ouverture de session, ce qu’il a ajouté à Claude Code, à Codex et au shell, ainsi que ses réglages et ses journaux. Il se met ensuite à la corbeille et quitte. Le retrait du verrou de veille demande un mot de passe administrateur."
           }
         }
       }
@@ -3217,6 +3357,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Les hooks Claude Code n’ont pas pu être retirés : %@"
+          }
+        }
+      }
+    },
+    "The Codex hooks could not be removed: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les hooks Codex n’ont pas pu être retirés : %@"
           }
         }
       }

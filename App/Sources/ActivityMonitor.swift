@@ -3,19 +3,27 @@ import KoffeeLidCore
 
 struct ActivitySnapshot: Equatable {
     var running = false
-    var workingSessions = 0
+    var claudeSessions = 0
+    var codexSessions = 0
     var runningJobs = 0
+    var workingSessions: Int { claudeSessions + codexSessions }
     /// The kinds with something running, for `ActivityArmPolicy`.
-    var kinds: Set<ActivityKind> { Set((workingSessions > 0 ? [ActivityKind.claude] : []) + (runningJobs > 0 ? [.terminal] : [])) }
-    /// For the status line and the Advanced page. Not localized: it is CLI/log text.
+    var kinds: Set<ActivityKind> {
+        var kinds: Set<ActivityKind> = []
+        if claudeSessions > 0 { kinds.insert(.claude) }
+        if codexSessions > 0 { kinds.insert(.codex) }
+        if runningJobs > 0 { kinds.insert(.terminal) }
+        return kinds
+    }
+    /// For the status line and the log. Not localized: it is CLI/log text.
     var summary: String {
         let s = workingSessions == 1 ? "1 session working" : "\(workingSessions) sessions working"
         let j = runningJobs == 1 ? "1 command" : "\(runningJobs) commands"
-        return "\(s), \(j)"
+        return "\(s) (Claude Code \(claudeSessions), Codex \(codexSessions)), \(j)"
     }
 }
 
-/// Owns the two stores; tails the activity journal; watches Claude and shell pids; runs the time rules and
+/// Owns the two stores; tails the activity journal; watches agent and shell pids; runs the time rules and
 /// the registry rescues; reports the aggregate "running" level to the coordinator. Main thread only.
 @MainActor
 final class ActivityMonitor {
@@ -23,9 +31,10 @@ final class ActivityMonitor {
     var onLog: ((String) -> Void)?
     var jobArmAfterSeconds: Double = ActivityConstants.jobArmAfterDefaultSeconds
     private(set) var snapshot = ActivitySnapshot()
-    /// The last Claude Code hook event and the last terminal command event this monitor took in, from this
-    /// boot's replay onwards: the Health page's proof that each hook still reports.
+    /// The last Claude Code hook event, the last Codex hook event and the last terminal command event this
+    /// monitor took in, from this boot's replay onwards: the Health page's proof that each hook still reports.
     private(set) var lastClaudeEvent: HookEventSeen?
+    private(set) var lastCodexEvent: HookEventSeen?
     private(set) var lastTerminalEventAt: Date?
 
     private var sessions = ActivitySessionStore()
@@ -52,7 +61,7 @@ final class ActivityMonitor {
         let replayed = (ActivityJournalWriter.readAll(url: AppSupport.activityJournalRotatedURL) + currentEvents)
             .filter { $0.loggedAt >= boot }
         ingest(replayed)
-        sessions.pruneDead { ProcWalk.isAlive(pid: $0) && ProcWalk.looksLikeClaude(pid: $0) }
+        sessions.pruneDead { pid, agent in ProcWalk.isAlive(pid: pid) && ProcWalk.looksLike(agent, pid: pid) }
         for job in jobs.jobs.values { if let pid = job.ownerPid, !ProcWalk.isAlive(pid: pid) { jobs.processExited(pid: pid) } }
         onLog?("activity: replayed \(replayed.count) events, \(sessions.sessions.count) sessions, \(jobs.jobs.count) jobs")
         rotateIfNeeded()
@@ -105,8 +114,10 @@ final class ActivityMonitor {
         case .jobBegin, .jobEnd:
             if lastTerminalEventAt.map({ e.loggedAt > $0 }) ?? true { lastTerminalEventAt = e.loggedAt }
         default:
-            if lastClaudeEvent.map({ e.loggedAt > $0.at }) ?? true {
-                lastClaudeEvent = HookEventSeen(name: e.event.rawValue, at: e.loggedAt)
+            let seen = HookEventSeen(name: e.event.rawValue, at: e.loggedAt)
+            switch e.effectiveAgent {
+            case .claude: if lastClaudeEvent.map({ e.loggedAt > $0.at }) ?? true { lastClaudeEvent = seen }
+            case .codex: if lastCodexEvent.map({ e.loggedAt > $0.at }) ?? true { lastCodexEvent = seen }
             }
         }
     }
@@ -137,7 +148,8 @@ final class ActivityMonitor {
 
     private func publish(now: Date) {
         let new = ActivitySnapshot(running: sessions.isRunning || jobs.isRunning(at: now),
-                                   workingSessions: sessions.workingCount, runningJobs: jobs.runningCount(at: now))
+                                   claudeSessions: sessions.workingCount(of: .claude), codexSessions: sessions.workingCount(of: .codex),
+                                   runningJobs: jobs.runningCount(at: now))
         guard new != snapshot else { return }
         if new.running != snapshot.running { onLog?(new.running ? "activity: running (\(new.summary))" : "activity: idle") }
         snapshot = new
@@ -154,7 +166,8 @@ final class ActivityMonitor {
         timer = t
     }
 
-    /// Esc/Ctrl-C fire no hook: ask Claude Code's own registry about quiet turns and open dialogs.
+    /// Esc/Ctrl-C fire no hook in Claude Code: ask its own registry about quiet turns and open dialogs. The
+    /// store hands over Claude Code sessions only; Codex fires Interrupt instead and has no registry.
     private func checkRegistry(now: Date) {
         for (sid, pid) in sessions.abandonCandidates(at: now) {
             guard let record = ClaudeProcessRegistry.read(pid: pid), record.sessionId == sid else {
