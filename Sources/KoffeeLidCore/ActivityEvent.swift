@@ -40,12 +40,12 @@ public enum ActivityEventName: String, Codable, Equatable {
     }
 }
 
-/// One trimmed journal line. Bodies (tool input/output, prompts, messages) never reach this type.
 /// What a `KoffeeLidVerdict` line says: the rescue that decided it found the turn over, or the dialog answered.
 public enum ActivityVerdict: String, Equatable, CaseIterable, Sendable {
     case turnOver = "turn-over", dialogAnswered = "dialog-answered"
 }
 
+/// One trimmed journal line. Bodies (tool input/output, prompts, messages) never reach this type.
 public struct ActivityEvent: Codable, Equatable {
     public var loggedAt: Date
     public var event: ActivityEventName

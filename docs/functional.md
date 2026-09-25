@@ -123,8 +123,8 @@ up any of the three hooks from that page or from the onboarding turns it on.
   `zsh -f -i`); a shell that runs a script (`bash build.sh`, `sh -c '…'`, `zsh script.zsh`) counts. A shell
   that re-reads the snippet, or is replaced by `exec`, ends the job it was running; the snippet releases the
   shell's slot when it loads. While a command runs, its shell is asked every 15 s whether it still runs one: a
-  shell gone ends the job at once (kqueue), and so does a shell pid now held by a process started after the
-  command began; a shell back at its prompt with no child it started since the job began, for 5 s, ends it,
+  shell gone ends the job at once (kqueue); a shell pid now held by a process started after the command began
+  (a recycled pid) ends it at the next ask, within 15 s, and at launch before the first count; a shell back at its prompt with no child it started since the job began, for 5 s, ends it,
   the end having been lost (a child older than the job, such as Powerlevel10k's `gitstatusd` or an earlier `&`
   job, says nothing about it); a shell replaced by its program is kept until that program exits; a job without
   a shell pid is dropped after 2 h. At launch each replayed job's shell is asked once before anything counts:

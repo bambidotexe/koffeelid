@@ -312,6 +312,21 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **What the code does.** A `waiting` session whose registry record says `busy`, stamped at least 2 s after the
   wait began, goes back to `working`.
 
+### A replayed line can void the verdict that ended its turn
+- **Symptom.** After a relaunch, a turn a rescue had ended live counts as working again: a Codex turn until
+  the launch's rollout check, a Claude Code turn until the registry's stamp moves past the replayed line.
+- **Why.** A verdict line carries the moment the turn ended (`rescueStamp`) and is written when the rescue
+  runs. A main-agent line stamped a few milliseconds after that moment, but delivered to the monitor after
+  the verdict was applied, sits ahead of the verdict line in the journal. Live, it met a closed turn and
+  changed nothing; on replay, in file order, it becomes the session's last main-agent event first, and the
+  verdict, stamped before it, is overtaken and changes nothing.
+- **What the code does.** Nothing special: the window is the milliseconds between the hook's write and the
+  tailer's delivery. Codex recovers through the rollout, whose end marker names the turn id and ends the turn
+  whatever the stamps; Claude Code waits for the registry, whose `idle` counts only once stamped after the
+  replayed line.
+- **Do not** let a verdict apply over a later main-agent event to close the gap: that rule is what keeps a
+  stale verdict from ending a live turn.
+
 ### Another process's environment cannot be read
 - **Symptom.** Under a relocated `CLAUDE_CONFIG_DIR` (an account switcher such as cswap), every Claude Code turn
   ended with Esc or Ctrl-C stays working for 2 h, and the log carries `activity: no registry record for pid …`.
@@ -333,9 +348,14 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **Do not** replace the journal with a socket.
 
 ### A hook payload is untrusted input
-- **What the code does.** `ActivityTrim` accepts only Claude Code's event names (a payload cannot forge
-  `JobBegin`/`JobEnd`), keeps identifiers only, caps stdin at 8 MB, identifiers at 200 characters, labels at
-  60, the raw prefix of an unparseable payload at 300, and the line at 4 KB.
+- **What the code does.** `ActivityTrim` accepts only the agent's own event names (a payload cannot forge
+  `JobBegin`/`JobEnd` or a `KoffeeLidVerdict`), keeps identifiers only and, beside them, the transcript path,
+  caps stdin at 8 MB, identifiers at 200 characters, the transcript path at 1024, labels at 60, the raw prefix
+  of an unparseable payload at 300, and the line at 4 KB. The path is read only once validated: a Codex
+  rollout only under `~/.codex/sessions/<y>/<m>/<d>/` and named after the session
+  (`CodexRolloutTail.isInSessions`, `isRollout`), a Claude Code config directory only from an absolute path
+  with no `.` or `..` component and a `projects` folder above the file's own
+  (`ClaudeRegistryRecord.configDir(fromTranscriptPath:)`).
 
 ### `~/.claude/settings.json` and `~/.zshrc` belong to the user
 - **What the code does.** Strict load (any ambiguity is an error, never a guess), backup to
