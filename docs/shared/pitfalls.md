@@ -484,3 +484,36 @@ Every number was measured on an M-series Mac running macOS 27.0 (build 26A428).
   enables the tap, nothing enabled from a callback, the order of a teardown. Each check is shown to fail
   against a copy of the code with its net removed, and one that fails because code moved is moved with the
   code, never loosened (shiftpick's `SafetyNetTests`). (shiftpick)
+
+## Agent hooks and the shell
+
+### H1. A hook can fire for a turn that is already over
+- **Symptom.** A Codex session read as working after Ctrl-C, until Codex was quit: the Mac stayed armed, the
+  strip kept rolling.
+- **Why.** Codex reports a tool's end when its process really ends, which can be seconds or minutes after the
+  turn was aborted; the `Interrupt` had already closed the turn, and a state machine that maps any
+  `PostToolUse` to "working" reopened it with nothing left to close it, because `Stop` runs only on a
+  completed turn.
+- **What holds.** Every event carries its turn's id (Claude Code `prompt_id`, Codex `turn_id`); an
+  `Interrupt` or a verdict closes the turn; an event that names a closed turn only proves the hook alive. A
+  `Stop` ends a turn without closing it, since a Stop hook that blocks it keeps the same turn running.
+  (koffeelid, my-sidepulse)
+
+### H2. A long-lived host pid proves nothing about one session
+- **Why.** Codex's TUI runs its sessions through a managed daemon (`codex app-server --managed-daemon`, one
+  per user, parented by launchd, alive across every TUI) and the desktop app through its own shared
+  app-server: the pid a hook records is the host's, so watching it for death, or keeping a session because
+  it is alive, says nothing about that session. Only `codex exec` records a process of its own.
+- **What holds.** Ask the source of truth instead: the session's rollout file (`transcript_path`, whose
+  `task_complete` / `turn_aborted` markers name the turn) and, for the managed daemon only, `thread/read` on
+  its control socket. A pid on a shared host is kept by the launch prune and decided by those.
+  (koffeelid, my-sidepulse)
+
+### H3. A shell snippet's state does not survive its own re-reading
+- **Symptom.** `source ~/.zshrc` or `exec zsh` while a command was recorded left a job that never ended.
+- **Why.** `typeset -g var=` is an assignment: re-reading the snippet mid-command empties it, and `precmd`
+  then ends nothing.
+- **What holds.** Declare without assigning (`(( ${+var} )) || typeset -g var=`), release the shell's slot
+  when the snippet loads in an interactive shell, and let the app ask the shell itself: a shell at its
+  prompt owns its tty's foreground process group (`e_tpgid == e_pgid`) and has no child it started since the
+  job began (Powerlevel10k keeps a `gitstatusd` child under every shell). (koffeelid, my-sidepulse)
