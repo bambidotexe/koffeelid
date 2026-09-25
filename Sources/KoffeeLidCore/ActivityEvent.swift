@@ -46,6 +46,9 @@ public struct ActivityEvent: Codable, Equatable {
     public var sessionId: String?
     public var agentId: String?
     public var toolName: String?
+    /// The turn the event belongs to: Codex's `turn_id`, Claude Code's `prompt_id`. Nil on SessionStart,
+    /// SessionEnd and lines written before the field.
+    public var turnId: String?
     public var notificationType: String?
     public var source: String?
     public var backgroundTaskIds: [String]?
@@ -62,7 +65,7 @@ public struct ActivityEvent: Codable, Equatable {
     public var effectiveAgent: ActivityAgent { agent ?? .claude }
 
     enum CodingKeys: String, CodingKey {
-        case loggedAt = "logged_at", event, agent, sessionId = "session_id", agentId = "agent_id", toolName = "tool_name"
+        case loggedAt = "logged_at", event, agent, sessionId = "session_id", agentId = "agent_id", toolName = "tool_name", turnId = "turn_id"
         case notificationType = "notification_type", source, backgroundTaskIds = "background_task_ids"
         case agentPid = "agent_pid", rawPrefix = "raw_prefix", jobId = "job_id", jobPid = "job_pid"
         case jobLabel = "job_label", jobArmAfterSeconds = "job_arm_after_seconds"
@@ -78,6 +81,7 @@ public struct ActivityEvent: Codable, Equatable {
         sessionId = try c.decodeIfPresent(String.self, forKey: .sessionId)
         agentId = try c.decodeIfPresent(String.self, forKey: .agentId)
         toolName = try c.decodeIfPresent(String.self, forKey: .toolName)
+        turnId = try c.decodeIfPresent(String.self, forKey: .turnId)
         notificationType = try c.decodeIfPresent(String.self, forKey: .notificationType)
         source = try c.decodeIfPresent(String.self, forKey: .source)
         backgroundTaskIds = try c.decodeIfPresent([String].self, forKey: .backgroundTaskIds)

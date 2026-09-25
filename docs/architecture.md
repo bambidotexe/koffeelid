@@ -269,8 +269,8 @@ every Claude Code turn, every Codex turn and every shell command, so it must sta
 and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
 Codex), never the payload: both agents send the same event names.
 
-`ActivityTrim` reduces a hook payload to event name, session id, agent id, tool name, notification type,
-source and background task ids, stamps it with the agent, caps every field and the line (4 KB), and turns
+`ActivityTrim` reduces a hook payload to event name, session id, agent id, tool name, turn id (Codex's
+`turn_id`, else Claude Code's `prompt_id`), notification type, source and background task ids, stamps it with the agent, caps every field and the line (4 KB), and turns
 anything unparseable, or any name outside that agent's events (`ActivityEventName.claudeCodeEvents`,
 `codexEvents`), into a `ParseError` line. Each line carries the pid of the nearest ancestor running its agent
 (`ProcWalk.pid(of:inChainFrom:)`; a Codex started from a Claude Code tool call has both in its chain).
@@ -288,8 +288,17 @@ anything unparseable, or any name outside that agent's events (`ActivityEventNam
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |
 | `Interrupt` (Codex only) | `done`, helpers and background ids cleared: Esc ended everything |
 | `Notification` `idle_prompt` / `agent_needs_input`, state `working`, 50 s of main-agent quiet | treated as a lost `Stop` |
+| `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied` of a closed turn | unchanged (liveness only) |
 | helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`), and the next helper event ends that wait; a helper active after `done` reopens it |
 | `SessionEnd`, process exit | session removed |
+
+Turns: a main-agent `UserPromptSubmit` opens its turn (`openTurnId`, whatever id it carries); a `Stop`, an
+`Interrupt`, the lost-`Stop` notification and `turnOver` close it (`closeTurn`: the id joins `closedTurnIds`,
+the last 8, and `closedByInterrupt`/`interruptedAt` record whether an `Interrupt` did it). Before the table
+applies, `changesNothing` sets aside, after refreshing `lastEventAt` and before `lastMainEventAt`: every
+main-agent event of a closed turn but a `SessionStart`, a `SessionEnd` or a prompt; a helper event of a turn an
+`Interrupt` closed; and, for 120 s after an `Interrupt` (`abortQuarantineSeconds`), a main-agent tool or
+permission event with no turn id. A line without a turn id otherwise meets the table as it is.
 
 Time rules (`tick`): a helper counts as live for 240 s after its last event; a held `Stop` becomes `done` 90 s
 after everything cleared, or 30 min after the last event; `done` becomes `idle` after 20 min; a session silent

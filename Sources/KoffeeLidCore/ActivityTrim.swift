@@ -20,6 +20,7 @@ public enum ActivityTrim {
         e.sessionId = clamp(obj["session_id"])
         e.agentId = clamp(obj["agent_id"])
         e.toolName = clamp(obj["tool_name"])
+        e.turnId = clamp(obj["turn_id"]) ?? clamp(obj["prompt_id"])
         e.notificationType = clamp(obj["notification_type"])
         e.source = clamp(obj["source"])
         if let tasks = obj["background_tasks"] { e.backgroundTaskIds = taskIds(tasks) }

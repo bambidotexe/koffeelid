@@ -33,6 +33,9 @@ public enum ActivityConstants {
     /// there; Codex fires Interrupt and has no registry).
     public static let abandonQuietSeconds: TimeInterval = 20
     public static let abandonRecheckSeconds: TimeInterval = 15
+    /// After an `Interrupt`, a tool or permission line without a turn id changes nothing for this long. Codex
+    /// reported a tool's end 13 s after the abort on 2026-09-25; 120 s covers a process that ignores SIGTERM.
+    public static let abortQuarantineSeconds: TimeInterval = 120
     /// Registry busy but no hook for this long: hooks for that session are dead; log once.
     public static let hooksSilentWarnSeconds: TimeInterval = 300
     /// A registry stamp this much newer than a dialog's start means the dialog was answered without a hook.

@@ -20,6 +20,14 @@ public struct ActivitySession: Equatable {
     public var pendingDone = false
     public var holdReleasedAt: Date?
     public var waitingFromAgent = false
+    /// The turn the last main-agent prompt opened; nil once it closes.
+    public var openTurnId: String?
+    /// The last `ActivitySessionStore.closedTurnsKept` turns closed by a Stop, an Interrupt or a verdict.
+    public var closedTurnIds: [String] = []
+    /// The last turn closed was closed by an `Interrupt`, which ended its helpers.
+    public var closedByInterrupt = false
+    /// When the last turn was closed by an `Interrupt`; starts the quarantine for lines without a turn id.
+    public var interruptedAt: Date?
 
     public init(id: String, at now: Date) { self.id = id; stateSince = now; lastEventAt = now; lastMainEventAt = now }
 
@@ -56,6 +64,7 @@ public struct ActivitySessionStore {
         s.agent = agent
         s.lastEventAt = now
         if let pid = e.agentPid { s.agentPid = pid }
+        if Self.changesNothing(e, in: s) { sessions[sid] = s; return } // liveness only
 
         if let agentId = e.agentId {
             // Helper events maintain the registry and never speak for the main agent — except that a helper
@@ -76,6 +85,8 @@ public struct ActivitySessionStore {
         if let bg = e.backgroundTaskIds { s.backgroundIds = Set(bg) }
         if e.event != .notification { s.lastMainEventAt = now }
 
+        if e.event == .userPromptSubmit { s.openTurnId = e.turnId; s.closedByInterrupt = false; s.interruptedAt = nil }
+
         switch e.event {
         case .sessionStart:
             if e.source != "compact" { s.liveAgents.removeAll(); s.backgroundIds.removeAll() }
@@ -95,14 +106,15 @@ public struct ActivitySessionStore {
                 // A timer, not a request. Its one use: the machine still believes the turn runs, so the Stop was lost.
                 guard s.state == .working, !s.pendingDone,
                       now.timeIntervalSince(s.lastMainEventAt) >= ActivityConstants.idleSignalMinQuietSeconds else { break }
-                applyStopVerdict(&s, now: now)
+                applyStopVerdict(&s, now: now); closeTurn(&s, byInterrupt: false, now: now)
             default: break
             }
         case .stop:
-            clearPending(&s); applyStopVerdict(&s, now: now)
+            clearPending(&s); applyStopVerdict(&s, now: now); closeTurn(&s, byInterrupt: false, now: now)
         case .interrupt:
             // Esc in Codex ends the turn and its helpers at once; nothing is left out to hold it.
             s.liveAgents.removeAll(); s.backgroundIds.removeAll(); clearPending(&s); set(&s, .done, now)
+            closeTurn(&s, byInterrupt: true, now: now)
         case .sessionEnd, .subagentStart, .subagentStop, .parseError, .jobBegin, .jobEnd:
             break // handled above, or helper shapes without agent_id, which carry no signal
         }
@@ -110,6 +122,30 @@ public struct ActivitySessionStore {
         sessions[sid] = s
     }
 
+    /// How many closed turns a session remembers: a late line names the turn just closed, seldom an older one.
+    static let closedTurnsKept = 8
+    /// The tool and permission events a tool Codex aborted can still send after the turn closed.
+    static let lateToolEvents: Set<ActivityEventName> = [.preToolUse, .postToolUse, .postToolUseFailure, .permissionRequest, .permissionDenied]
+
+    /// An event that only proves the hook alive: a main-agent event of a closed turn (a prompt, a start or an
+    /// end always counts), a helper event of a turn an `Interrupt` closed (it ended the helpers), or a
+    /// main-agent tool or permission event without a turn id inside the quarantine after an `Interrupt`.
+    static func changesNothing(_ e: ActivityEvent, in s: ActivitySession) -> Bool {
+        let ofClosedTurn = e.turnId.map(s.closedTurnIds.contains) ?? false
+        if e.agentId != nil { return ofClosedTurn && s.closedByInterrupt }
+        if [.sessionStart, .sessionEnd, .userPromptSubmit].contains(e.event) { return false }
+        if ofClosedTurn { return true }
+        guard e.turnId == nil, lateToolEvents.contains(e.event), let interruptedAt = s.interruptedAt else { return false }
+        return e.loggedAt.timeIntervalSince(interruptedAt) < ActivityConstants.abortQuarantineSeconds
+    }
+    /// A Stop, an Interrupt or a verdict that the turn is over closes the open turn for good.
+    func closeTurn(_ s: inout ActivitySession, byInterrupt: Bool, now: Date) {
+        if let open = s.openTurnId {
+            s.closedTurnIds.append(open)
+            if s.closedTurnIds.count > Self.closedTurnsKept { s.closedTurnIds.removeFirst(s.closedTurnIds.count - Self.closedTurnsKept) }
+        }
+        s.openTurnId = nil; s.closedByInterrupt = byInterrupt; s.interruptedAt = byInterrupt ? now : nil
+    }
     /// The finish line, shared by Stop and the lost-Stop rescues: done if nothing is still out, held otherwise.
     func applyStopVerdict(_ s: inout ActivitySession, now: Date) {
         if !s.hasLiveHelpers(at: now) && s.backgroundIds.isEmpty { set(&s, .done, now) }
@@ -180,10 +216,10 @@ public struct ActivitySessionStore {
             return (s.id, pid)
         }
     }
-    /// The registry says idle, stamped after our last event: the turn is over, however it ended.
+    /// The registry says idle, stamped after our last event: the turn is over, however it ended, and closed.
     public mutating func turnOver(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .working, !s.pendingDone else { return }
-        set(&s, .done, now); sessions[sessionId] = s
+        set(&s, .done, now); closeTurn(&s, byInterrupt: false, now: now); sessions[sessionId] = s
     }
     /// The registry says busy: Claude is running even though no hook arrived. Liveness only —
     /// `lastMainEventAt` keeps measuring true hook silence.

@@ -378,6 +378,20 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **What the code does.** Those two entries are written with `timeout: 3`, the others with 5. A larger value
   would draw a warning on every Codex start and be hashed as 3 anyway.
 
+### Codex reports a tool's end after the turn was aborted
+- **Symptom.** A Codex session stays working after Ctrl-C (or Esc) until Codex is quit: `koffeelid status`
+  counts it, and no `activity: idle` line follows the `Interrupt`.
+- **Why.** The `Interrupt` hook fires at the abort, but the tool's process ends later, and Codex fires
+  `PostToolUse` for it then, 13 s later in the journal of 2026-09-25, under the aborted turn's `turn_id`. That
+  line looks like work, and nothing ends it again: Codex runs `Stop` only when a turn completes normally, never
+  after an abort.
+- **What the code does.** Every line keeps its turn id (`ActivityEvent.turnId`, from `turn_id` or Claude Code's
+  `prompt_id`). The `Interrupt` closes the turn, and a tool or permission event naming a closed turn only
+  refreshes the session's liveness (`ActivitySessionStore.changesNothing`); a new prompt opens a new turn. For
+  120 s after an `Interrupt`, a tool or permission line without a turn id is set aside the same way.
+- **Do not** end the quarantine at the next tool event, or drop the turn id to save bytes: the late line is
+  indistinguishable from real work by anything else it carries.
+
 ## Working on this Mac
 
 - **The installed app is the daily driver.** `AppleClamshellCausesSleep = No` is usually its arm. Run

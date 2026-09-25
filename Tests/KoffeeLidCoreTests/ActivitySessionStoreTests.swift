@@ -6,10 +6,10 @@ final class ActivitySessionStoreTests: XCTestCase {
     var store = ActivitySessionStore()
 
     func ev(_ name: ActivityEventName, _ sid: String = "s1", at dt: TimeInterval = 0, tool: String? = nil, agent: String? = nil,
-            notif: String? = nil, source: String? = nil, bg: [String]? = nil, pid: Int32? = 100, by: ActivityAgent? = nil) -> ActivityEvent {
+            notif: String? = nil, source: String? = nil, bg: [String]? = nil, pid: Int32? = 100, by: ActivityAgent? = nil, turn: String? = nil) -> ActivityEvent {
         var e = ActivityEvent(loggedAt: t0.addingTimeInterval(dt), event: name)
         e.sessionId = sid; e.toolName = tool; e.agentId = agent; e.notificationType = notif; e.source = source
-        e.backgroundTaskIds = bg; e.agentPid = pid; e.agent = by
+        e.backgroundTaskIds = bg; e.agentPid = pid; e.agent = by; e.turnId = turn
         return e
     }
     func state(_ sid: String = "s1") -> ActivitySessionState? { store.sessions[sid]?.state }
@@ -134,5 +134,90 @@ final class ActivitySessionStoreTests: XCTestCase {
         var asked: [ActivityAgent] = []
         store.pruneDead { _, agent in asked.append(agent); return agent == .codex }
         XCTAssertEqual(Set(asked), [.claude, .codex]); XCTAssertEqual(Set(store.sessions.keys), ["c1"])
+    }
+
+    // MARK: Turn identity
+
+    func testALatePostToolUseOfAnAbortedCodexTurnDoesNotReopenIt() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.preToolUse, "c1", at: 1, tool: "Bash", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.interrupt, "c1", at: 10, pid: 300, by: .codex, turn: "t1"))
+        XCTAssertEqual(state("c1"), .done); XCTAssertFalse(store.isRunning)
+        store.apply(ev(.postToolUse, "c1", at: 23, tool: "Bash", pid: 300, by: .codex, turn: "t1"))
+        XCTAssertEqual(state("c1"), .done, "the end of the tool Codex aborted does not reopen the turn"); XCTAssertFalse(store.isRunning)
+        XCTAssertEqual(store.sessions["c1"]?.lastEventAt, t0.addingTimeInterval(23), "the hook is alive")
+    }
+    func testAToolEventOfAClosedTurnRefreshesLivenessOnly() {
+        store.apply(ev(.userPromptSubmit, turn: "t1")); store.apply(ev(.stop, at: 5, turn: "t1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.postToolUse, at: 30, tool: "Bash", turn: "t1"))
+        XCTAssertEqual(state(), .done)
+        XCTAssertEqual(store.sessions["s1"]?.lastEventAt, t0.addingTimeInterval(30))
+        XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0.addingTimeInterval(5), "the turn's quiet keeps counting from its Stop")
+        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["t1"]); XCTAssertNil(store.sessions["s1"]?.openTurnId)
+    }
+    func testANewPromptOpensANewTurnAfterAnInterrupt() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.interrupt, "c1", at: 1, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.userPromptSubmit, "c1", at: 2, pid: 300, by: .codex, turn: "t2")); XCTAssertEqual(state("c1"), .working)
+        XCTAssertEqual(store.sessions["c1"]?.openTurnId, "t2"); XCTAssertEqual(store.sessions["c1"]?.closedByInterrupt, false)
+        XCTAssertNil(store.sessions["c1"]?.interruptedAt)
+        store.apply(ev(.preToolUse, "c1", at: 3, tool: "Bash", pid: 300, by: .codex, turn: "t2")); XCTAssertEqual(state("c1"), .working)
+    }
+    func testAPromptOpensATurnWhateverIdItCarries() {
+        store.apply(ev(.userPromptSubmit, turn: "t1")); store.apply(ev(.stop, at: 1, turn: "t1"))
+        store.apply(ev(.userPromptSubmit, at: 2, turn: "t1")); XCTAssertEqual(state(), .working, "a prompt always opens a turn")
+    }
+    func testAHelperEventOfAnInterruptedTurnIsIgnored() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.interrupt, "c1", at: 1, pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.preToolUse, "c1", at: 2, tool: "Bash", agent: "h1", pid: 300, by: .codex, turn: "t1"))
+        XCTAssertEqual(state("c1"), .done, "the interrupt ended the helpers"); XCTAssertTrue(store.sessions["c1"]!.liveAgents.isEmpty)
+        XCTAssertEqual(store.sessions["c1"]?.lastEventAt, t0.addingTimeInterval(2))
+    }
+    func testAHelperOfAStoppedTurnStillHoldsIt() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.subagentStart, "c1", at: 1, agent: "h1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.stop, "c1", at: 2, pid: 300, by: .codex, turn: "t1"))
+        XCTAssertEqual(state("c1"), .working, "held behind the helper"); XCTAssertTrue(store.sessions["c1"]!.pendingDone)
+        store.apply(ev(.postToolUse, "c1", at: 3, tool: "Bash", agent: "h1", pid: 300, by: .codex, turn: "t1"))
+        XCTAssertEqual(state("c1"), .working); XCTAssertTrue(store.sessions["c1"]!.pendingDone)
+        XCTAssertEqual(store.sessions["c1"]?.liveAgents["h1"], t0.addingTimeInterval(3), "the helper's report still counts")
+    }
+    func testARegistryVerdictClosesTheTurn() {
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
+        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
+        store.apply(ev(.postToolUse, at: 31, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
+    }
+    func testTheLostStopRescueClosesTheTurn() {
+        store.apply(ev(.userPromptSubmit, turn: "p1"))
+        store.apply(ev(.notification, at: 60, notif: "idle_prompt", turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.postToolUse, at: 61, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
+    }
+    func testOnlyTheLastEightClosedTurnsAreKept() {
+        for i in 0..<10 {
+            store.apply(ev(.userPromptSubmit, at: Double(2 * i), turn: "t\(i)")); store.apply(ev(.stop, at: Double(2 * i + 1), turn: "t\(i)"))
+        }
+        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, (2..<10).map { "t\($0)" })
+    }
+    func testToolEventsWithoutAnIdInTheQuarantineAfterAnInterruptChangeNothing() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))
+        store.apply(ev(.interrupt, "c1", at: 10, pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .done)
+        XCTAssertEqual(store.sessions["c1"]?.interruptedAt, t0.addingTimeInterval(10))
+        store.apply(ev(.postToolUse, "c1", at: 70, tool: "Bash", pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.permissionRequest, "c1", at: 71, tool: "Bash", pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .done)
+        XCTAssertEqual(store.sessions["c1"]?.lastEventAt, t0.addingTimeInterval(71))
+        store.apply(ev(.postToolUse, "c1", at: 131, tool: "Bash", pid: 300, by: .codex)); XCTAssertEqual(state("c1"), .working, "past 120 s the line counts again")
+    }
+    func testLinesWithoutATurnIdKeepTodaysRules() {
+        store.apply(ev(.userPromptSubmit, turn: nil))
+        store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: nil)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.preToolUse, at: 2, tool: "AskUserQuestion", turn: nil)); XCTAssertEqual(state(), .waiting); XCTAssertFalse(store.isRunning)
+        store.apply(ev(.postToolUse, at: 3, tool: "AskUserQuestion", turn: nil)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.preToolUse, at: 4, tool: "ExitPlanMode", turn: nil)); XCTAssertEqual(state(), .waiting)
+        store.apply(ev(.permissionDenied, at: 5, turn: nil)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.permissionRequest, at: 6, tool: "Bash", turn: nil)); XCTAssertEqual(state(), .waiting)
+        store.apply(ev(.postToolUseFailure, at: 7, turn: nil)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.stop, at: 8, turn: nil)); XCTAssertEqual(state(), .done)
+        store.apply(ev(.postToolUse, at: 9, tool: "Bash", turn: nil)); XCTAssertEqual(state(), .working, "without an id a Stop closes nothing a later line could name")
     }
 }

@@ -82,4 +82,14 @@ final class ActivityTrimTests: XCTestCase {
         XCTAssertEqual(ids.count, 16)
         XCTAssertEqual(ids, (0..<16).map { "shell-\($0)" })
     }
+    func testTurnIdIsKeptFromTurnIdOrPromptIdAndClamped() {
+        func turn(_ extra: [String: Any], _ agent: ActivityAgent = .codex) -> String? {
+            ActivityTrim.event(fromHookPayload: payload(["hook_event_name": "PostToolUse", "session_id": "s"].merging(extra) { $1 }), agent: agent, loggedAt: now).turnId
+        }
+        XCTAssertEqual(turn(["turn_id": "t1"]), "t1", "Codex's turn id")
+        XCTAssertEqual(turn(["prompt_id": "p1"], .claude), "p1", "Claude Code's turn id")
+        XCTAssertEqual(turn(["turn_id": "t1", "prompt_id": "p1"]), "t1", "turn_id wins")
+        XCTAssertNil(turn([:]))
+        XCTAssertEqual(turn(["turn_id": String(repeating: "t", count: 300)])?.count, 200)
+    }
 }

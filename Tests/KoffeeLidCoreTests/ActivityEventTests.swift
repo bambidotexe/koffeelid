@@ -21,6 +21,14 @@ final class ActivityEventTests: XCTestCase {
         XCTAssertFalse(text.contains("\n"), "one line, no newline inside")
         XCTAssertEqual(ActivityCodec.decodeLine(data), e)
     }
+    func testTheTurnIdRoundTripsUnderTurnId() throws {
+        var e = ActivityEvent(loggedAt: Date(timeIntervalSince1970: 1_700_000_000), event: .postToolUse)
+        e.sessionId = "c1"; e.agent = .codex; e.turnId = "t1"
+        let text = String(decoding: try ActivityCodec.encodeLine(e), as: UTF8.self)
+        XCTAssertTrue(text.contains("\"turn_id\":\"t1\""), text)
+        XCTAssertEqual(ActivityCodec.decodeLine(Data(text.utf8)), e)
+        XCTAssertNil(ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\"}".utf8))?.turnId, "a line without the key has no turn")
+    }
     func testALineFromBeforeCodexStillCarriesItsPid() {
         let e = ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\",\"claude_pid\":42,\"session_id\":\"s\"}".utf8))
         XCTAssertEqual(e?.agentPid, 42); XCTAssertNil(e?.agent); XCTAssertEqual(e?.effectiveAgent, .claude)
@@ -51,6 +59,7 @@ final class ActivityEventTests: XCTestCase {
         XCTAssertEqual(ActivityConstants.idleSignalMinQuietSeconds, 50)
         XCTAssertEqual(ActivityConstants.abandonQuietSeconds, 20)
         XCTAssertEqual(ActivityConstants.abandonRecheckSeconds, 15)
+        XCTAssertEqual(ActivityConstants.abortQuarantineSeconds, 120)
         XCTAssertEqual(ActivityConstants.jobArmAfterDefaultSeconds, 5)
         XCTAssertEqual(ActivityConstants.holdOffDefaults, [.claude: 1800, .codex: 1800, .terminal: 60]); XCTAssertEqual(ActivityConstants.disarmOnceHoldOffSeconds, 60)
         XCTAssertEqual(ActivityConstants.journalLineMaxBytes, 4096)
