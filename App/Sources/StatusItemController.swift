@@ -203,7 +203,9 @@ final class StatusItemController: NSObject {
             imageRect = NSRect(x: (button.bounds.width - cup.size.width) / 2, y: (button.bounds.height - cup.size.height) / 2,
                                width: cup.size.width, height: cup.size.height)
         }
+        // `origin` is measured from the cup image's bottom-left; the button's coordinates run from its top.
         let origin = Self.badgeLayout(count: badges.count).origin
-        badgeView.frame = NSRect(x: imageRect.minX + origin.x, y: imageRect.minY + origin.y, width: image.size.width, height: image.size.height)
+        let y = button.isFlipped ? imageRect.maxY - origin.y - image.size.height : imageRect.minY + origin.y
+        badgeView.frame = NSRect(x: imageRect.minX + origin.x, y: y, width: image.size.width, height: image.size.height)
     }
 }
