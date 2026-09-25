@@ -422,6 +422,27 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   stamp and its turn id: the file is the conversation. **Do not** let the launch check start anything: it
   only ends turns the replay counted.
 
+### The daemon's protocol is undocumented and versioned
+- **Symptom.** After a Codex update, a quiet TUI session is decided by its rollout only, and the log carries
+  `activity: Codex daemon not answering; using the rollout` or `activity: Codex daemon reports an unknown
+  thread status …` once per launch.
+- **Why.** The control socket is Codex's app-server `v2` protocol over a WebSocket on a unix socket, meant for
+  Codex's own clients, with no documentation or stability promise; a token, a renamed method, a reshaped
+  answer or a new status would each break the reading. It also runs only the TUI's threads: a `codex exec`
+  or desktop-app thread runs in its own process, and the daemon, which reads any thread from disk, would call
+  it `notLoaded` or leave it out of its list while it works.
+- **What the code does.** Fails closed. `CodexDaemonClient` sends only `initialize`, `initialized`,
+  `thread/read` and `thread/loaded/list`, each call with 1 s overall from the moment it is asked, on a
+  utility queue, non-blocking. A refusal, a timeout, an `error`, a frame that is not a final unmasked text or
+  binary frame, an `initialize` answer without `userAgent`, a list with a `nextCursor`, or an answer of any
+  other shape is nil (`WebSocketFrame`, `CodexDaemonRPC`, `CodexThreadRecord` pin the shapes), and the rollout
+  decides. Only `notLoaded`, `idle` and `active` decide; any other status is the rollout's. Only a
+  `hostedByDaemon` session is asked, and an answer that arrives after the session changed is dropped.
+- **Do not** call any other method: the same socket starts turns, answers approvals and writes config. **Do
+  not** block the main thread on it, or wait longer than 1 s. **Do not** read a partial loaded list, or a
+  thread outside the daemon's, as proof that a thread is not running: the turn would be ended under a live
+  session.
+
 ## Working on this Mac
 
 - **The installed app is the daily driver.** `AppleClamshellCausesSleep = No` is usually its arm. Run

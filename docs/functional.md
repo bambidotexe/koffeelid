@@ -126,7 +126,12 @@ up any of the three hooks from that page or from the onboarding turns it on.
   Codex aborted arrives after the `turn_aborted`, under the same turn id); an end of an earlier turn stamped
   before that event decides nothing; a `task_started` with no end keeps it alive; a rollout that cannot be
   read decides nothing, and only a path under `~/.codex/sessions/` that names the session's own rollout is
-  read. The launch check only ends turns. Anything silent for 2 h is dropped.
+  read. When Codex's daemon is running, it is asked first (`thread/read`): a thread it has not loaded, or has
+  idle, has nothing running; an active one keeps the session alive; the rollout decides when the daemon does
+  not answer. Only a session the daemon hosts is asked; a status other than these three decides nothing
+  either, and every question has 1 s to be answered. At launch the daemon is asked which threads it holds
+  (`thread/loaded/list`): a working session it hosts whose thread is not among them has nothing running, and
+  nothing counts before that answer. The launch checks only end turns. Anything silent for 2 h is dropped.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after

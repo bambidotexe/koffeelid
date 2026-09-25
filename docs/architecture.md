@@ -259,14 +259,18 @@ zsh preexec/precmd ┴▶ KoffeeLidHook ─▶ activity.jsonl ─▶ ActivityJou
                                                            ActivitySessionStore + ActivityJobStore
                                                            ActivityProcessWatcher (kqueue exit)
                                                            ClaudeProcessRegistry (sessions/<pid>.json)
+                                                           CodexDaemonClient (control socket: thread/read, thread/loaded/list)
                                                            CodexRollout (rollout-…-<session>.jsonl, last 64 KB)
    ActivitySnapshot ─▶ KoffeeLidController.handleActivity ─▶ ActivityArmPolicy ─▶ applyAuto
 ```
 
 A file, not a socket: hooks fire while the app is down or being relaunched, and the journal is replayed at
 launch (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`; dead or recycled pids pruned,
-but a session on Codex's daemon kept; then the time rules run, so a stale session is dropped, and the rollout
-check runs on every working Codex session, before the first publish, and can only end turns; the tailer starts at the byte offset the replay consumed). A separate
+but a session on Codex's daemon kept; then the time rules run, so a stale session is dropped; then, when the
+daemon hosts a working session and its socket exists, `thread/loaded/list` ends each such session whose thread
+it does not hold; then the rollout check runs on every working Codex session. All of it comes before the first
+publish (`launched` holds `sync` back until the daemon's answer, at most 1 s) and can only end turns; the
+tailer starts at the byte offset the replay consumed). A separate
 tiny binary, not the app: it runs inside every Claude Code turn, every Codex turn and every shell command, so
 it must start fast, never launch the app and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
 Codex), never the payload: both agents send the same event names.
@@ -317,10 +321,16 @@ for 2 h is removed. Registry rescues (`ActivityMonitor.checkRegistry`), for Clau
 (`abandonCandidates`): a `working` session quiet for 20 s with nothing out is checked every 15 s; registry
 `idle` stamped after the last main event → `turnOver`; registry `busy` → `noteBusy` (and one warning after
 5 min without a hook); a `waiting` session whose registry says `busy` stamped 2 s after the wait began →
-`dialogAnswered`. Rollout checks (`ActivityMonitor.checkCodex`), for Codex sessions (`codexCandidates`, the
-same gate and cadence, no pid needed, and no gate at launch): the session's `transcriptPath` when it sits
+`dialogAnswered`. Codex checks (`ActivityMonitor.checkCodex`), for Codex sessions (`codexCandidates`, the
+same gate and cadence, no pid needed, and no gate at launch). A `hostedByDaemon` session is asked about at the
+daemon first while its socket exists (`CodexDaemonClient.readThread`, not at launch, one question out per
+session): the answer arrives on main and applies only if the session is still `working` with the same
+`lastMainEventAt` as when it was asked; `CodexThreadRecord.verdict` maps `notLoaded` and `idle` to
+`turnOver`, `active` to `noteBusy` (the same 5 min warning), anything else to the rollout, as is a nil answer;
+after one of those two the daemon is not asked about that session again for 15 s, and the rollout decides
+meanwhile. The rollout check (every other session, and those): the session's `transcriptPath` when it sits
 under `~/.codex/sessions/<y>/<m>/<d>/` and names the session's own rollout (`CodexRolloutTail.isInSessions`,
-`isRollout`), else the newest `~/.codex/sessions/*/*/*/rollout-*-<session id>.jsonl` (`CodexRollout.locate`);
+`isRollout`), else the daemon's `path` under the same rule, else the newest `~/.codex/sessions/*/*/*/rollout-*-<session id>.jsonl` (`CodexRollout.locate`);
 `CodexRollout.read` hands the last 64 KB of that regular file to `CodexRolloutTail.verdict`, which reads only
 the `event_msg` turn markers' type, stamp and turn id, and `CodexRolloutTail.decision` weighs it against the
 session: `task_complete` or `turn_aborted` stamped after the last main event, or naming `lastMainTurnId` →
@@ -438,7 +448,8 @@ are Apple's daemons, not KoffeeLid processes.
 - `PlaneRenderer.draw(in:)` runs on the main thread; `submit(pixelBuffer:)` is called from the capture queue
   and hands the latest buffer over under a lock; at most two command buffers are in flight.
 - `ActivityJournalTailer` reads on its own queue and delivers parsed events to main. `ActivityProcessWatcher`
-  sources fire on main.
+  sources fire on main. `CodexDaemonClient` does its socket I/O on a global utility queue, non-blocking with
+  `poll`, 1 s per call from the moment it is asked, and completes on the main actor.
 - `DiagnosticLog` appends on a serial queue; `flush()` before `exit()`.
 - Timers that must fire during menu tracking are added in `.common` mode (the user-activity declaration, the
   activity deadline, the local-input poll, the activity monitor's deadline).

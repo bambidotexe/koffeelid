@@ -343,6 +343,26 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
   aborted call can land after the `turn_aborted`, under the same turn id. The file holds the whole
   conversation; `CodexRolloutTail` reads only the markers' type, stamp and turn id from its last 64 KB. A
   session quit before its first prompt has a rollout with no marker.
+- **The daemon's control socket.** `~/.codex/app-server-control/app-server-control.sock` is a symlink to the
+  managed daemon's socket (`/private/tmp/codex-daemon-<uid>/<hash>`, mode `0600`), present while the daemon
+  has been started and not stopped (`codex app-server daemon stop`); a stale link can outlive it. It speaks
+  WebSocket over the unix socket, with no token: an HTTP/1.1 `GET /` with `Host: localhost`, `Upgrade:
+  websocket`, `Connection: Upgrade`, a 16-byte base64 `Sec-WebSocket-Key` and `Sec-WebSocket-Version: 13` is
+  answered `101 Switching Protocols` (with an `x-codex-websocket-max-unfragmented-message-bytes` header), then
+  JSON-RPC 2.0 in text frames, masked from the client, unmasked from the daemon. The daemon's answers carry
+  `id` and `result` (or `error`) and no `jsonrpc` field, and it sends notifications (a `method` and
+  `params`, no `id`) between them: one came between the `initialize` answer and the next. KoffeeLid sends only three methods and one
+  notification: `initialize` `{clientInfo: {name, title, version}}`, answered `{userAgent, codexHome,
+  platformFamily, platformOs}`; then `initialized`; then either `thread/read` `{threadId, includeTurns:
+  false}`, answered `{thread: {id, status: {type}, path, createdAt, updatedAt, recencyAt, cwd, originator,
+  …}}`, where `status.type` is `notLoaded` (not in memory; the thread is still read from disk), `idle`
+  (loaded, no turn) or `active` (a turn runs, `activeFlags` naming a pending approval or question); or
+  `thread/loaded/list` `{}`, answered `{data: [<thread id>…], nextCursor}`, the threads held in memory (with
+  no `limit`, all of them in one page). A thread the TUI has quit stays loaded 30 min after it goes idle. The
+  daemon runs the TUI's threads only: a `codex exec` or desktop-app thread runs in its own process, so what
+  the daemon says of it proves nothing, and only a `hostedByDaemon` session is asked.
+  Captured by a read-only probe on 2026-09-25 against Codex 0.157; `CodexDaemonClient`, `CodexThreadRecord`
+  and `WebSocketFrame` hold it.
 - **`CODEX_HOME`.** Relocates the whole folder. Like `CLAUDE_CONFIG_DIR`, it is invisible from another
   process, so the installer and the Health page use `~/.codex`.
 - **The desktop app.** LaunchServices answers `com.openai.codex` with the OpenAI desktop app (named ChatGPT

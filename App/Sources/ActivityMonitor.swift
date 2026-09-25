@@ -33,8 +33,8 @@ struct ActivitySnapshot: Equatable {
 }
 
 /// Owns the two stores; tails the activity journal; watches agent and shell pids; runs the time rules, the
-/// registry rescues and the rollout checks; reports the aggregate "running" level to the coordinator. Main
-/// thread only.
+/// registry rescues and the Codex checks (its daemon, its rollouts); reports the aggregate "running" level
+/// to the coordinator. Main thread only.
 @MainActor
 final class ActivityMonitor {
     var onChange: ((ActivitySnapshot) -> Void)?
@@ -58,6 +58,15 @@ final class ActivityMonitor {
     private var warnedNoRollout: Set<String> = []
     /// Whether each Codex pid seen is Codex's managed daemon, read once per pid (its arguments do not change).
     private var codexDaemonPids: [Int32: Bool] = [:]
+    /// The Codex sessions with a question out to the daemon, and when each may be asked again after an
+    /// answer that decided nothing: until then its rollout decides.
+    private var askingDaemon: Set<String> = []
+    private var daemonAskAgainAt: [String: Date] = [:]
+    private var warnedDaemonSilent = false
+    private var warnedDaemonStatuses: Set<String> = []
+    /// False until the launch checks have answered: nothing is counted or published before them.
+    private var launched = false
+    private var launchGeneration = 0
     private var wakeObserver: NSObjectProtocol?
 
     static var isDisabledByEnvironment: Bool { ProcessInfo.processInfo.environment["KOFFEELID_DISABLE_ACTIVITY"] == "1" }
@@ -78,10 +87,14 @@ final class ActivityMonitor {
         for job in jobs.jobs.values { if let pid = job.ownerPid, !ProcWalk.isAlive(pid: pid) { jobs.processExited(pid: pid) } }
         onLog?("activity: replayed \(replayed.count) events, \(sessions.sessions.count) sessions, \(jobs.jobs.count) jobs")
         // Before anything counts: the time rules drop what went stale while the app was down, then a replayed
-        // Codex turn that ended meanwhile ends here. This check only ends turns; nothing replayed is started by it.
+        // Codex turn that ended meanwhile ends (`finishLaunch`): first a thread Codex's daemon no longer holds,
+        // when the daemon hosts a working session, then the rollouts. These checks only end turns; nothing
+        // replayed is started by them, and nothing is counted before they have run.
         let launch = Date()
         sessions.tick(now: launch); jobs.tick(now: launch)
-        checkCodex(now: launch, atLaunch: true)
+        launched = false
+        launchGeneration += 1
+        let hosted = daemonHostedWorkingSessions()
         rotateIfNeeded()
         // Live: replay consumed currentData.count bytes of the current journal; the tailer begins exactly
         // there, so nothing already replayed is applied twice and anything appended since is still delivered.
@@ -91,6 +104,20 @@ final class ActivityMonitor {
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
+        // The daemon answers within `CodexDaemonClient.deadlineSeconds`, or with nil.
+        guard !hosted.isEmpty, CodexDaemonClient.socketExists else { return finishLaunch() }
+        let generation = launchGeneration
+        CodexDaemonClient.loadedThreadIds { [weak self] loaded in
+            guard let self, self.started, self.launchGeneration == generation else { return }
+            self.daemonListed(loaded, asked: hosted)
+            self.finishLaunch()
+        }
+    }
+
+    /// The rollout check of every working Codex session, then the first count.
+    private func finishLaunch() {
+        checkCodex(now: Date(), atLaunch: true)
+        launched = true
         sync()
     }
 
@@ -162,7 +189,7 @@ final class ActivityMonitor {
     // MARK: time
 
     private func sync() {
-        guard started else { return }
+        guard started, launched else { return }
         let now = Date()
         sessions.tick(now: now); jobs.tick(now: now)
         checkRegistry(now: now)
@@ -223,28 +250,107 @@ final class ActivityMonitor {
     }
 
     /// A lost `Stop` or `Interrupt` leaves a Codex turn working with nothing to end it, and the pid its hooks
-    /// record is usually Codex's daemon, alive across every session: read the session's rollout instead. At
-    /// launch every working Codex session is read, without the quiet gate. Only ends turns.
+    /// record is usually Codex's daemon, alive across every session. A session the daemon hosts is asked
+    /// about there first (`thread/read`); the daemon's answer arrives later, on main. Every other session,
+    /// and one the daemon could not decide, is read from its rollout. At launch every working Codex session is
+    /// read from its rollout, without the quiet gate, the daemon having answered `thread/loaded/list` already.
+    /// Only ends turns.
     private func checkCodex(now: Date, atLaunch: Bool) {
+        daemonAskAgainAt = daemonAskAgainAt.filter { sessions.sessions[$0.key] != nil }
+        let daemonUp = !atLaunch && CodexDaemonClient.socketExists
         for (sid, recorded) in sessions.codexCandidates(at: now, quietSeconds: atLaunch ? 0 : ActivityConstants.abandonQuietSeconds) {
-            guard let session = sessions.sessions[sid] else { continue }
-            let path = recorded.flatMap {
-                CodexRolloutTail.isInSessions($0, sessionsDirectory: CodexRollout.sessionsDirectory) && CodexRolloutTail.isRollout(path: $0, ofSession: sid) ? $0 : nil
-            } ?? CodexRollout.locate(sessionId: sid)
-            let verdict = path.flatMap(CodexRollout.read(path:)).map { CodexRolloutTail.verdict(tail: $0) } ?? .unreadable
-            switch CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt, lastMainTurnId: session.lastMainTurnId) {
-            case .turnOver(let reason):
-                onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says \(reason), turn over")
-                sessions.turnOver(sessionId: sid, now: now)
-            case .busy:
-                if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
-                    onLog?("activity: hooks look dead for \(sid.prefix(8)) — rollout says running, no hook for 5 min")
+            guard let session = sessions.sessions[sid], !askingDaemon.contains(sid) else { continue }
+            if daemonUp, session.hostedByDaemon, daemonAskAgainAt[sid].map({ now >= $0 }) ?? true {
+                askingDaemon.insert(sid)
+                let asked = session.lastMainEventAt
+                CodexDaemonClient.readThread(id: sid) { [weak self] record in
+                    self?.daemonAnswered(sid: sid, record: record, asked: asked)
                 }
-                sessions.noteBusy(sessionId: sid, now: now)
-            case .nothing:
-                if verdict == .unreadable, warnedNoRollout.insert(sid).inserted {
-                    onLog?("activity: no rollout for Codex session \(sid.prefix(8)); only staleness can end it")
-                }
+                continue
+            }
+            checkRollout(sid: sid, recorded: recorded, now: now)
+        }
+    }
+
+    /// The daemon's answer about `sid`, applied only while the session is still the one asked about: working,
+    /// with no main-agent event since the question.
+    private func daemonAnswered(sid: String, record: CodexThreadRecord?, asked: Date) {
+        askingDaemon.remove(sid)
+        guard started, launched, let session = sessions.sessions[sid], session.state == .working, !session.pendingDone,
+              session.lastMainEventAt == asked else { return }
+        let now = Date()
+        let verdict = record?.verdict(lastMainEventAt: session.lastMainEventAt) ?? .undecided
+        if record == nil { noteDaemonSilent() }
+        switch verdict {
+        case .over:
+            onLog?("activity: Codex daemon says thread \(sid.prefix(8)) has nothing running, turn over")
+            sessions.turnOver(sessionId: sid, now: now)
+        case .busy:
+            if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
+                onLog?("activity: hooks look dead for \(sid.prefix(8)) — daemon says active, no hook for 5 min")
+            }
+            sessions.noteBusy(sessionId: sid, now: now)
+        case .undecided:
+            if let status = record?.status, warnedDaemonStatuses.insert(status).inserted {
+                // The daemon's words, not ours: letters and digits only, and short, before they reach the log.
+                let shown = String(String.UnicodeScalarView(status.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.prefix(40)))
+                onLog?("activity: Codex daemon reports an unknown thread status \(shown)")
+            }
+            daemonAskAgainAt[sid] = now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds)
+            checkRollout(sid: sid, recorded: session.transcriptPath, daemonPath: record?.rolloutPath, now: now)
+        }
+        publish(now: now)
+        scheduleNext(now: now)
+    }
+
+    /// At launch: a working session the daemon hosts whose thread it does not hold in memory has nothing
+    /// running. A nil answer leaves every session to its rollout.
+    private func daemonListed(_ loaded: Set<String>?, asked: [String: Date]) {
+        guard let loaded else { noteDaemonSilent(); return }
+        let now = Date()
+        for (sid, lastMain) in asked where !loaded.contains(sid) {
+            guard let session = sessions.sessions[sid], session.state == .working, !session.pendingDone, session.lastMainEventAt == lastMain else { continue }
+            onLog?("activity: Codex daemon has not loaded thread \(sid.prefix(8)), turn over")
+            sessions.turnOver(sessionId: sid, now: now)
+        }
+    }
+
+    /// The working Codex sessions the daemon hosts, each with its last main-agent event; a held `Stop` is the
+    /// time rules'.
+    private func daemonHostedWorkingSessions() -> [String: Date] {
+        var hosted: [String: Date] = [:]
+        for s in sessions.sessions.values where s.agent == .codex && s.state == .working && !s.pendingDone && s.hostedByDaemon {
+            hosted[s.id] = s.lastMainEventAt
+        }
+        return hosted
+    }
+
+    private func noteDaemonSilent() {
+        guard !warnedDaemonSilent else { return }
+        warnedDaemonSilent = true
+        onLog?("activity: Codex daemon not answering; using the rollout")
+    }
+
+    /// The rollout's verdict on a quiet Codex session: the path its hooks named, else the one the daemon
+    /// named, each only where Codex keeps rollouts and named after the session; else the newest found.
+    private func checkRollout(sid: String, recorded: String?, daemonPath: String? = nil, now: Date) {
+        guard let session = sessions.sessions[sid] else { return }
+        let path = [recorded, daemonPath].compactMap { $0 }.first {
+            CodexRolloutTail.isInSessions($0, sessionsDirectory: CodexRollout.sessionsDirectory) && CodexRolloutTail.isRollout(path: $0, ofSession: sid)
+        } ?? CodexRollout.locate(sessionId: sid)
+        let verdict = path.flatMap(CodexRollout.read(path:)).map { CodexRolloutTail.verdict(tail: $0) } ?? .unreadable
+        switch CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt, lastMainTurnId: session.lastMainTurnId) {
+        case .turnOver(let reason):
+            onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says \(reason), turn over")
+            sessions.turnOver(sessionId: sid, now: now)
+        case .busy:
+            if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
+                onLog?("activity: hooks look dead for \(sid.prefix(8)) — rollout says running, no hook for 5 min")
+            }
+            sessions.noteBusy(sessionId: sid, now: now)
+        case .nothing:
+            if verdict == .unreadable, warnedNoRollout.insert(sid).inserted {
+                onLog?("activity: no rollout for Codex session \(sid.prefix(8)); only staleness can end it")
             }
         }
     }

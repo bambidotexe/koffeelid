@@ -138,7 +138,9 @@ one-close session held on lid open · one-close arm held · one-close session en
 effect: capture started|capture stopped|stopped|retracting from N°|following the lid from N°
 effect: gesture fold ended; waiting below N° again
 activity: running (…)|idle|quiet turn …|quiet Codex turn …|hooks look dead for …|no registry record for pid …
-activity: no rollout for Codex session …
+activity: no rollout for Codex session …|Codex daemon says thread … has nothing running, turn over
+activity: Codex daemon has not loaded thread …, turn over|Codex daemon not answering; using the rollout
+activity: Codex daemon reports an unknown thread status …
 auto-armed (activity) · auto-disarm scheduled in Ns · auto-arm ended: local input during the hold-off
 built-in Fn reader: reading …|Input Monitoring not granted|no built-in keyboard found|open FAILED
 ```

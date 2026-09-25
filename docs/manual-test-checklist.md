@@ -194,6 +194,7 @@ Walk these with a stand-in release (`docs/development.md` § Testing an update w
 - [ ] Interrupt a Codex turn with the KoffeeLid hooks switched off in Codex's `/hooks` (nothing arrives) → within ~35 s `activity: quiet Codex turn … — rollout says aborted, turn over`
 - [ ] Quit the app during a Codex turn, relaunch → `replayed …` then `activity: running (… Codex 1 …)` and no `turn over` while the turn runs
 - [ ] Switch the KoffeeLid hooks off in Codex's `/hooks`, Ctrl-C a turn whose tool ends later, switch them back on → the late `PostToolUse` arrives, then within ~35 s `activity: quiet Codex turn … — rollout says aborted, turn over`
+- [ ] With a Codex TUI at its prompt, mid-turn, and after quitting, the log's `Codex daemon says …` lines match the state; with the daemon stopped (`codex app-server daemon stop` or after a reboot before any Codex start) the rollout path takes over
 - [ ] A Codex permission prompt, or a question from Codex (`request_user_input`) → `activity: idle` while it waits; answering it → running again
 - [ ] A Claude Code turn and a Codex turn at once → `2 sessions working (Claude Code 1, Codex 1)` and "Auto-armed while Claude Code and Codex work"; with a `sleep 120` as well, "Auto-armed while Claude Code, Codex and a command run"
 - [ ] Settings › Auto-Arm › "Stay armed after Codex finishes" to 1 min → the next Codex turn's wait is `auto-disarm scheduled in 60s`
