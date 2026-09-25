@@ -183,20 +183,25 @@ final class ActivitySessionStoreTests: XCTestCase {
         waiting.apply(ev(.permissionRequest, "c1", at: 1, pid: 300, by: .codex))
         XCTAssertEqual(waiting.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(1 + ActivityConstants.staleSeconds), "a waiting Codex session has nothing to recheck")
     }
-    func testPruneKeepsADaemonHostedSessionForTheCodexCheck() {
-        let daemon: Int32 = 40531
+    func testPruneKeepsASessionOnASharedCodexHostForTheCodexCheck() {
+        let daemon: Int32 = 40531, desktop: Int32 = 41000
         store.apply(ev(.userPromptSubmit, "tui", pid: daemon, by: .codex))
+        store.apply(ev(.userPromptSubmit, "app", pid: desktop, by: .codex))
         store.apply(ev(.userPromptSubmit, "exec", pid: 500, by: .codex))
         store.apply(ev(.userPromptSubmit, pid: daemon))
-        store.markDaemonHosted { $0 == daemon }
-        XCTAssertEqual(store.sessions["tui"]?.hostedByDaemon, true)
-        XCTAssertEqual(store.sessions["exec"]?.hostedByDaemon, false, "codex exec records its own process")
-        XCTAssertEqual(store.sessions["s1"]?.hostedByDaemon, false, "only a Codex session is hosted by Codex's daemon")
+        store.markCodexHosts(isManagedDaemon: { $0 == daemon }, isSharedHost: { $0 == daemon || $0 == desktop })
+        XCTAssertEqual(store.sessions["tui"]?.hostedByManagedDaemon, true)
+        XCTAssertEqual(store.sessions["tui"]?.hostedBySharedCodex, true)
+        XCTAssertEqual(store.sessions["app"]?.hostedByManagedDaemon, false, "the desktop app's codex is not the managed daemon")
+        XCTAssertEqual(store.sessions["app"]?.hostedBySharedCodex, true)
+        XCTAssertEqual(store.sessions["exec"]?.hostedBySharedCodex, false, "codex exec records its own process")
+        XCTAssertEqual(store.sessions["s1"]?.hostedBySharedCodex, false, "only a Codex session is hosted by a Codex host")
         var asked: [Int32] = []
         store.pruneDead(isAlive: { pid, _ in asked.append(pid); return false }, registrySession: { _ in nil })
-        XCTAssertEqual(Set(store.sessions.keys), ["tui"], "the daemon's pid says nothing about the session: the rollout check decides it")
+        XCTAssertEqual(Set(store.sessions.keys), ["tui", "app"], "a shared host's pid says nothing about the session: the Codex check decides it")
         XCTAssertEqual(state("tui"), .working, "the prune ends nothing it keeps")
-        XCTAssertEqual(asked.sorted(), [500, daemon], "the daemon-hosted session is not asked about; a Claude Code session on the same pid is")
+        XCTAssertEqual(asked.sorted(), [500, daemon], "a session on a shared host is not asked about; a Claude Code session on the same pid is")
+        store.processExited(pid: desktop); XCTAssertEqual(Set(store.sessions.keys), ["tui"], "a host's own death still drops its sessions")
         store.processExited(pid: daemon); XCTAssertTrue(store.sessions.isEmpty, "the daemon's own death still drops its sessions")
     }
     func testPruneAsksAboutEachSessionsOwnAgent() {

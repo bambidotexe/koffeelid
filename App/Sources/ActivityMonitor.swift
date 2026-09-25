@@ -56,8 +56,9 @@ final class ActivityMonitor {
     private var warnedNoRegistry: Set<String> = []
     private var warnedHooksSilent: Set<String> = []
     private var warnedNoRollout: Set<String> = []
-    /// Whether each Codex pid seen is Codex's managed daemon, read once per pid (its arguments do not change).
-    private var codexDaemonPids: [Int32: Bool] = [:]
+    /// What each Codex pid seen is (the managed daemon, a shared host), read once per pid: its path and
+    /// arguments do not change.
+    private var codexHosts: [Int32: (managed: Bool, shared: Bool)] = [:]
     /// The Codex sessions with a question out to the daemon, and when each may be asked again after an
     /// answer that decided nothing: until then its rollout decides.
     private var askingDaemon: Set<String> = []
@@ -80,7 +81,7 @@ final class ActivityMonitor {
         // time rules drop what went stale while the app was down; the prune drops dead or recycled pids, a
         // Claude Code pid whose registry record names another session among them; the registry ends each
         // replayed Claude Code turn that ended meanwhile, whatever its quiet; then (`finishLaunch`) each replayed
-        // Codex turn: first a thread Codex's daemon no longer holds, when the daemon hosts a working session,
+        // Codex turn: first a thread Codex's managed daemon no longer holds, when it hosts a working session,
         // then the rollouts. These checks only end turns, but for a dialog the registry says was answered, which
         // works again as it would at the first check. Nothing is counted before they have run.
         let boot = Self.bootDate() ?? .distantPast
@@ -157,14 +158,20 @@ final class ActivityMonitor {
                 sessions.apply(e)
             }
         }
-        sessions.markDaemonHosted { [self] pid in isCodexDaemon(pid) }
+        sessions.markCodexHosts(isManagedDaemon: { [self] pid in codexHost(pid).managed },
+                                isSharedHost: { [self] pid in codexHost(pid).shared })
     }
 
-    private func isCodexDaemon(_ pid: Int32) -> Bool {
-        if let known = codexDaemonPids[pid] { return known }
-        let daemon = ProcWalk.info(for: pid).map(ProcWalk.isCodexDaemon) ?? false
-        codexDaemonPids[pid] = daemon
-        return daemon
+    private func codexHost(_ pid: Int32) -> (managed: Bool, shared: Bool) {
+        if let known = codexHosts[pid] { return known }
+        var host = (managed: false, shared: false)
+        if let info = ProcWalk.info(for: pid) {
+            let arguments = ProcWalk.arguments(forPid: pid) ?? []
+            host = (ProcWalk.isManagedCodexDaemon(path: info.path, arguments: arguments),
+                    ProcWalk.isSharedCodexHost(path: info.path, arguments: arguments))
+        }
+        codexHosts[pid] = host
+        return host
     }
 
     /// A line that could not be parsed proves nothing about either hook, and a verdict line is the app's own.
@@ -189,7 +196,7 @@ final class ActivityMonitor {
 
     private func processExited(_ pid: Int32) {
         sessions.processExited(pid: pid); jobs.processExited(pid: pid)
-        codexDaemonPids.removeValue(forKey: pid)
+        codexHosts.removeValue(forKey: pid)
         sync()
     }
 
@@ -288,17 +295,17 @@ final class ActivityMonitor {
     }
 
     /// A lost `Stop` or `Interrupt` leaves a Codex turn working with nothing to end it, and the pid its hooks
-    /// record is usually Codex's daemon, alive across every session. A session the daemon hosts is asked
-    /// about there first (`thread/read`); the daemon's answer arrives later, on main. Every other session,
-    /// and one the daemon could not decide, is read from its rollout. At launch every working Codex session is
-    /// read from its rollout, without the quiet gate, the daemon having answered `thread/loaded/list` already.
-    /// Only ends turns.
+    /// record is usually a shared Codex host, alive across every session. A session on Codex's managed daemon
+    /// is asked about there first (`thread/read`); the daemon's answer arrives later, on main. Every other
+    /// session (the desktop app's included), and one the daemon could not decide, is read from its rollout.
+    /// At launch every working Codex session is read from its rollout, without the quiet gate, the daemon
+    /// having answered `thread/loaded/list` already. Only ends turns.
     private func checkCodex(now: Date, atLaunch: Bool) {
         daemonAskAgainAt = daemonAskAgainAt.filter { sessions.sessions[$0.key] != nil }
         let daemonUp = !atLaunch && CodexDaemonClient.socketExists
         for (sid, recorded) in sessions.codexCandidates(at: now, quietSeconds: atLaunch ? 0 : ActivityConstants.abandonQuietSeconds) {
             guard let session = sessions.sessions[sid], !askingDaemon.contains(sid) else { continue }
-            if daemonUp, session.hostedByDaemon, daemonAskAgainAt[sid].map({ now >= $0 }) ?? true {
+            if daemonUp, session.hostedByManagedDaemon, daemonAskAgainAt[sid].map({ now >= $0 }) ?? true {
                 askingDaemon.insert(sid)
                 let asked = session.lastMainEventAt
                 CodexDaemonClient.readThread(id: sid) { [weak self] record in
@@ -341,7 +348,7 @@ final class ActivityMonitor {
         scheduleNext(now: now)
     }
 
-    /// At launch: a working session the daemon hosts whose thread it does not hold in memory has nothing
+    /// At launch: a working session the managed daemon hosts whose thread it does not hold in memory has nothing
     /// running. A nil answer leaves every session to its rollout.
     private func daemonListed(_ loaded: Set<String>?, asked: [String: Date]) {
         guard let loaded else { noteDaemonSilent(); return }
@@ -353,11 +360,11 @@ final class ActivityMonitor {
         }
     }
 
-    /// The working Codex sessions the daemon hosts, each with its last main-agent event; a held `Stop` is the
+    /// The working Codex sessions the managed daemon hosts, each with its last main-agent event; a held `Stop` is the
     /// time rules'.
     private func daemonHostedWorkingSessions() -> [String: Date] {
         var hosted: [String: Date] = [:]
-        for s in sessions.sessions.values where s.agent == .codex && s.state == .working && !s.pendingDone && s.hostedByDaemon {
+        for s in sessions.sessions.values where s.agent == .codex && s.state == .working && !s.pendingDone && s.hostedByManagedDaemon {
             hosted[s.id] = s.lastMainEventAt
         }
         return hosted

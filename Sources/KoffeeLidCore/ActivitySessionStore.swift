@@ -13,9 +13,13 @@ public struct ActivitySession: Equatable {
     public var lastMainEventAt: Date
     /// The agent process hosting the session.
     public var agentPid: Int32?
-    /// The pid is Codex's managed daemon, which hosts every TUI session of the user and outlives them all:
-    /// alive, it proves nothing about this session. Set by `markDaemonHosted(where:)`.
-    public var hostedByDaemon = false
+    /// The pid is a shared Codex host (`ProcWalk.isSharedCodexHost`: the managed daemon or the desktop app's
+    /// `codex`), which hosts many sessions and outlives them: alive, it proves nothing about this session.
+    /// Set by `markCodexHosts`.
+    public var hostedBySharedCodex = false
+    /// The pid is Codex's managed daemon, the one host whose control socket is asked about the session's
+    /// thread. Set by `markCodexHosts`; implies `hostedBySharedCodex`.
+    public var hostedByManagedDaemon = false
     /// The session's transcript file, from the last main-agent line that named one: Claude Code's
     /// conversation, Codex's rollout.
     public var transcriptPath: String?
@@ -203,23 +207,26 @@ public struct ActivitySessionStore {
     /// Startup prune after replay: a session is kept only while its pid is alive and runs its agent and, for a
     /// Claude Code session, while the registry record for that pid, when one exists, names the same session (a
     /// recycled pid's record names another; no record proves nothing). `registrySession` is asked about live
-    /// Claude Code pids only. Sessions without a pid are left to staleness. A session hosted by Codex's daemon
-    /// is kept without asking: the daemon was alive when it was marked, and its life says nothing about the
+    /// Claude Code pids only. Sessions without a pid are left to staleness. A session on a shared Codex host is
+    /// kept without asking: the host was alive when it was marked, and its life says nothing about the
     /// session's turn, which the Codex check at launch decides.
     public mutating func pruneDead(isAlive: (Int32, ActivityAgent) -> Bool, registrySession: (Int32) -> String?) {
         sessions = sessions.filter { entry in
             let s = entry.value
-            guard !s.hostedByDaemon, let pid = s.agentPid else { return true }
+            guard !s.hostedBySharedCodex, let pid = s.agentPid else { return true }
             guard isAlive(pid, s.agent) else { return false }
             guard s.agent == .claude, let named = registrySession(pid) else { return true }
             return named == s.id
         }
     }
-    /// Marks each Codex session whose pid `isDaemon` names as hosted by Codex's managed daemon.
-    public mutating func markDaemonHosted(where isDaemon: (Int32) -> Bool) {
+    /// Marks each Codex session by the process its pid names: Codex's managed daemon, or any shared Codex
+    /// host (the managed daemon included).
+    public mutating func markCodexHosts(isManagedDaemon: (Int32) -> Bool, isSharedHost: (Int32) -> Bool) {
         for (id, s) in sessions where s.agent == .codex {
-            let hosted = s.agentPid.map(isDaemon) ?? false
-            if hosted != s.hostedByDaemon { sessions[id]?.hostedByDaemon = hosted }
+            let managed = s.agentPid.map(isManagedDaemon) ?? false
+            let shared = managed || (s.agentPid.map(isSharedHost) ?? false)
+            if managed != s.hostedByManagedDaemon { sessions[id]?.hostedByManagedDaemon = managed }
+            if shared != s.hostedBySharedCodex { sessions[id]?.hostedBySharedCodex = shared }
         }
     }
 

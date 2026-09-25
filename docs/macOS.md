@@ -338,9 +338,12 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
   19 min after the last TUI detached. A killed TUI does not stop a running turn: the daemon finishes it, its
   hooks still fire, and it unloads a thread 30 min after it is idle with no subscriber. So the pid a TUI
   session's hooks record proves nothing about the session; only the daemon's death drops them all.
-  `ProcWalk.isCodexDaemon` recognises it by its path or its `app-server` argument. The desktop app runs its
-  threads in its own long-lived `codex`, `codex exec` in its own process. No per-process registry exists; the
-  rollout is the session's record.
+  `ProcWalk.isManagedCodexDaemon` recognises it by its path or its `--managed-daemon` argument. The desktop app
+  (ChatGPT) runs its threads in its own long-lived `codex`, which also carries an `app-server` argument but not
+  `--managed-daemon` and is not under `app-server-daemon/`: another shared host, whose pid proves nothing
+  about one thread either. `ProcWalk.isSharedCodexHost` is true for both (any `codex` with an `app-server`
+  argument). `codex exec` runs in its own process. No per-process registry exists; the rollout is the
+  session's record.
 - **The rollout.** `~/.codex/sessions/<yyyy>/<mm>/<dd>/rollout-<timestamp>-<session id>.jsonl`, the path every
   hook sends as `transcript_path`: one JSON line per item, each with `timestamp` (ISO 8601, milliseconds, UTC),
   `type` and `payload`. The turn markers are the `event_msg` lines whose `payload.type` is `task_started`,
@@ -367,8 +370,8 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
   (loaded, no turn) or `active` (a turn runs, `activeFlags` naming a pending approval or question); or
   `thread/loaded/list` `{}`, answered `{data: [<thread id>…], nextCursor}`, the threads held in memory (with
   no `limit`, all of them in one page). A thread the TUI has quit stays loaded 30 min after it goes idle. The
-  daemon runs the TUI's threads only: a `codex exec` or desktop-app thread runs in its own process, so what
-  the daemon says of it proves nothing, and only a `hostedByDaemon` session is asked.
+  daemon runs the TUI's threads only: a `codex exec` or desktop-app thread runs in another process, so what
+  the daemon says of it proves nothing, and only a `hostedByManagedDaemon` session is asked.
   Captured by a read-only probe on 2026-09-25 against Codex 0.157; `CodexDaemonClient`, `CodexThreadRecord`
   and `WebSocketFrame` hold it.
 - **`CODEX_HOME`.** Relocates the whole folder. Like `CLAUDE_CONFIG_DIR`, it is invisible from another

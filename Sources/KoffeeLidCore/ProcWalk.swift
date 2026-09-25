@@ -2,7 +2,7 @@ import Foundation
 
 /// Reads the process ancestor chain via sysctl — microseconds, no subprocesses. Used by the hook to find
 /// the Claude Code or Codex process it runs under, and by the app to prune sessions whose pid died or was
-/// recycled and to tell Codex's shared daemon apart.
+/// recycled and to tell Codex's shared hosts apart.
 public enum ProcWalk {
     public struct ProcInfo: Equatable {
         public let pid: Int32, ppid: Int32, name: String, path: String?
@@ -111,13 +111,22 @@ public enum ProcWalk {
     }
     /// Codex's managed daemon, `codex app-server --listen unix:// --managed-daemon`, installed under
     /// `~/.codex/packages/app-server-daemon/`: one per user, started by the first TUI, parented by launchd,
-    /// and the process every TUI session's hooks run under. Recognised by its subcommand or its install path.
-    public static func isCodexDaemon(path: String?, arguments: [String]) -> Bool {
+    /// and the process every TUI session's hooks run under. Recognised by its flag or its install path; the
+    /// only Codex process whose control socket KoffeeLid asks about a thread.
+    public static func isManagedCodexDaemon(path: String?, arguments: [String]) -> Bool {
         if let path, path.contains("/app-server-daemon/") { return true }
-        return arguments.dropFirst().contains("app-server")
+        return arguments.dropFirst().contains("--managed-daemon")
     }
-    public static func isCodexDaemon(_ info: ProcInfo) -> Bool {
-        isCodexDaemon(path: info.path, arguments: arguments(forPid: info.pid) ?? [])
+    public static func isManagedCodexDaemon(_ info: ProcInfo) -> Bool {
+        isManagedCodexDaemon(path: info.path, arguments: arguments(forPid: info.pid) ?? [])
+    }
+    /// Any `codex app-server`: the managed daemon, or the desktop app's own long-lived `codex`. Either hosts
+    /// many threads and outlives them, so its pid alive proves nothing about one session.
+    public static func isSharedCodexHost(path: String?, arguments: [String]) -> Bool {
+        isManagedCodexDaemon(path: path, arguments: arguments) || arguments.dropFirst().contains("app-server")
+    }
+    public static func isSharedCodexHost(_ info: ProcInfo) -> Bool {
+        isSharedCodexHost(path: info.path, arguments: arguments(forPid: info.pid) ?? [])
     }
     public static func isProcess(of agent: ActivityAgent, _ info: ProcInfo) -> Bool {
         agent == .claude ? isClaudeProcess(info) : isCodexProcess(info)

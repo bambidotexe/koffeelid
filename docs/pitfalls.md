@@ -411,17 +411,22 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   counts it again, though the TUI was quit long ago.
 - **Why.** Codex's TUI runs its threads in the managed daemon (`codex app-server --managed-daemon`, one per
   user, parented by launchd, alive across every TUI), so the hook's nearest `codex` ancestor is the daemon and
-  every TUI session records its pid. The kqueue on that pid fires only when the daemon dies, and the launch
-  prune finds it alive and running `codex`: neither can ever end one TUI session.
-- **What the code does.** `ProcWalk.isCodexDaemon` recognises the daemon (its `/app-server-daemon/` path or
-  its `app-server` argument) and the monitor marks such sessions `hostedByDaemon`; `pruneDead` keeps them
-  without asking about the pid. The session's rollout decides instead: the hook lines keep `transcript_path`
+  every TUI session records its pid. The desktop app does the same in its own long-lived `codex app-server`,
+  without `--managed-daemon`. The kqueue on either pid fires only when that host dies, and the launch prune
+  finds it alive and running `codex`: neither can ever end one session.
+- **What the code does.** `ProcWalk.isSharedCodexHost` recognises both hosts (any `codex` with an
+  `app-server` argument, or under `/app-server-daemon/`) and `ProcWalk.isManagedCodexDaemon` the daemon alone
+  (its path or its `--managed-daemon` argument); the monitor marks the sessions `hostedBySharedCodex` and
+  `hostedByManagedDaemon`. `pruneDead` keeps every session on a shared host without asking about the pid. The session's rollout decides instead: the hook lines keep `transcript_path`
   (`SessionStart`, `UserPromptSubmit`, `Stop`, `Interrupt`), and `ActivityMonitor.checkCodex` reads its last
   64 KB (`CodexRollout`, `CodexRolloutTail`) for a working session quiet for 20 s, every 15 s, and for every
   working Codex session once at launch before anything counts. A `task_complete` or `turn_aborted` stamped
   after the last main-agent event, or naming that event's turn, is `turnOver` (`CodexRolloutTail.decision`);
-  a `task_started` with no end is `noteBusy`; anything else decides nothing. The kqueue stays: the daemon's
-  own death still drops every session it hosted.
+  a `task_started` with no end is `noteBusy`; anything else decides nothing. The kqueue stays: a host's own
+  death still drops every session it hosted.
+- **Do not** treat every `codex app-server` as the managed daemon: the desktop app's `codex` carries the same
+  argument, and the managed daemon, asked about a desktop-app thread, answers `notLoaded` and would end a live
+  turn. Only `hostedByManagedDaemon` sessions are asked; the others are decided by their rollout.
 - **Do not** judge an end marker by its stamp alone: when the `Interrupt` hook is lost, the aborted tool's
   late `PostToolUse` becomes the last main-agent event, stamped after the `turn_aborted` it belongs to, and
   the session would stay working for 2 h. Its turn id is the same as the marker's.
@@ -447,7 +452,7 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   over-long frame, an `initialize` answer without `userAgent`, a list with a `nextCursor`, or an answer of any
   other shape is nil (`WebSocketFrame`, `CodexDaemonRPC`, `CodexThreadRecord` pin the shapes), and the rollout
   decides. Only `notLoaded`, `idle` and `active` decide; any other status is the rollout's. Only a
-  `hostedByDaemon` session is asked, and an answer that arrives after the session changed is dropped.
+  `hostedByManagedDaemon` session is asked, and an answer that arrives after the session changed is dropped.
 - **Do not** call any other method: the same socket starts turns, answers approvals and writes config. **Do
   not** block the main thread on it, or wait longer than 1 s. **Do not** read a partial loaded list, or a
   thread outside the daemon's, as proof that a thread is not running: the turn would be ended under a live

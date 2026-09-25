@@ -268,10 +268,10 @@ A file, not a socket: hooks fire while the app is down or being relaunched, and 
 launch. The launch order: replay (this boot's events only, from `activity.1.jsonl` then `activity.jsonl`, the
 app's own verdict lines among them) → the time rules (`tick`), so a stale session is dropped → the prune with
 the registry (`pruneDead`: dead or recycled pids, a Claude Code pid whose registry record names another
-session among them; a session on Codex's daemon kept) → `checkRegistry(quietSeconds: 0)`, the registry rescue
-on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
-`thread/loaded/list` has ended each daemon-hosted working session whose thread the daemon does not hold (asked
-only when the daemon hosts one and its socket exists) → the first `sync()`. All of it comes before the first
+session among them; a session on a shared Codex host kept) → `checkRegistry(quietSeconds: 0)`, the registry
+rescue on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
+`thread/loaded/list` has ended each working session on the managed daemon whose thread the daemon does not
+hold (asked only when the managed daemon hosts one and its socket exists) → the first `sync()`. All of it comes before the first
 publish (`launched` holds `sync` back until the daemon's answer, at most 1 s) and only ends turns, but for a
 dialog the registry says was answered; the tailer starts at the byte offset the replay consumed. A separate
 tiny binary, not the app: it runs inside every Claude Code turn, every Codex turn and every shell command, so
@@ -285,8 +285,11 @@ stamps it with the agent, caps every field and the line (4 KB), and turns
 anything unparseable, or any name outside that agent's events (`ActivityEventName.claudeCodeEvents`,
 `codexEvents`), into a `ParseError` line. Each line carries the pid of the nearest ancestor running its agent
 (`ProcWalk.pid(of:inChainFrom:)`; a Codex started from a Claude Code tool call has both in its chain). For a
-Codex TUI session that ancestor is Codex's managed daemon, shared by every TUI session and outliving them;
-the monitor reads each Codex pid once (`ProcWalk.isCodexDaemon`) and marks those sessions `hostedByDaemon`.
+Codex TUI session that ancestor is Codex's managed daemon, shared by every TUI session and outliving them; for
+a desktop-app session, the app's own `codex app-server`, shared the same way. The monitor reads each Codex
+pid's path and arguments once and marks its sessions `hostedBySharedCodex` (`ProcWalk.isSharedCodexHost`: any
+`codex` with an `app-server` argument) and `hostedByManagedDaemon` (`ProcWalk.isManagedCodexDaemon`: the
+`--managed-daemon` flag or the `/app-server-daemon/` path).
 `ActivityJournalWriter.append` is one `write` on an `O_APPEND` descriptor. The journal rotates to
 `activity.1.jsonl` above 20 MB, or above 5 MB while idle.
 
@@ -340,7 +343,7 @@ session's `transcriptPath`'s config directory (`ClaudeRegistryRecord.configDir(f
 `idle` stamped after the last main event → `turnOver`; registry `busy` → `noteBusy` (and one warning after
 5 min without a hook); a `waiting` session whose registry says `busy` stamped 2 s after the wait began →
 `dialogAnswered`. Codex checks (`ActivityMonitor.checkCodex`), for Codex sessions (`codexCandidates`, the
-same gate and cadence, no pid needed, and no gate at launch). A `hostedByDaemon` session is asked about at the
+same gate and cadence, no pid needed, and no gate at launch). A `hostedByManagedDaemon` session is asked about at the
 daemon first while its socket exists (`CodexDaemonClient.readThread`, not at launch, one question out per
 session): the answer arrives on main and applies only if the session is still `working` with the same
 `lastMainEventAt` as when it was asked; `CodexThreadRecord.verdict` maps `notLoaded` and `idle` to
@@ -354,8 +357,8 @@ the `event_msg` turn markers' type, stamp and turn id, and `CodexRolloutTail.dec
 session: `task_complete` or `turn_aborted` stamped after the last main event, or naming `lastMainTurnId` →
 `turnOver`; `task_started` with no end → `noteBusy` (the same 5 min warning); an earlier turn's end, or
 unreadable → nothing, unreadable logged once per session. `nextDeadline` schedules both. `pruneDead` keeps a
-`hostedByDaemon` session without asking about its pid; the kqueue on the daemon still drops them all when it
-exits. For a Claude Code session with a live pid, `pruneDead` asks `registrySession` for the session the pid's
+`hostedBySharedCodex` session without asking about its pid; the kqueue on the host still drops them all when
+it exits. For a Claude Code session with a live pid, `pruneDead` asks `registrySession` for the session the pid's
 record names (read from the same directory as the rescues) and drops the session when it is another. Only `working` counts as running, and the snapshot counts it per agent (`claudeSessions`,
 `codexSessions`).
 

@@ -125,8 +125,9 @@ up any of the three hooks from that page or from the onboarding turns it on.
   Claude Code registry record exists for the pid, names the same session; then the registry and the rollouts
   are read before the first arm, whatever the turn's quiet, and a session already over is never counted.
   A Codex session of the TUI is hosted by Codex's managed daemon, one per user, alive across every TUI: the
-  pid its hooks record is the daemon's, so only the daemon's death drops its sessions. `codex exec` and the
-  desktop app record their own process, and their death drops their sessions. Every Codex hook names the
+  pid its hooks record is the daemon's, so only the daemon's death drops its sessions. The desktop app's own
+  `codex` is a shared host too, alive across its threads: its pid proves nothing either, and only its death
+  drops its sessions. `codex exec` records its own process, and its death drops its sessions. Every Codex hook names the
   session's rollout file (`transcript_path`), and a working Codex session quiet for 20 s with nothing out is
   checked against it every 15 s, and once at launch before anything counts: a
   `task_complete` or `turn_aborted` that is stamped after the last main-agent event, or that names the turn
@@ -134,12 +135,13 @@ up any of the three hooks from that page or from the onboarding turns it on.
   Codex aborted arrives after the `turn_aborted`, under the same turn id); an end of an earlier turn stamped
   before that event decides nothing; a `task_started` with no end keeps it alive; a rollout that cannot be
   read decides nothing, and only a path under `~/.codex/sessions/` that names the session's own rollout is
-  read. When Codex's daemon is running, it is asked first (`thread/read`): a thread it has not loaded, or has
-  idle, has nothing running; an active one keeps the session alive; the rollout decides when the daemon does
-  not answer. Only a session the daemon hosts is asked; a status other than these three decides nothing
-  either, and every question has 1 s to be answered. At launch the daemon is asked which threads it holds
-  (`thread/loaded/list`): a working session it hosts whose thread is not among them has nothing running, and
-  nothing counts before that answer. The launch checks only end turns, but for a Claude Code dialog the
+  read. When Codex's managed daemon is running, it is asked first (`thread/read`): a thread it has not
+  loaded, or has idle, has nothing running; an active one keeps the session alive; the rollout decides when
+  the daemon does not answer. Only a session the managed daemon hosts is asked: the desktop app's `codex` is
+  never asked, and its sessions are decided by the rollout alone; a status other than these three decides
+  nothing either, and every question has 1 s to be answered. At launch the managed daemon is asked which
+  threads it holds (`thread/loaded/list`): a working session it hosts whose thread is not among them has
+  nothing running, and nothing counts before that answer. The launch checks only end turns, but for a Claude Code dialog the
   registry says was answered, which counts again as it would at the first check. Anything silent for 2 h is
   dropped.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
