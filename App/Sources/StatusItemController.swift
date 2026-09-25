@@ -16,6 +16,15 @@ final class StatusItemController: NSObject {
     var state: State = .off { didSet { render() } }
     /// The app icons the auto-armed cup wears, front first; every other state ignores them.
     var badges: [NSImage] = [] { didSet { render() } }
+    /// The badges' view. App icons carry colour, which a template image cannot, and only the bar draws a
+    /// template image in the tint it gives every icon on the wallpaper of the day: so the cup stays a
+    /// template image with holes cut where the badges go, and the icons lie over the button in this view,
+    /// put on the image's own rect at every change (`layoutBadges`). Clicks go through it.
+    private final class BadgeView: NSImageView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+    private let badgeView = BadgeView()
+    private var frameObserver: NSObjectProtocol?
     /// The kernel flag could not be cleared; the icon turns orange until it is.
     var warning = false { didSet { render() } }
     /// Armed with an external display connected: the arm stands, the built-in-screen behaviours wait.
@@ -32,6 +41,16 @@ final class StatusItemController: NSObject {
         item.button?.target = self
         item.button?.action = #selector(clicked(_:))
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        if let button = item.button {
+            badgeView.imageScaling = .scaleNone
+            badgeView.isHidden = true
+            button.clipsToBounds = false                    // the badges overflow the item rather than widen it
+            button.addSubview(badgeView)
+            button.postsFrameChangedNotifications = true
+            frameObserver = NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: button, queue: .main) { [weak self] _ in
+                self?.layoutBadges()
+            }
+        }
         render()
     }
 
@@ -50,10 +69,12 @@ final class StatusItemController: NSObject {
     private func render() {
         guard let button = item.button else { return }
         let badged = state == .auto && !badges.isEmpty
-        button.image = badged ? badgedMugImage(badges: badges, warning: warning) : Self.mugImage(state: state.glyph)
-        // A template image is tinted by the bar, orange for the warning. The badged cup carries the icons'
-        // colours, so it is no template: it draws its own ink, orange itself for the warning.
+        button.image = badged ? Self.badgedMugImage(count: badges.count) : Self.mugImage(state: state.glyph)
+        // Both are template images: the bar tints the cup, orange for the warning; the badges keep their colours.
         button.contentTintColor = warning ? .systemOrange : nil
+        badgeView.image = badged ? badgesImage(badges) : nil
+        badgeView.isHidden = !badged
+        layoutBadges()
         button.title = angleText.map { " " + $0 } ?? ""
         button.imagePosition = angleText == nil ? .imageOnly : .imageLeft
         var tip = "KoffeeLid — " + Self.tooltipTitle(for: state)
@@ -122,37 +143,67 @@ final class StatusItemController: NSObject {
     static let badgeSide: CGFloat = 9, badgeStep: CGFloat = 3, badgeKnockout: CGFloat = 0.75
     static let badgeOverhang: CGFloat = 3, badgeDrop: CGFloat = 2
 
-    /// The armed cup wearing the apps at work: the same cup as `mugImage(state: .armed)`, sitting where that
-    /// one sits (the image is the bar's 22 pt tall, so the cup keeps its place while the badges reach
-    /// lower), the badges stacked from past its bottom-right corner up and to the right (the first in
-    /// front), the image widening to hold them. The icons carry colour, so this is no template image: the
-    /// cup is drawn opaque, black on a light bar and white on a dark one, decided when the bar draws it,
-    /// or orange for the warning.
-    static func badgedMugImage(badges: [NSImage], warning: Bool) -> NSImage {
+    /// The geometry of the badged cup with `count` badges, in the cup image's coordinates: the cup's rect
+    /// and the image's size, exactly `mugImage`'s so the item never changes size and the cup never moves;
+    /// the badges' frames (the first in front), which overflow the image to the right and below, into the
+    /// item's own margin and the bar's; and the bottom-left of the badges' own image.
+    static func badgeLayout(count: Int) -> (mug: NSRect, frames: [NSRect], size: NSSize, origin: NSPoint) {
         let width: CGFloat = 22, height = width * MugShape.aspect
-        let mug = NSRect(x: 0.5, y: 0.5 + badgeDrop, width: width, height: height)
+        let size = NSSize(width: ceil(width) + 1, height: ceil(height) + 2)
+        let mug = NSRect(x: (size.width - width) / 2, y: 0.5, width: width, height: height)
         let anchor = NSPoint(x: mug.maxX + badgeOverhang, y: mug.minY - badgeDrop)
-        let frames = MugShape.badgeFrames(count: badges.count, anchor: anchor, side: badgeSide, step: badgeStep)
-        let right = frames.map(\.maxX).max() ?? mug.maxX
-        let size = NSSize(width: ceil(right + 0.5), height: ceil(height) + 2 + badgeDrop * 2)
-        let image = NSImage(size: size, flipped: false) { _ in
-            let dark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            MugShape.draw(in: mug, state: .armed, ink: warning ? .systemOrange : (dark ? .white : .black))
-            MugShape.drawBadges(badges, frames: frames, knockout: badgeKnockout)
+        let frames = MugShape.badgeFrames(count: count, anchor: anchor, side: badgeSide, step: badgeStep)
+        let union = frames.reduce(NSRect.null) { $0.union($1) }
+        return (mug, frames, size, union.origin)
+    }
+
+    private static var badgedCache: [Int: NSImage] = [:]
+
+    /// The armed cup with the holes of `count` badges cut (the part of each that falls on the image): a
+    /// template image, the bar tints it.
+    static func badgedMugImage(count: Int) -> NSImage {
+        if let cached = badgedCache[count] { return cached }
+        let layout = badgeLayout(count: count)
+        let image = NSImage(size: layout.size, flipped: false) { _ in
+            MugShape.draw(in: layout.mug, state: .armed, ink: .black)
+            for frame in layout.frames { MugShape.cutBadgeHole(frame, knockout: badgeKnockout) }
             return true
         }
+        image.isTemplate = true
+        badgedCache[count] = image
         return image
     }
 
-    /// The last badged cup, kept while the same icons and warning are asked for again (`render` runs on
-    /// every angle sample while the angle is shown).
-    private var badged: (badges: [NSImage], warning: Bool, image: NSImage)?
-    private func badgedMugImage(badges: [NSImage], warning: Bool) -> NSImage {
-        if let b = badged, b.warning == warning, b.badges.count == badges.count, zip(b.badges, badges).allSatisfy({ $0 === $1 }) {
-            return b.image
+    /// The badges alone, the first in front, each in its hole: laid over the cup at `badgeLayout(count:).origin`.
+    static func badgesImage(_ badges: [NSImage]) -> NSImage {
+        let layout = badgeLayout(count: badges.count)
+        let frames = layout.frames.map { $0.offsetBy(dx: -layout.origin.x, dy: -layout.origin.y) }
+        let size = frames.reduce(NSRect.null) { $0.union($1) }.size
+        return NSImage(size: size, flipped: false) { _ in
+            MugShape.drawBadges(badges, frames: frames, knockout: badgeKnockout)
+            return true
         }
-        let image = Self.badgedMugImage(badges: badges, warning: warning)
-        badged = (badges, warning, image)
+    }
+
+    /// The last badges image, kept while the same icons are asked for again (`render` runs on every angle
+    /// sample while the angle is shown).
+    private var badged: (badges: [NSImage], image: NSImage)?
+    private func badgesImage(_ badges: [NSImage]) -> NSImage {
+        if let b = badged, b.badges.count == badges.count, zip(b.badges, badges).allSatisfy({ $0 === $1 }) { return b.image }
+        let image = Self.badgesImage(badges)
+        badged = (badges, image)
         return image
+    }
+
+    /// Puts the badge view where the button draws its image, so the icons land in the holes cut for them.
+    private func layoutBadges() {
+        guard let button = item.button, !badgeView.isHidden, let image = badgeView.image else { return }
+        var imageRect = (button.cell as? NSButtonCell)?.imageRect(forBounds: button.bounds) ?? .zero
+        if imageRect.isEmpty, let cup = button.image {
+            imageRect = NSRect(x: (button.bounds.width - cup.size.width) / 2, y: (button.bounds.height - cup.size.height) / 2,
+                               width: cup.size.width, height: cup.size.height)
+        }
+        let origin = Self.badgeLayout(count: badges.count).origin
+        badgeView.frame = NSRect(x: imageRect.minX + origin.x, y: imageRect.minY + origin.y, width: image.size.width, height: image.size.height)
     }
 }

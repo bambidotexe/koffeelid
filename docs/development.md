@@ -281,11 +281,14 @@ the shared `cup`, one eye string per armed state, and the `liquid` ellipse in ev
 it: edit the SVGs, paste the new `d` strings into `MugShape` (the parser handles M L H V C A Z), update
 `MugShape.box` if the cup bounds moved, and rebuild. Glyph size and vertical offset live in
 `StatusItemController.mugImage` (22 pt wide, template image). The auto-armed cup has no artwork of its own:
-`StatusItemController.badgedMugImage` draws the armed cup and stacks the app icons of the work off its corner
-(`MugShape.badgeFrames`, `drawBadges`; the badge size, step, knock-out, overhang and drop are the constants
-beside it, and the image is the bar's 22 pt tall so the cup keeps its place while the badges reach lower).
-That image carries colour, so it is not a template: the cup is drawn opaque, black on a light bar and white on
-a dark one, decided from the appearance current when the bar draws it. The icons come from `ActivityIcons` (the system's icon for the app, cached per app), the apps from
+the bar tints a template image in a colour it derives from the wallpaper, which nothing else can reproduce, so
+the cup stays a template image: `StatusItemController.badgedMugImage` is the armed cup, at `mugImage`'s size,
+with a hole cut where each badge goes (`MugShape.badgeFrames`, `cutBadgeHole`; the badge size, step, knock-out,
+overhang and drop are the constants beside it). The icons themselves, which carry colour, are a second image
+(`badgesImage`, `MugShape.drawBadges`) in a view laid over the button on the image's own rect (`layoutBadges`,
+run at every render and every change of the button's frame), which lets clicks through. The item keeps the
+plain cup's size, so the cup never moves: the badges overflow it, to the right and below, into the item's own
+margin and the bar's. The icons come from `ActivityIcons` (the system's icon for the app, cached per app), the apps from
 `ActivityBadge` in Core.
 
 **The app icon** is `App/Resources/AppIcon.icon`, an Icon Composer document (Xcode ships Icon Composer.app

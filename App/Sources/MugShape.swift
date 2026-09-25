@@ -55,16 +55,21 @@ enum MugShape {
         }
     }
 
-    /// Draws app icons in `frames` (front first), back to front, each after clearing `knockout` pt of
-    /// whatever is already drawn around it, so a dark icon still reads on the dark cup.
+    /// Clears whatever is drawn under a badge's `frame` and `knockout` pt around it (an app icon's rounded
+    /// square, plus the gap), so a dark icon still reads on the dark cup.
+    static func cutBadgeHole(_ frame: NSRect, knockout: CGFloat) {
+        let radius = frame.width * 0.22 + knockout
+        let hole = NSBezierPath(roundedRect: frame.insetBy(dx: -knockout, dy: -knockout), xRadius: radius, yRadius: radius)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current?.compositingOperation = .destinationOut
+        NSColor.black.setFill(); hole.fill()
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
+    /// Draws app icons in `frames` (front first), back to front, each in a hole cut for it.
     static func drawBadges(_ badges: [NSImage], frames: [NSRect], knockout: CGFloat) {
         for (badge, frame) in zip(badges, frames).reversed() {
-            let radius = frame.width * 0.22 + knockout          // an app icon's own corner, plus the gap
-            let hole = NSBezierPath(roundedRect: frame.insetBy(dx: -knockout, dy: -knockout), xRadius: radius, yRadius: radius)
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current?.compositingOperation = .destinationOut
-            NSColor.black.setFill(); hole.fill()
-            NSGraphicsContext.restoreGraphicsState()
+            cutBadgeHole(frame, knockout: knockout)
             badge.draw(in: frame, from: .zero, operation: .sourceOver, fraction: 1)
         }
     }
