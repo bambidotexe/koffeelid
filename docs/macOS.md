@@ -325,8 +325,9 @@ Read from Codex's source (`openai/codex`, `codex-rs/hooks`, `codex-rs/config`) a
   process, so the installer and the Health page use `~/.codex`.
 - **The desktop app and its icons.** LaunchServices answers `com.openai.codex` with the OpenAI desktop app
   (named ChatGPT on this Mac, an Electron bundle), whose Finder icon is the OpenAI mark. The Codex icon is
-  inside it, `Contents/Resources/icon-codex-light.png` (1024 px; a dark variant sits beside it), and that is
-  the badge Codex's work wears on the cup; without it the app's own icon serves. Claude Code has no app of its
+  inside it, `Contents/Resources/icon-codex-light.png` and `icon-codex-dark-color.png` (1024 px, a white
+  and a dark square around the same blue cloud), and that is the badge Codex's work wears on the cup: the
+  dark square on a light bar, the light one on a dark bar; without them the app's own icon serves. Claude Code has no app of its
   own: its badge is the Claude desktop app's, `com.anthropic.claudefordesktop`.
 
 ## zsh

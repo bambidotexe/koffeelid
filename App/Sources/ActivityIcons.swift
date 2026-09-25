@@ -12,7 +12,7 @@ enum ActivityIcons {
 
     static func icon(for app: ActivityApp) -> NSImage? {
         if let known = cache[app] { return known }
-        let icon = lookUp(app).map(cropped)
+        let icon = lookUp(app)
         cache[app] = icon
         return icon
     }
@@ -53,15 +53,31 @@ enum ActivityIcons {
         switch app {
         case .bundlePath(let path):
             guard FileManager.default.fileExists(atPath: path) else { return nil }
-            return NSWorkspace.shared.icon(forFile: path)
+            return cropped(NSWorkspace.shared.icon(forFile: path))
         case .bundleIdentifier(let id):
             guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) else { return nil }
             // The OpenAI desktop app answers for Codex under the ChatGPT icon and ships the Codex icon in
-            // its resources: that one is Codex's badge while it is there (docs/macOS.md § Codex).
-            if id == "com.openai.codex", let codex = NSImage(contentsOf: url.appendingPathComponent("Contents/Resources/icon-codex-light.png")) {
-                return codex
+            // its resources, in a light and a dark variant: those are Codex's badge while they are there
+            // (docs/macOS.md § Codex).
+            if id == "com.openai.codex" {
+                let resources = url.appendingPathComponent("Contents/Resources")
+                if let light = NSImage(contentsOf: resources.appendingPathComponent("icon-codex-light.png")).map(cropped) {
+                    let dark = NSImage(contentsOf: resources.appendingPathComponent("icon-codex-dark-color.png")).map(cropped)
+                    return contrasting(light: light, dark: dark ?? light)
+                }
             }
-            return NSWorkspace.shared.icon(forFile: url.path)
+            return cropped(NSWorkspace.shared.icon(forFile: url.path))
+        }
+    }
+
+    /// An icon that comes in two: the badge takes the one that contrasts with the bar, the dark square on
+    /// a light bar and the light one on a dark bar (a white square on a light bar reads as its picture
+    /// alone, a size smaller than its neighbours), decided when the bar draws it.
+    private static func contrasting(light: NSImage, dark: NSImage) -> NSImage {
+        NSImage(size: light.size, flipped: false) { r in
+            let barIsDark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            (barIsDark ? light : dark).draw(in: r, from: .zero, operation: .sourceOver, fraction: 1)
+            return true
         }
     }
 }

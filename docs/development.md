@@ -289,7 +289,8 @@ overhang and drop are the constants beside it). The icons themselves, which carr
 run at every render and every change of the button's frame), which lets clicks through. The item keeps the
 plain cup's size, so the cup never moves: the badges overflow it, to the right and below, into the item's own
 margin and the bar's. The icons come from `ActivityIcons` (the system's icon for the app, cropped to its rounded square so it fills the
-badge, cached per app), the apps from `ActivityBadge` in Core.
+badge, cached per app; Codex's two variants are picked against the bar's appearance when it draws), the apps
+from `ActivityBadge` in Core.
 
 **The app icon** is `App/Resources/AppIcon.icon`, an Icon Composer document (Xcode ships Icon Composer.app
 under Xcode › Open Developer Tool). It holds `icon.json` and three 1024 × 1024 layers in `Assets/`:
