@@ -148,24 +148,36 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(store.sessions["c1"]?.lastEventAt, t0.addingTimeInterval(23), "the hook is alive")
     }
     func testAToolEventOfAClosedTurnRefreshesLivenessOnly() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.interrupt, "c1", at: 5, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.postToolUse, "c1", at: 30, tool: "Bash", pid: 300, by: .codex, turn: "t1"))
+        XCTAssertEqual(state("c1"), .done)
+        XCTAssertEqual(store.sessions["c1"]?.lastEventAt, t0.addingTimeInterval(30))
+        XCTAssertEqual(store.sessions["c1"]?.lastMainEventAt, t0.addingTimeInterval(5), "the turn's quiet keeps counting from its Interrupt")
+        XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1"]); XCTAssertNil(store.sessions["c1"]?.openTurnId)
+    }
+    func testALateToolEventAfterAStopStillCountsBecauseAStopHookMayBlockIt() {
         store.apply(ev(.userPromptSubmit, turn: "t1")); store.apply(ev(.stop, at: 5, turn: "t1")); XCTAssertEqual(state(), .done)
-        store.apply(ev(.postToolUse, at: 30, tool: "Bash", turn: "t1"))
-        XCTAssertEqual(state(), .done)
-        XCTAssertEqual(store.sessions["s1"]?.lastEventAt, t0.addingTimeInterval(30))
-        XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0.addingTimeInterval(5), "the turn's quiet keeps counting from its Stop")
-        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["t1"]); XCTAssertNil(store.sessions["s1"]?.openTurnId)
+        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, [], "a Stop ends the turn without closing it")
+        store.apply(ev(.postToolUse, at: 6, tool: "Bash", turn: "t1")); XCTAssertEqual(state(), .working)
+    }
+    func testAnInterruptClosesTheTurnEvenWhenNoPromptWasSeen() {
+        store.apply(ev(.preToolUse, "c1", tool: "Bash", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .working)
+        store.apply(ev(.interrupt, "c1", at: 1, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.postToolUse, "c1", at: 14, tool: "Bash", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+        XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1"])
     }
     func testANewPromptOpensANewTurnAfterAnInterrupt() {
         store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
         store.apply(ev(.interrupt, "c1", at: 1, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
         store.apply(ev(.userPromptSubmit, "c1", at: 2, pid: 300, by: .codex, turn: "t2")); XCTAssertEqual(state("c1"), .working)
-        XCTAssertEqual(store.sessions["c1"]?.openTurnId, "t2"); XCTAssertEqual(store.sessions["c1"]?.closedByInterrupt, false)
+        XCTAssertEqual(store.sessions["c1"]?.openTurnId, "t2")
         XCTAssertNil(store.sessions["c1"]?.interruptedAt)
         store.apply(ev(.preToolUse, "c1", at: 3, tool: "Bash", pid: 300, by: .codex, turn: "t2")); XCTAssertEqual(state("c1"), .working)
     }
     func testAPromptOpensATurnWhateverIdItCarries() {
-        store.apply(ev(.userPromptSubmit, turn: "t1")); store.apply(ev(.stop, at: 1, turn: "t1"))
-        store.apply(ev(.userPromptSubmit, at: 2, turn: "t1")); XCTAssertEqual(state(), .working, "a prompt always opens a turn")
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1")); store.apply(ev(.interrupt, "c1", at: 1, pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.userPromptSubmit, "c1", at: 2, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .working, "a prompt always opens a turn")
     }
     func testAHelperEventOfAnInterruptedTurnIsIgnored() {
         store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
@@ -188,16 +200,17 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
         store.apply(ev(.postToolUse, at: 31, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
     }
-    func testTheLostStopRescueClosesTheTurn() {
+    func testTheLostStopRescueEndsTheTurnWithoutClosingIt() {
         store.apply(ev(.userPromptSubmit, turn: "p1"))
         store.apply(ev(.notification, at: 60, notif: "idle_prompt", turn: "p1")); XCTAssertEqual(state(), .done)
-        store.apply(ev(.postToolUse, at: 61, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
+        store.apply(ev(.postToolUse, at: 61, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .working, "a timer, not proof: the turn's own work still counts")
     }
     func testOnlyTheLastEightClosedTurnsAreKept() {
         for i in 0..<10 {
-            store.apply(ev(.userPromptSubmit, at: Double(2 * i), turn: "t\(i)")); store.apply(ev(.stop, at: Double(2 * i + 1), turn: "t\(i)"))
+            store.apply(ev(.userPromptSubmit, "c1", at: Double(2 * i), pid: 300, by: .codex, turn: "t\(i)"))
+            store.apply(ev(.interrupt, "c1", at: Double(2 * i + 1), pid: 300, by: .codex, turn: "t\(i)"))
         }
-        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, (2..<10).map { "t\($0)" })
+        XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, (2..<10).map { "t\($0)" })
     }
     func testToolEventsWithoutAnIdInTheQuarantineAfterAnInterruptChangeNothing() {
         store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))
@@ -218,6 +231,6 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.apply(ev(.permissionRequest, at: 6, tool: "Bash", turn: nil)); XCTAssertEqual(state(), .waiting)
         store.apply(ev(.postToolUseFailure, at: 7, turn: nil)); XCTAssertEqual(state(), .working)
         store.apply(ev(.stop, at: 8, turn: nil)); XCTAssertEqual(state(), .done)
-        store.apply(ev(.postToolUse, at: 9, tool: "Bash", turn: nil)); XCTAssertEqual(state(), .working, "without an id a Stop closes nothing a later line could name")
+        store.apply(ev(.postToolUse, at: 9, tool: "Bash", turn: nil)); XCTAssertEqual(state(), .working, "a Stop closes nothing")
     }
 }

@@ -83,8 +83,8 @@ up any of the three hooks from that page or from the onboarding turns it on.
 
 - **Claude Code**: 15 hook events in `~/.claude/settings.json` run the embedded `KoffeeLidHook hook`, which
   appends one trimmed line per event to `~/Library/Application Support/KoffeeLid/activity.jsonl`. A session
-  counts as working from a prompt or tool event until its turn closes (below): its `Stop`, or a verdict that the
-  turn is over (§ Without an end event). A session blocked on a question, a plan
+  counts as working from a prompt or tool event until its `Stop`, or until its turn closes (below). A session
+  blocked on a question, a plan
   approval or a permission does not count. A `Stop` while helpers or background shells are still out keeps the
   turn running until they finish or fall silent (240 s per helper, 90 s grace, 30 min cap).
 - **Codex**: 12 hook events in `~/.codex/hooks.json` run `KoffeeLidHook hook codex`, which appends the same
@@ -92,15 +92,16 @@ up any of the three hooks from that page or from the onboarding turns it on.
   trust (its key and the hash Codex computes for it) under `[hooks.state]` in `~/.codex/config.toml`; both files
   are backed up first (`hooks.json.backup-koffeelid`, `config.toml.backup-koffeelid`). The hook counts as set up
   only while all 12 events point at this copy **and** are trusted and not disabled there. A session counts as
-  working from a prompt or tool event until its turn closes (below): its `Stop`, or its `Interrupt` (Esc,
-  Ctrl-C), which also ends its helpers at once. A session blocked on a permission or on `request_user_input`
+  working from a prompt or tool event until its `Stop`, or until its turn closes (below); its `Interrupt` (Esc,
+  Ctrl-C) closes the turn and ends its helpers at once. A session blocked on a permission or on `request_user_input`
   does not count. Helpers hold a `Stop` as they do for Claude Code.
 - **A closed turn stays closed.** Every event of a turn carries the turn's id: Claude Code's `prompt_id`,
-  Codex's `turn_id`. A `Stop`, an `Interrupt`, or a verdict that the turn is over (§ Without an end event)
-  closes the turn. A tool or permission event that arrives for a closed turn, as the end of a tool Codex
-  aborted does seconds or minutes later, only proves the hook alive and changes nothing; a helper event of a
-  turn closed by an `Interrupt` changes nothing either, the interrupt having ended the helpers; a helper of a
-  turn closed by a `Stop` still holds it. A prompt always opens a turn, whatever id it carries. For 120 s after
+  Codex's `turn_id`. An `Interrupt`, or a verdict that the turn is over (§ Without an end event), closes the
+  turn. A tool or permission event that arrives for a closed turn, as the end of a tool Codex aborted does
+  seconds or minutes later, only proves the hook alive and changes nothing, and so does a helper event of a
+  closed turn. A `Stop` ends the turn but does not close it: a Stop hook that blocks it keeps the turn running,
+  and its later events count. The turn closed is the one the last prompt opened, or, when no prompt was seen,
+  the one the session's last event named. A prompt always opens a turn, whatever id it carries. For 120 s after
   an `Interrupt`, a tool or permission event without a turn id changes nothing either. A line without a turn id
   otherwise follows the rules above.
 - **Terminal (zsh)**: a `preexec`/`precmd` snippet in `~/.zshrc` reports each command. A command counts once it
@@ -110,7 +111,8 @@ up any of the three hooks from that page or from the onboarding turns it on.
 - **Without an end event**: a Claude Code or Codex process or a shell that exits drops its sessions and jobs at
   once (kqueue). A Claude Code turn ended with Esc or Ctrl-C fires no hook; Claude Code's own
   `sessions/<pid>.json` record going `idle` ends it within about 35 s, and an `idle_prompt` or
-  `agent_needs_input` notification after 50 s of main-agent quiet ends it too; either verdict closes the turn.
+  `agent_needs_input` notification after 50 s of main-agent quiet ends it too. The registry's verdict closes
+  the turn; the notification, a timer rather than proof, does not.
   Codex has no registry and no notification hook, and its `Interrupt` hook fires instead. Anything silent for
   2 h is dropped.
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source

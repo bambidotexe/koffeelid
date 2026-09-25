@@ -288,17 +288,19 @@ anything unparseable, or any name outside that agent's events (`ActivityEventNam
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |
 | `Interrupt` (Codex only) | `done`, helpers and background ids cleared: Esc ended everything |
 | `Notification` `idle_prompt` / `agent_needs_input`, state `working`, 50 s of main-agent quiet | treated as a lost `Stop` |
-| `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied` of a closed turn | unchanged (liveness only) |
+| `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied` of a turn an `Interrupt` or a verdict closed; a helper event of such a turn | unchanged (liveness only) |
 | helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`), and the next helper event ends that wait; a helper active after `done` reopens it |
 | `SessionEnd`, process exit | session removed |
 
-Turns: a main-agent `UserPromptSubmit` opens its turn (`openTurnId`, whatever id it carries); a `Stop`, an
-`Interrupt`, the lost-`Stop` notification and `turnOver` close it (`closeTurn`: the id joins `closedTurnIds`,
-the last 8, and `closedByInterrupt`/`interruptedAt` record whether an `Interrupt` did it). Before the table
-applies, `changesNothing` sets aside, after refreshing `lastEventAt` and before `lastMainEventAt`: every
-main-agent event of a closed turn but a `SessionStart`, a `SessionEnd` or a prompt; a helper event of a turn an
-`Interrupt` closed; and, for 120 s after an `Interrupt` (`abortQuarantineSeconds`), a main-agent tool or
-permission event with no turn id. A line without a turn id otherwise meets the table as it is.
+Turns: a main-agent `UserPromptSubmit` opens its turn (`openTurnId`, whatever id it carries). An `Interrupt`
+and `turnOver` close it (`closeTurn`: `openTurnId`, or `lastMainTurnId`, the id of the last main-agent event,
+when no prompt was seen, joins `closedTurnIds`, the last 8; `interruptedAt` records an `Interrupt`'s close). A
+`Stop` and the lost-`Stop` notification end the turn without closing it: a Stop hook that blocks the Stop keeps
+the same turn running. Before the table applies, `changesNothing` sets aside, after refreshing `lastEventAt`
+and before `lastMainEventAt`: every main-agent event of a closed turn but a `SessionStart`, a `SessionEnd` or a
+prompt; every helper event of a closed turn; and, for 120 s after an `Interrupt` (`abortQuarantineSeconds`), a
+main-agent tool or permission event with no turn id. A line without a turn id otherwise meets the table as it
+is.
 
 Time rules (`tick`): a helper counts as live for 240 s after its last event; a held `Stop` becomes `done` 90 s
 after everything cleared, or 30 min after the last event; `done` becomes `idle` after 20 min; a session silent
