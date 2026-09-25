@@ -97,13 +97,13 @@ up any of the three hooks from that page or from the onboarding turns it on.
   does not count. Helpers hold a `Stop` as they do for Claude Code.
 - **A closed turn stays closed.** Every event of a turn carries the turn's id: Claude Code's `prompt_id`,
   Codex's `turn_id`. An `Interrupt`, or a verdict that the turn is over (§ Without an end event), closes the
-  turn. A tool or permission event that arrives for a closed turn, as the end of a tool Codex aborted does
-  seconds or minutes later, only proves the hook alive and changes nothing, and so does a helper event of a
-  closed turn. A `Stop` ends the turn but does not close it: a Stop hook that blocks it keeps the turn running,
-  and its later events count. The turn closed is the one the last prompt opened, or, when no prompt was seen,
-  the one the session's last event named. A prompt always opens a turn, whatever id it carries. For 120 s after
-  an `Interrupt`, a tool or permission event without a turn id changes nothing either. A line without a turn id
-  otherwise follows the rules above.
+  turn. Any event that arrives for a closed turn, but a prompt, a `SessionStart` or a `SessionEnd`, only proves
+  the hook alive and changes nothing, as the end of a tool Codex aborted does seconds or minutes later; a
+  helper's events are among them. A `Stop` ends the turn but does not close it: a Stop hook that blocks it keeps
+  the turn running, and its later events count. The turn closed is the one named by the last main-agent event
+  that carried an id. A prompt always opens a turn, whatever id it carries, a closed one included. For 120 s
+  after an `Interrupt`, a tool or permission event without a turn id changes nothing either. A line without a
+  turn id otherwise follows the rules above.
 - **Terminal (zsh)**: a `preexec`/`precmd` snippet in `~/.zshrc` reports each command. A command counts once it
   has run longer than "Ignore commands shorter than" (default 5 s, `KOFFEELID_ARM_AFTER` per shell).
   Interactive programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `claude`, `codex`, …)

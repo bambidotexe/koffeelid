@@ -154,7 +154,7 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(state("c1"), .done)
         XCTAssertEqual(store.sessions["c1"]?.lastEventAt, t0.addingTimeInterval(30))
         XCTAssertEqual(store.sessions["c1"]?.lastMainEventAt, t0.addingTimeInterval(5), "the turn's quiet keeps counting from its Interrupt")
-        XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1"]); XCTAssertNil(store.sessions["c1"]?.openTurnId)
+        XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1"])
     }
     func testALateToolEventAfterAStopStillCountsBecauseAStopHookMayBlockIt() {
         store.apply(ev(.userPromptSubmit, turn: "t1")); store.apply(ev(.stop, at: 5, turn: "t1")); XCTAssertEqual(state(), .done)
@@ -171,13 +171,17 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
         store.apply(ev(.interrupt, "c1", at: 1, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
         store.apply(ev(.userPromptSubmit, "c1", at: 2, pid: 300, by: .codex, turn: "t2")); XCTAssertEqual(state("c1"), .working)
-        XCTAssertEqual(store.sessions["c1"]?.openTurnId, "t2")
+        XCTAssertEqual(store.sessions["c1"]?.lastMainTurnId, "t2")
         XCTAssertNil(store.sessions["c1"]?.interruptedAt)
         store.apply(ev(.preToolUse, "c1", at: 3, tool: "Bash", pid: 300, by: .codex, turn: "t2")); XCTAssertEqual(state("c1"), .working)
     }
     func testAPromptOpensATurnWhateverIdItCarries() {
         store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1")); store.apply(ev(.interrupt, "c1", at: 1, pid: 300, by: .codex, turn: "t1"))
         store.apply(ev(.userPromptSubmit, "c1", at: 2, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .working, "a prompt always opens a turn")
+        XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, [], "the reopened id is no longer closed")
+        store.apply(ev(.stop, "c1", at: 3, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.postToolUse, "c1", at: 4, tool: "Bash", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .working, "the reopened turn's work counts")
+        store.apply(ev(.interrupt, "c1", at: 5, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done, "and its Interrupt ends it")
     }
     func testAHelperEventOfAnInterruptedTurnIsIgnored() {
         store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
@@ -211,6 +215,24 @@ final class ActivitySessionStoreTests: XCTestCase {
             store.apply(ev(.interrupt, "c1", at: Double(2 * i + 1), pid: 300, by: .codex, turn: "t\(i)"))
         }
         XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, (2..<10).map { "t\($0)" })
+    }
+    func testAHelperEventAfterAVerdictCloseIsIgnored() {
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
+        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
+        store.apply(ev(.preToolUse, at: 31, tool: "Bash", agent: "h1", turn: "p1"))
+        XCTAssertEqual(state(), .done); XCTAssertTrue(store.sessions["s1"]!.liveAgents.isEmpty); XCTAssertFalse(store.sessions["s1"]!.pendingDone)
+    }
+    func testAStopOrANotificationOfAClosedTurnIsIgnored() {
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30))
+        store.apply(ev(.notification, at: 31, notif: "permission_prompt", turn: "p1")); XCTAssertEqual(state(), .done, "not waiting: the dialog belongs to a closed turn")
+        store.apply(ev(.stop, at: 32, bg: ["b1"], turn: "p1")); XCTAssertEqual(state(), .done, "not held behind its background shell")
+        XCTAssertTrue(store.sessions["s1"]!.backgroundIds.isEmpty); XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0)
+    }
+    func testANewTurnIdInsideTheQuarantineStillCounts() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.interrupt, "c1", at: 10, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
+        store.apply(ev(.postToolUse, "c1", at: 20, tool: "Bash", pid: 300, by: .codex, turn: "t2")); XCTAssertEqual(state("c1"), .working, "the quarantine covers lines without an id only")
+        store.apply(ev(.interrupt, "c1", at: 21, pid: 300, by: .codex, turn: "t2")); XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1", "t2"])
     }
     func testToolEventsWithoutAnIdInTheQuarantineAfterAnInterruptChangeNothing() {
         store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex))

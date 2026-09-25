@@ -386,10 +386,12 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   line looks like work, and nothing ends it again: Codex runs `Stop` only when a turn completes normally, never
   after an abort.
 - **What the code does.** Every line keeps its turn id (`ActivityEvent.turnId`, from `turn_id` or Claude Code's
-  `prompt_id`). The `Interrupt` closes the turn (the one the prompt opened, or the one the last event named
-  when no prompt was seen), and a tool, permission or helper event naming a closed turn only refreshes the
-  session's liveness (`ActivitySessionStore.changesNothing`); a new prompt opens a new turn. For 120 s after an
-  `Interrupt`, a tool or permission line without a turn id is set aside the same way.
+  `prompt_id`). The `Interrupt` closes the turn the last main-agent event carrying an id named, and any event
+  naming a closed turn but a prompt or a `SessionStart`, a helper's included, only refreshes the session's
+  liveness (`ActivitySessionStore.changesNothing`); a prompt opens its turn, even under a closed id. For 120 s
+  after an `Interrupt`, a tool or permission line without a turn id is set aside the same way.
+- **Do not** forget to un-close an id when a prompt reuses it: every later event of that turn, its `Stop` and
+  `Interrupt` included, would be set aside, and the session would stay working with nothing able to end it.
 - **Do not** make a `Stop` close the turn: a user's Stop hook that blocks the Stop keeps the same turn running
   under the same id, and that work must count. Do not end the quarantine at the next tool event, or drop the
   turn id to save bytes: the late line is indistinguishable from real work by anything else it carries.

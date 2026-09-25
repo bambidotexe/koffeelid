@@ -20,9 +20,7 @@ public struct ActivitySession: Equatable {
     public var pendingDone = false
     public var holdReleasedAt: Date?
     public var waitingFromAgent = false
-    /// The turn the last main-agent prompt opened; nil once it closes.
-    public var openTurnId: String?
-    /// The turn the last main-agent event named: what a close records when no prompt was seen.
+    /// The turn the last main-agent event carrying an id named, a prompt included: the turn a close records.
     public var lastMainTurnId: String?
     /// The last `ActivitySessionStore.closedTurnsKept` turns closed by an Interrupt or a verdict.
     public var closedTurnIds: [String] = []
@@ -86,7 +84,7 @@ public struct ActivitySessionStore {
         if e.event != .notification { s.lastMainEventAt = now }
 
         if let turn = e.turnId { s.lastMainTurnId = turn }
-        if e.event == .userPromptSubmit { s.openTurnId = e.turnId; s.interruptedAt = nil }
+        if e.event == .userPromptSubmit { s.closedTurnIds.removeAll { $0 == e.turnId }; s.interruptedAt = nil }
 
         switch e.event {
         case .sessionStart:
@@ -129,25 +127,25 @@ public struct ActivitySessionStore {
     /// The tool and permission events a tool Codex aborted can still send after the turn closed.
     static let lateToolEvents: Set<ActivityEventName> = [.preToolUse, .postToolUse, .postToolUseFailure, .permissionRequest, .permissionDenied]
 
-    /// An event that only proves the hook alive: a main-agent event of a closed turn (a prompt, a start or an
-    /// end always counts), a helper event of a closed turn, or a main-agent tool or permission event without a
-    /// turn id inside the quarantine after an `Interrupt`.
+    /// An event that only proves the hook alive: a main-agent event of a closed turn (a prompt or a start always
+    /// counts; `apply` removes the session at an end before asking), a helper event of a closed turn, or a
+    /// main-agent tool or permission event without a turn id inside the quarantine after an `Interrupt`.
     static func changesNothing(_ e: ActivityEvent, in s: ActivitySession) -> Bool {
         let ofClosedTurn = e.turnId.map(s.closedTurnIds.contains) ?? false
         if e.agentId != nil { return ofClosedTurn }
-        if [.sessionStart, .sessionEnd, .userPromptSubmit].contains(e.event) { return false }
+        if [.sessionStart, .userPromptSubmit].contains(e.event) { return false }
         if ofClosedTurn { return true }
         guard e.turnId == nil, lateToolEvents.contains(e.event), let interruptedAt = s.interruptedAt else { return false }
         return e.loggedAt.timeIntervalSince(interruptedAt) < ActivityConstants.abortQuarantineSeconds
     }
-    /// An Interrupt or a verdict that the turn is over closes the turn for good: the one a prompt opened, or,
-    /// when no prompt was seen, the one the last main-agent event named (an Interrupt's own id among them).
-    func closeTurn(_ s: inout ActivitySession, byInterrupt: Bool, now: Date) {
-        if let turn = s.openTurnId ?? s.lastMainTurnId, !s.closedTurnIds.contains(turn) {
+    /// An Interrupt or a verdict that the turn is over closes the turn the last main-agent event carrying an id
+    /// named (an Interrupt's own id among them); only a prompt of that id opens it again.
+    private func closeTurn(_ s: inout ActivitySession, byInterrupt: Bool, now: Date) {
+        if let turn = s.lastMainTurnId, !s.closedTurnIds.contains(turn) {
             s.closedTurnIds.append(turn)
             if s.closedTurnIds.count > Self.closedTurnsKept { s.closedTurnIds.removeFirst(s.closedTurnIds.count - Self.closedTurnsKept) }
         }
-        s.openTurnId = nil; s.interruptedAt = byInterrupt ? now : nil
+        s.interruptedAt = byInterrupt ? now : nil
     }
     /// The finish line, shared by Stop and the lost-Stop rescues: done if nothing is still out, held otherwise.
     func applyStopVerdict(_ s: inout ActivitySession, now: Date) {
