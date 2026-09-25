@@ -52,9 +52,9 @@ extension ProcWalk {
     }
 }
 
-/// The badges the auto-armed cup wears: one per app whose work ran during the current stretch of the auto
-/// level, kept through the hold-off (the cup still says why the Mac is armed), cleared when the level
-/// drops. The coordinator feeds it the running badges on every activity change.
+/// The badges the auto-armed cup wears: one per app at work right now; once nothing runs, the apps that
+/// last ran stay through the hold-off (the cup still says why the Mac is armed); the level dropping
+/// clears them. The coordinator feeds it the running badges on every activity change.
 public struct AutoArmBadges: Equatable {
     /// Front to back.
     public private(set) var badges: [ActivityBadge] = []
@@ -64,7 +64,7 @@ public struct AutoArmBadges: Equatable {
 
     public mutating func update(running: Set<ActivityBadge>, levelOn: Bool) {
         guard levelOn else { badges = []; return }
-        badges = Set(badges).union(running).sorted()
+        if !running.isEmpty { badges = running.sorted() }
     }
 
     /// The badges the cup draws.

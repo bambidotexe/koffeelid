@@ -306,7 +306,8 @@ counts it per agent (`claudeSessions`, `codexSessions`).
 The snapshot also carries the badges of the work (`ActivityBadge`: a kind and the app that stands for it):
 Claude Code's and Codex's are fixed bundle identifiers, a command's is the app hosting its shell, read from
 the shell pid's process chain (`ProcWalk.hostApplicationPath`) at every publish, Terminal when none.
-`AutoArmBadges` in the coordinator unions them over a stretch of the level and clears them when it drops
+`AutoArmBadges` in the coordinator shows the running ones, keeps the last running set through the hold-off
+and clears them when the level drops
 (`currentAutoBadges`, refreshed with the status item and read again when the menu is built); `ActivityIcons`
 turns each app into its icon once and keeps it.
 

@@ -59,16 +59,23 @@ final class ActivityBadgesTests: XCTestCase {
         b.update(running: [.claude], levelOn: false)
         XCTAssertEqual(b.badges, [])
     }
-    func testBadgesAccumulateOverAStretchAndStayThroughTheHoldOff() {
+    func testTheBadgesAreTheAppsAtWorkKeptThroughTheHoldOff() {
         var b = AutoArmBadges()
         b.update(running: [.claude], levelOn: true)
         XCTAssertEqual(b.badges, [.claude])
         b.update(running: [], levelOn: true)
-        XCTAssertEqual(b.badges, [.claude], "the hold-off keeps the badge")
+        XCTAssertEqual(b.badges, [.claude], "the hold-off keeps what last ran")
         b.update(running: [.terminal], levelOn: true)
-        XCTAssertEqual(b.badges, [.claude, .terminal], "everything that ran during the stretch")
+        XCTAssertEqual(b.badges, [.terminal], "a command during the hold-off: only its app")
         b.update(running: [], levelOn: false)
         XCTAssertEqual(b.badges, [], "the level dropped")
+    }
+    func testAnAppThatStopsWhileAnotherRunsLosesItsBadge() {
+        var b = AutoArmBadges()
+        b.update(running: [.claude, .terminal], levelOn: true)
+        XCTAssertEqual(b.badges, [.claude, .terminal])
+        b.update(running: [.terminal], levelOn: true)
+        XCTAssertEqual(b.badges, [.terminal], "the turn was interrupted, the command goes on")
     }
     func testANewStretchStartsFromScratch() {
         var b = AutoArmBadges()

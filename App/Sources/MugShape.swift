@@ -46,12 +46,12 @@ enum MugShape {
         }
     }
 
-    /// Where the badges of the apps at work sit on a cup drawn in `r`: `side` pt squares stacked from the
-    /// cup's bottom-right corner, each further one `step` pt up and to the right, the first in front.
-    static func badgeFrames(count: Int, in r: NSRect, side: CGFloat, step: CGFloat) -> [NSRect] {
+    /// Where the badges of the apps at work sit: `side` pt squares, the first in front with its bottom-right
+    /// corner at `anchor`, each further one `step` pt up and to the right.
+    static func badgeFrames(count: Int, anchor: NSPoint, side: CGFloat, step: CGFloat) -> [NSRect] {
         (0..<max(0, count)).map { i in
             let d = CGFloat(i) * step
-            return NSRect(x: r.maxX - side + d, y: r.minY + d, width: side, height: side)
+            return NSRect(x: anchor.x - side + d, y: anchor.y + d, width: side, height: side)
         }
     }
 

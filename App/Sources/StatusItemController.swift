@@ -116,22 +116,28 @@ final class StatusItemController: NSObject {
     }
 
     /// The badges: 9 pt squares (an app icon still reads at that size on a Retina bar), 3 pt apart in the
-    /// stack, with 0.75 pt of cup cleared around each.
+    /// stack, with 0.75 pt of cup cleared around each. The front one hangs off the cup's bottom-right
+    /// corner, 3 pt to the right and 2 pt down: clear of the eyes, over the foot of the handle, its bottom
+    /// half a point above the bar's edge.
     static let badgeSide: CGFloat = 9, badgeStep: CGFloat = 3, badgeKnockout: CGFloat = 0.75
+    static let badgeOverhang: CGFloat = 3, badgeDrop: CGFloat = 2
 
-    /// The armed cup wearing the apps at work: the same cup as `mugImage(state: .armed)`, at the same place,
-    /// the badges stacked from its bottom-right corner up and to the right (the first in front), the image
-    /// widening to hold them. The icons carry colour, so this is no template image: the cup is drawn in
-    /// the bar's own text colour, resolved at draw time so it follows the bar's appearance, or in orange
-    /// for the warning.
+    /// The armed cup wearing the apps at work: the same cup as `mugImage(state: .armed)`, sitting where that
+    /// one sits (the image is the bar's 22 pt tall, so the cup keeps its place while the badges reach
+    /// lower), the badges stacked from past its bottom-right corner up and to the right (the first in
+    /// front), the image widening to hold them. The icons carry colour, so this is no template image: the
+    /// cup is drawn opaque, black on a light bar and white on a dark one, decided when the bar draws it,
+    /// or orange for the warning.
     static func badgedMugImage(badges: [NSImage], warning: Bool) -> NSImage {
         let width: CGFloat = 22, height = width * MugShape.aspect
-        let mug = NSRect(x: 0.5, y: 0.5, width: width, height: height)
-        let frames = MugShape.badgeFrames(count: badges.count, in: mug, side: badgeSide, step: badgeStep)
+        let mug = NSRect(x: 0.5, y: 0.5 + badgeDrop, width: width, height: height)
+        let anchor = NSPoint(x: mug.maxX + badgeOverhang, y: mug.minY - badgeDrop)
+        let frames = MugShape.badgeFrames(count: badges.count, anchor: anchor, side: badgeSide, step: badgeStep)
         let right = frames.map(\.maxX).max() ?? mug.maxX
-        let size = NSSize(width: ceil(right + 0.5), height: ceil(height) + 2)
+        let size = NSSize(width: ceil(right + 0.5), height: ceil(height) + 2 + badgeDrop * 2)
         let image = NSImage(size: size, flipped: false) { _ in
-            MugShape.draw(in: mug, state: .armed, ink: warning ? .systemOrange : .labelColor)
+            let dark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            MugShape.draw(in: mug, state: .armed, ink: warning ? .systemOrange : (dark ? .white : .black))
             MugShape.drawBadges(badges, frames: frames, knockout: badgeKnockout)
             return true
         }

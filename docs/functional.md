@@ -197,13 +197,15 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 ## User interface
 
 - **Menu-bar cup.** Three glyphs: empty (Off), closed eyes (Armed), round eyes (Armed + screen on). Auto-armed
-  is the closed-eyes cup wearing, at its bottom-right corner, the icon of each app whose work armed the Mac:
+  is the closed-eyes cup wearing, hung off its bottom-right corner and clear of the eyes, the icon of each app
+  at work:
   the Claude desktop app for Claude Code, the OpenAI desktop app's Codex icon for Codex, and for a command the
   terminal app hosting its shell (Terminal, iTerm, an editor's terminal…; Terminal's icon when no app hosts it,
   as over ssh). Several stack up and to the right, front to back Claude Code, Codex, then the terminals, three
   at most. The icons are the installed apps' own, nothing is bundled: an app that is not installed gives no
-  badge. The badges of everything that ran during the stretch stay through the hold-off, so the cup still says
-  why the Mac is armed, and go when the level drops. A manual mode always wins over the auto cup. Orange = the
+  badge. An app that stops while another still works loses its badge at once; once nothing runs, the apps
+  that last ran stay through the hold-off, so the cup still says why the Mac is armed, and go when the level
+  drops. A manual mode always wins over the auto cup. Orange = the
   kernel flag could not be cleared. Optional lid angle next to it. "Show in menu bar" off hides the cup and
   nothing else: every arming path that does not go through it (the gesture, the two shortcuts, auto-arm, the
   CLI, URLs, App Intents) and every armed behaviour work exactly as before; right-clicking to arm and the lid
