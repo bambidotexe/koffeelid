@@ -1,20 +1,21 @@
 #!/bin/zsh
 # **Release to GitHub.** The other of the two ways a build of this app ever reaches a Mac.
 #
-#   script/publish.sh <patch|minor|major> --notes=<file> [--no-install]
+#   script/publish.sh <patch|minor|major> --notes=<file> [--install]
 #
 # Bumps the version by the given level, commits and pushes that alone, then tags the commit, attaches the
-# signed and notarized disk image to a GitHub release, and installs the same bundle in /Applications. The
-# tree is left exactly at the version just published — nothing bumps it further, so a later local install
-# carries the same version until someone next runs this script. It leaves nothing behind: no .app and no
-# .dmg anywhere under the repository.
+# signed and notarized disk image to a GitHub release; with `--install` it also installs the same bundle
+# in /Applications. The tree is left exactly at the version just published — nothing bumps it further, so
+# a later local install carries the same version until someone next runs this script. It leaves nothing
+# behind: no .app and no .dmg anywhere under the repository.
 #
 # `--notes=<file>` is required: the release's description, in Markdown, written for the people who install
 # the app from the commits since the last tag (skill `macos-publish-release`, *Release notes*), published
 # as it is. The file lives outside the repository, which must stay clean.
 #
-# `--no-install` publishes the release and leaves /Applications alone. It is how the update the users get is
-# tested: the Mac stays on the version it runs, and that version finds the release and installs it itself.
+# /Applications is left alone unless `--install` is passed, and that flag is passed only when the owner has
+# asked for the release to be installed here. Left alone, the Mac stays on the version it runs, and that
+# version finds the release and installs it itself, the way the users get it.
 #
 # The other way is script/install.sh, which does everything but the publishing.
 set -euo pipefail
@@ -24,17 +25,17 @@ source "$ROOT/script/version.sh"
 source "$ROOT/script/no-leftovers.sh"
 
 LEVEL=""
-INSTALL=1
+INSTALL=0
 NOTES=""
 for arg in "$@"; do
   case "$arg" in
     patch|minor|major) LEVEL="$arg" ;;
-    --no-install) INSTALL=0 ;;
+    --install) INSTALL=1 ;;
     --notes=*) NOTES="${arg#--notes=}" ;;
-    *) echo "unknown argument: $arg (patch, minor, major, --notes=<file>, --no-install)" >&2; exit 1 ;;
+    *) echo "unknown argument: $arg (patch, minor, major, --notes=<file>, --install)" >&2; exit 1 ;;
   esac
 done
-[ -n "$LEVEL" ] || { echo "usage: script/publish.sh <patch|minor|major> --notes=<file> [--no-install]" >&2; exit 1; }
+[ -n "$LEVEL" ] || { echo "usage: script/publish.sh <patch|minor|major> --notes=<file> [--install]" >&2; exit 1; }
 [ -n "$NOTES" ] && [ -s "$NOTES" ] || { echo "refusing: no release notes. Read the commits since the last tag and write what they change for the people who install the app, then pass --notes=<file>." >&2; exit 1; }
 
 # Whatever happens — a refused release, a failed build, an interrupt — the repository is left with nothing
@@ -74,8 +75,8 @@ git -C "$ROOT" push -q origin "$TAG"
 gh release create "$TAG" "$DMG" -R "$GITHUB_REPO" --title "$APP_NAME $VERSION" \
   --notes-file "$NOTES" >&2
 
-# What was just published is what this Mac runs, by the same path as any other install — unless the release
-# was made to be installed by the app itself, from the version already on the Mac.
+# With `--install`, what was just published is what this Mac runs, by the same path as any other install.
+# Without it, the app already on the Mac finds the release and installs it itself.
 if [ "$INSTALL" -eq 1 ]; then
   MOUNT="$(mktemp -d)"
   /usr/bin/hdiutil attach "$DMG" -nobrowse -readonly -noautoopen -mountpoint "$MOUNT" >/dev/null

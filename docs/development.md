@@ -315,7 +315,9 @@ before running it.
 6. Decide the level — patch for a fix, minor for a new feature, major for a breaking change — and run
    `script/publish.sh <level> --notes=<file>`. It computes the new version and refuses if that tag already exists, then
    bumps the version by that level, commits and pushes the bump, builds the notarized image, tags, pushes,
-   creates the GitHub release with the image attached, and installs the same bundle in `/Applications`.
+   creates the GitHub release with the image attached. It installs the same bundle in `/Applications` only
+   with `--install`, passed only when the owner asks for it; otherwise the installed copy finds the release
+   and installs it itself.
    Nothing is left to commit afterward: the version bump was already committed and pushed before the build
    started.
 

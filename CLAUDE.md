@@ -126,7 +126,7 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 ```bash
 # ---- the two actions. A build of this app reaches a Mac by one of these and by nothing else. ----
 script/install.sh                                     # skill: macos-install-locally. Production build → /Applications; leaves no .app or .dmg behind
-script/publish.sh <patch|minor|major> --notes=<file> [--no-install]  # skill: macos-publish-release. The same, plus a version bump, tag, push, GitHub release
+script/publish.sh <patch|minor|major> --notes=<file> [--install]  # skill: macos-publish-release. The same build, plus a version bump, tag, push, GitHub release; installs only with --install
 # -------------------------------------------------------------------------------------------------
 
 swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (398); needs the Claude Code sandbox off, like xcodebuild
@@ -168,8 +168,8 @@ tail -f "$HOME/Library/Application Support/KoffeeLid/diagnostics.log"   # the pr
   release notes written from every commit since the last tag (skill `macos-publish-release`, *Release
   notes*), on a dirty tree, computes
   the new version and refuses if that tag already exists, then bumps the version, commits and pushes that
-  bump, builds the notarized image, tags, pushes, creates the GitHub release and installs the same bundle in
-  `/Applications`. Nothing bumps the tree again afterward — it sits at exactly what was published.
+  bump, builds the notarized image, tags, pushes, creates the GitHub release. It installs the same bundle in `/Applications` only with `--install`, which is
+  passed only when the owner asks for it; otherwise the installed copy finds the release itself. Nothing bumps the tree again afterward — it sits at exactly what was published.
   `script/release.sh` underneath it makes the image alone.
   The DMG is signed with the Wooflab team's Developer ID (`85F6AC5QZF`) and notarized; it runs on any Mac.
 
@@ -375,7 +375,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 - Version 1.1.3 committed and published (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), and the
   tree sits at exactly that: a local install always builds exactly the tree's own version, never one ahead of
   production, and nothing bumps the tree again until the next `script/publish.sh <patch|minor|major>`.
-  1.1.3 was published with `--no-install`: `/Applications/KoffeeLid.app` is still at **1.1.2**, so this Mac
+  1.1.3 was published without installing it: `/Applications/KoffeeLid.app` is still at **1.1.2**, so this Mac
   can walk KoffeeLid updating itself to 1.1.3 (notification, update window, Install and Relaunch). The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
   requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
