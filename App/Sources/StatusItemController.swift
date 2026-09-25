@@ -136,11 +136,12 @@ final class StatusItemController: NSObject {
         return image
     }
 
-    /// The badges: 9 pt squares (an app icon still reads at that size on a Retina bar), 3 pt apart in the
-    /// stack, with 0.75 pt of cup cleared around each. The front one hangs off the cup's bottom-right
-    /// corner, 3 pt to the right and 2 pt down: clear of the eyes, over the foot of the handle, its bottom
-    /// half a point above the bar's edge.
-    static let badgeSide: CGFloat = 9, badgeStep: CGFloat = 3, badgeKnockout: CGFloat = 0.75
+    /// The badges: 9 pt squares (an app icon still reads at that size on a Retina bar), stacked 2 pt to the
+    /// right and 4 pt up from one to the next (more up than right, so the stack stays near the cup), with
+    /// 0.75 pt of cup cleared around each. The front one hangs off the cup's bottom-right corner, 3 pt to
+    /// the right and 2 pt down: clear of the eyes, over the foot of the handle, its bottom half a point
+    /// above the bar's edge.
+    static let badgeSide: CGFloat = 9, badgeStep = NSPoint(x: 2, y: 4), badgeKnockout: CGFloat = 0.75
     static let badgeOverhang: CGFloat = 3, badgeDrop: CGFloat = 2
 
     /// The geometry of the badged cup with `count` badges, in the cup image's coordinates: the cup's rect
@@ -207,5 +208,9 @@ final class StatusItemController: NSObject {
         let origin = Self.badgeLayout(count: badges.count).origin
         let y = button.isFlipped ? imageRect.maxY - origin.y - image.size.height : imageRect.minY + origin.y
         badgeView.frame = NSRect(x: imageRect.minX + origin.x, y: y, width: image.size.width, height: image.size.height)
+        // The badges overflow the item into its margin; the bar's views around the button clip to their
+        // bounds, and would cut the back of a stack, so none of them clips while badges show.
+        var view: NSView? = button
+        while let v = view, v.window?.contentView != v { v.clipsToBounds = false; view = v.superview }
     }
 }
