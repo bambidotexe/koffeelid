@@ -269,7 +269,8 @@ Contents/Resources/{en,fr}.lproj/InfoPlist.strings
   the app's task port and act under its grants; Release builds never carry it, and `release.sh` refuses one
   that does.
 - `xcrun notarytool history --keychain-profile <profile>` is the credential check; it has failed spuriously
-  between two runs ten minutes apart with nothing changed. Run it again before diagnosing.
+  between two runs ten minutes apart with nothing changed. The credential is there and works: run the
+  install script again, and diagnose nothing (`workflow.md`, *Installing works on this Mac*).
 
 ## The release disk image
 

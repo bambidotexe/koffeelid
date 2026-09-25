@@ -126,6 +126,8 @@ Paths are relative to `Sources/KoffeeLidCore` (`Core/`), `Sources/LidPlaneKit` (
 ```bash
 # ---- the two actions. A build of this app reaches a Mac by one of these and by nothing else. ----
 script/install.sh                                     # skill: macos-install-locally. Production build → /Applications; leaves no .app or .dmg behind
+                                                      # It works on this Mac: signing and the notary are set up and nothing is wrong with them.
+                                                      # Use the script; a refusal at the notary check is run again, never diagnosed.
 script/publish.sh <patch|minor|major> --notes=<file> [--install]  # skill: macos-publish-release. The same build, plus a version bump, tag, push, GitHub release; installs only with --install
 # -------------------------------------------------------------------------------------------------
 

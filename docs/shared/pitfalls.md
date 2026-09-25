@@ -397,8 +397,11 @@ Every number was measured on an M-series Mac running macOS 27.0 (build 26A428).
 ### B6. The notary credential check fails spuriously
 - **Symptom.** `no notarytool keychain profile 'wooflab-notary'` between two installs ten minutes apart,
   then success with nothing changed.
-- **Rule.** Run it again before you diagnose anything. Notarizing talks to Apple over the network.
-  (koffeelid)
+- **Why.** Notarizing talks to Apple over the network, and the keychain lookup answers nothing for a
+  moment. The credential is there: the owner has said so, and it is not a session's to doubt.
+- **Rule.** Run the install script again before you diagnose anything, and diagnose nothing after: never
+  look the credential up, store one, or build another way. Refused twice, tell the owner in one line and
+  stop. (koffeelid, my-sidepulse)
 
 ### B7. The app's name is an identity in several places
 - **Symptom.** After a rename, two apps drive the same hardware, hooks fail, macOS asks for every

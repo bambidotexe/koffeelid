@@ -71,6 +71,13 @@ and the newer of a request and a written rule wins only after the owner has said
   repository**, on any exit path, including a failed one: a signed bundle in `build/` is a complete
   application that Spotlight indexes and the owner can launch by accident, giving a second instance with the
   same bundle identifier and the same preferences. `scripts/no-leftovers.sh` holds that rule.
+- **Installing works on this Mac, and it is the install script and nothing else.** The owner's word,
+  binding on every session: the Developer ID certificate and the `wooflab-notary` profile are in the
+  keychain, and there is nothing wrong with them, with notarization, or with the pipeline. Run
+  `sh scripts/install.sh` (`make install`; koffeelid `script/install.sh`, snappy-snap `Scripts/install.sh`)
+  and it will be fine. A run that refuses at the notary check is run again, not diagnosed: never look the
+  credential up, never store or replace one, never build another way, never write that notarization is
+  broken. Refused twice, say so in one line and stop; the rest is the owner's.
 - **A debug or ad-hoc build is never installed, and never made without asking the owner first.** It exists
   only to read something a release build will not show. `scripts/make-app.sh` refuses one without
   `DEBUG_OK=1`; that guard is there to make the decision deliberate, not to be worked around. **An ad-hoc
