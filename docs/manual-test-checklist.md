@@ -204,6 +204,7 @@ Walk these with a stand-in release (`docs/development.md` § Testing an update w
 - [ ] `sleep 2` alone never arms (arm-after 5 s); `vim` never arms (skip list)
 - [ ] Start a Claude Code turn → arms within a second of the prompt (`activity: running (1 session working, 0 commands)`); a question from Claude (AskUserQuestion) → `activity: idle` and `auto-disarm scheduled in 1800s` (the line under the header says "Auto-armed, off in 30 min"); answering it → running again, disarm cancelled
 - [ ] Ctrl-C a Claude turn → `activity: quiet turn … — registry idle, turn over` within ~35 s, then the 30 min hold-off, then `disarmed (activity ended)`; a `sleep 120` that ends during that wait does not shorten it
+- [ ] `/compact` at the prompt with the Mac idle → `armed (activity` during the compaction, `activity: idle` at `PostCompact`, no registry verdict needed
 - [ ] Settings › Auto-Arm › "Stay armed after Claude Code finishes" to 1 min → the next turn's wait is `auto-disarm scheduled in 60s`; dragging it during a countdown moves the deadline
 - [ ] Let a Claude turn end (`auto-disarm scheduled in 1800s`), then move the mouse → within 2 s `auto-arm ended: local input during the hold-off` and `disarmed (activity ended)`; the same from an ssh session (no local input) keeps the wait
 - [ ] Two Claude sessions, finish one → still armed; finish the other → hold-off then disarm

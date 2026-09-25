@@ -86,7 +86,10 @@ up any of the three hooks from that page or from the onboarding turns it on.
   counts as working from a prompt or tool event until its `Stop`, or until its turn closes (below). A session
   blocked on a question, a plan
   approval or a permission does not count. A `Stop` while helpers or background shells are still out keeps the
-  turn running until they finish or fall silent (240 s per helper, 90 s grace, 30 min cap).
+  turn running until they finish or fall silent (240 s per helper, 90 s grace, 30 min cap). A compaction is work
+  while it runs and changes nothing once it ends: `PreCompact` counts as working, the `SessionStart` of source
+  `compact` in between changes nothing, and `PostCompact` puts the session back to the state `PreCompact` found
+  it in — working if the compaction ran inside a turn, idle or finished if it ran at the prompt.
 - **Codex**: 12 hook events in `~/.codex/hooks.json` run `KoffeeLidHook hook codex`, which appends the same
   kind of line. Codex runs a hook of the user's only once it is trusted, so the set-up also writes each hook's
   trust (its key and the hash Codex computes for it) under `[hooks.state]` in `~/.codex/config.toml`; both files

@@ -19,10 +19,30 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.apply(ev(.userPromptSubmit, at: 1)); XCTAssertEqual(state(), .working); XCTAssertTrue(store.isRunning)
         XCTAssertEqual(store.sessions["s1"]?.agentPid, 100); XCTAssertEqual(store.sessions["s1"]?.agent, .claude)
     }
-    func testCompactionIsWorking() {
-        store.apply(ev(.sessionStart, source: "compact")); XCTAssertEqual(state(), .working)
+    func testCompactionKeepsTheStateItFound() {
+        // Idle at the prompt: working during, idle again after.
+        store.apply(ev(.sessionStart, source: "startup")); XCTAssertEqual(state(), .idle)
         store.apply(ev(.preCompact, at: 1)); XCTAssertEqual(state(), .working)
-        store.apply(ev(.postCompact, at: 2)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.sessionStart, at: 2, source: "compact")); XCTAssertEqual(state(), .working)
+        store.apply(ev(.postCompact, at: 3)); XCTAssertEqual(state(), .idle)
+
+        // Done after a Stop: working during, done again after.
+        store = ActivitySessionStore()
+        store.apply(ev(.userPromptSubmit)); store.apply(ev(.stop, at: 1)); XCTAssertEqual(state(), .done)
+        store.apply(ev(.preCompact, at: 2)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.sessionStart, at: 3, source: "compact")); XCTAssertEqual(state(), .working)
+        store.apply(ev(.postCompact, at: 4)); XCTAssertEqual(state(), .done)
+
+        // Mid-turn: working throughout.
+        store = ActivitySessionStore()
+        store.apply(ev(.userPromptSubmit)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.preCompact, at: 1)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.sessionStart, at: 2, source: "compact")); XCTAssertEqual(state(), .working)
+        store.apply(ev(.postCompact, at: 3)); XCTAssertEqual(state(), .working)
+    }
+    func testACompactSessionStartAloneChangesNothing() {
+        store.apply(ev(.sessionStart, source: "startup")); XCTAssertEqual(state(), .idle)
+        store.apply(ev(.sessionStart, at: 1, source: "compact")); XCTAssertEqual(state(), .idle)
     }
     func testToolTrafficIsWorkingAndDialogsAreWaiting() {
         store.apply(ev(.userPromptSubmit))

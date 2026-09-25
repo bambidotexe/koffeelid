@@ -281,8 +281,10 @@ anything unparseable, or any name outside that agent's events (`ActivityEventNam
 
 | Event | State |
 |---|---|
-| `SessionStart` | `idle` (`working` when `source == "compact"`); helpers and background ids cleared otherwise |
-| `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionDenied`, `PreCompact`, `PostCompact` | `working` |
+| `SessionStart` | `idle`, helpers and background ids cleared; unchanged when `source == "compact"` (helpers and background ids kept too) |
+| `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionDenied` | `working` |
+| `PreCompact` | `working`, remembering the state it found (`stateBeforeCompaction`) |
+| `PostCompact` | restores `stateBeforeCompaction` (`working` if none was recorded) |
 | `PreToolUse` | `working`; `waiting` for `AskUserQuestion`, `ExitPlanMode` (Claude Code) and `request_user_input` (Codex) |
 | `PermissionRequest`, `StopFailure`; `Notification` of type `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog` | `waiting` |
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |

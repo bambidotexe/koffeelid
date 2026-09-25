@@ -26,6 +26,9 @@ public struct ActivitySession: Equatable {
     public var closedTurnIds: [String] = []
     /// When the last turn was closed by an `Interrupt`; starts the quarantine for lines without a turn id.
     public var interruptedAt: Date?
+    /// The state a `PreCompact` found the session in: `PostCompact` restores it. A compaction is work
+    /// while it runs and changes nothing once it ends.
+    public var stateBeforeCompaction: ActivitySessionState?
 
     public init(id: String, at now: Date) { self.id = id; stateSince = now; lastEventAt = now; lastMainEventAt = now }
 
@@ -88,10 +91,21 @@ public struct ActivitySessionStore {
 
         switch e.event {
         case .sessionStart:
-            if e.source != "compact" { s.liveAgents.removeAll(); s.backgroundIds.removeAll() }
-            clearPending(&s); set(&s, e.source == "compact" ? .working : .idle, now)
-        case .userPromptSubmit, .postToolUse, .postToolUseFailure, .permissionDenied, .preCompact, .postCompact:
+            // Compaction changes no state (helpers and background ids are kept too): a compaction inside a
+            // turn stays working, one at the prompt stays idle or finished; PostCompact restores it either way.
+            guard e.source != "compact" else { break }
+            s.liveAgents.removeAll(); s.backgroundIds.removeAll()
+            clearPending(&s); set(&s, .idle, now)
+        case .userPromptSubmit, .postToolUse, .postToolUseFailure, .permissionDenied:
             clearPending(&s); set(&s, .working, now)
+        case .preCompact:
+            // A compaction is work while it runs: PostCompact puts the session back to what this remembers.
+            s.stateBeforeCompaction = s.state
+            clearPending(&s); set(&s, .working, now)
+        case .postCompact:
+            let restored = s.stateBeforeCompaction ?? .working
+            s.stateBeforeCompaction = nil
+            set(&s, restored, now)
         case .preToolUse:
             clearPending(&s)
             set(&s, e.toolName.map(Self.dialogTools.contains) ?? false ? .waiting : .working, now)
