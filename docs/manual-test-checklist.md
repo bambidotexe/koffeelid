@@ -195,6 +195,7 @@ Walk these with a stand-in release (`docs/development.md` § Testing an update w
 - [ ] Quit the app during a Codex turn, relaunch → `replayed …` then `activity: running (… Codex 1 …)` and no `turn over` while the turn runs
 - [ ] Switch the KoffeeLid hooks off in Codex's `/hooks`, Ctrl-C a turn whose tool ends later, switch them back on → the late `PostToolUse` arrives, then within ~35 s `activity: quiet Codex turn … — rollout says aborted, turn over`
 - [ ] With a Codex TUI at its prompt, mid-turn, and after quitting, the log's `Codex daemon says …` lines match the state; with the daemon stopped (`codex app-server daemon stop` or after a reboot before any Codex start) the rollout path takes over
+- [ ] A turn in the ChatGPT desktop app's Codex arms and ends like a TUI turn, and never produces a `Codex daemon says …` or `Codex daemon has not loaded thread …` line (its sessions are decided by the rollout)
 - [ ] A Codex permission prompt, or a question from Codex (`request_user_input`) → `activity: idle` while it waits; answering it → running again
 - [ ] A Claude Code turn and a Codex turn at once → `2 sessions working (Claude Code 1, Codex 1)` and "Auto-armed while Claude Code and Codex work"; with a `sleep 120` as well, "Auto-armed while Claude Code, Codex and a command run"
 - [ ] Settings › Auto-Arm › "Stay armed after Codex finishes" to 1 min → the next Codex turn's wait is `auto-disarm scheduled in 60s`
@@ -213,6 +214,8 @@ Walk these with a stand-in release (`docs/development.md` § Testing an update w
 - [ ] `sleep 300`, Ctrl-Z, `fg` → armed again 5 s after `fg`
 - [ ] `sudo -n vim` → never arms
 - [ ] Kill the app during a `sleep 300`, relaunch → `replayed … 1 jobs`, armed, ends with the sleep
+- [ ] In a tab with Powerlevel10k's `gitstatusd` running beside the shell, `_koffeelid_precmd() { : }` (a lost `job end`), then `sleep 10` → within 20 s of its end `activity: job zsh-… ended without a hook (shell at its prompt)`
+- [ ] `bash -c 'sleep 20'` arms after 5 s; `bash -l` and `sudo -i` never arm
 - [ ] Start a Claude Code turn → arms within a second of the prompt (`activity: running (1 session working, 0 commands)`); a question from Claude (AskUserQuestion) → `activity: idle` and `auto-disarm scheduled in 1800s` (the line under the header says "Auto-armed, off in 30 min"); answering it → running again, disarm cancelled
 - [ ] Ctrl-C a Claude turn → `activity: quiet turn … — registry idle, turn over` within ~35 s, then the 30 min hold-off, then `disarmed (activity ended)`; a `sleep 120` that ends during that wait does not shorten it
 - [ ] Under cswap (`CLAUDE_CONFIG_DIR` set), Ctrl-C a turn → `turn over` within 35 s and no `no registry record`

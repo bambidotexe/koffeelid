@@ -31,17 +31,28 @@ public enum ProcWalk {
         let name = withUnsafeBytes(of: proc.kp_proc.p_comm) { String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self) }
         var buffer = [CChar](repeating: 0, count: 4096)
         let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
-        let start = proc.kp_proc.p_un.__p_starttime
-        let startedAt = start.tv_sec > 0 ? Date(timeIntervalSince1970: TimeInterval(start.tv_sec) + TimeInterval(start.tv_usec) / 1_000_000) : nil
         return ProcInfo(pid: pid, ppid: proc.kp_eproc.e_ppid, name: name, path: length > 0 ? String(cString: buffer) : nil,
-                        pgid: proc.kp_eproc.e_pgid, tpgid: proc.kp_eproc.e_tpgid, startedAt: startedAt)
+                        pgid: proc.kp_eproc.e_pgid, tpgid: proc.kp_eproc.e_tpgid, startedAt: startedAt(of: proc))
     }
 
-    /// Whether `pid` has at least one child process; false when it has none or cannot be read.
-    public static func hasChildren(pid: Int32) -> Bool {
-        var children = [Int32](repeating: 0, count: 16)
+    static func startedAt(of proc: kinfo_proc) -> Date? {
+        let start = proc.kp_proc.p_un.__p_starttime
+        return start.tv_sec > 0 ? Date(timeIntervalSince1970: TimeInterval(start.tv_sec) + TimeInterval(start.tv_usec) / 1_000_000) : nil
+    }
+
+    /// When each child of `pid` was forked, for the children that can still be read; empty when it has none or
+    /// cannot be read. A shell's children include helpers that live beside it from its start (Powerlevel10k's
+    /// `gitstatusd`), so the start is what tells them from the command's.
+    public static func childStartTimes(pid: Int32) -> [Date] {
+        var children = [Int32](repeating: 0, count: 256)
         let count = children.withUnsafeMutableBytes { proc_listchildpids(pid, $0.baseAddress, Int32($0.count)) }
-        return count > 0
+        guard count > 0 else { return [] }
+        return children.prefix(Int(count)).compactMap { child in
+            var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, child]
+            var proc = kinfo_proc(); var size = MemoryLayout<kinfo_proc>.stride
+            guard child > 0, sysctl(&mib, u_int(mib.count), &proc, &size, nil, 0) == 0, size > 0 else { return nil }
+            return startedAt(of: proc)
+        }
     }
 
     public static func chain(from pid: Int32, maxHops: Int = 15) -> [ProcInfo] {
@@ -142,16 +153,10 @@ public enum ProcWalk {
         if let path, path.contains("/app-server-daemon/") { return true }
         return arguments.dropFirst().contains("--managed-daemon")
     }
-    public static func isManagedCodexDaemon(_ info: ProcInfo) -> Bool {
-        isManagedCodexDaemon(path: info.path, arguments: arguments(forPid: info.pid) ?? [])
-    }
     /// Any `codex app-server`: the managed daemon, or the desktop app's own long-lived `codex`. Either hosts
     /// many threads and outlives them, so its pid alive proves nothing about one session.
     public static func isSharedCodexHost(path: String?, arguments: [String]) -> Bool {
         isManagedCodexDaemon(path: path, arguments: arguments) || arguments.dropFirst().contains("app-server")
-    }
-    public static func isSharedCodexHost(_ info: ProcInfo) -> Bool {
-        isSharedCodexHost(path: info.path, arguments: arguments(forPid: info.pid) ?? [])
     }
     public static func isProcess(of agent: ActivityAgent, _ info: ProcInfo) -> Bool {
         agent == .claude ? isClaudeProcess(info) : isCodexProcess(info)

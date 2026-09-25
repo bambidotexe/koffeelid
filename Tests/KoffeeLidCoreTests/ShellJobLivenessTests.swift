@@ -49,15 +49,32 @@ final class ShellJobLivenessTests: XCTestCase {
     func testTheProbeIsReadFromTheShellsProcess() {
         let since = at(100)
         let shell = ProcWalk.ProcInfo(pid: 7, ppid: 1, name: "-zsh", path: "/bin/zsh", pgid: 7, tpgid: 7, startedAt: at(10))
-        XCTAssertEqual(ShellJobLiveness.probe(shell, hasChildren: false, jobSince: since), atPrompt)
+        XCTAssertEqual(ShellJobLiveness.probe(shell, children: [], jobSince: since), atPrompt)
         let busy = ProcWalk.ProcInfo(pid: 7, ppid: 1, name: "zsh", path: "/bin/zsh", pgid: 7, tpgid: 900, startedAt: at(10))
-        XCTAssertEqual(ShellJobLiveness.probe(busy, hasChildren: true, jobSince: since), running)
+        XCTAssertEqual(ShellJobLiveness.probe(busy, children: [at(100.5)], jobSince: since), running)
         let program = ProcWalk.ProcInfo(pid: 7, ppid: 1, name: "make", path: "/usr/bin/make", pgid: 7, tpgid: 7, startedAt: at(10))
-        XCTAssertEqual(ShellJobLiveness.probe(program, hasChildren: false, jobSince: since), replaced, "exec keeps the start time")
-        XCTAssertFalse(ShellJobLiveness.probe(nil, hasChildren: false, jobSince: since).alive, "no such process")
+        XCTAssertEqual(ShellJobLiveness.probe(program, children: [], jobSince: since), replaced, "exec keeps the start time")
+        XCTAssertFalse(ShellJobLiveness.probe(nil, children: [], jobSince: since).alive, "no such process")
         let recycled = ProcWalk.ProcInfo(pid: 7, ppid: 1, name: "mdworker", path: nil, pgid: 7, tpgid: 0, startedAt: at(101))
-        XCTAssertFalse(ShellJobLiveness.probe(recycled, hasChildren: false, jobSince: since).alive, "a process started after the job began is not its shell")
+        XCTAssertFalse(ShellJobLiveness.probe(recycled, children: [], jobSince: since).alive, "a process started after the job began is not its shell")
         let noTerminal = ProcWalk.ProcInfo(pid: 7, ppid: 1, name: "zsh", path: nil, pgid: 7, tpgid: 0, startedAt: nil)
-        XCTAssertFalse(ShellJobLiveness.probe(noTerminal, hasChildren: false, jobSince: since).atPrompt, "no terminal: never at a prompt")
+        XCTAssertFalse(ShellJobLiveness.probe(noTerminal, children: [], jobSince: since).atPrompt, "no terminal: never at a prompt")
+    }
+    func testOnlyAChildStartedSinceTheJobBeganCounts() {
+        let since = at(100)
+        let shell = ProcWalk.ProcInfo(pid: 7, ppid: 1, name: "-zsh", path: "/bin/zsh", pgid: 7, tpgid: 7, startedAt: at(10))
+        // Powerlevel10k's gitstatusd lives beside every shell from its start; an earlier `&` job likewise.
+        let older = ShellJobLiveness.probe(shell, children: [at(11), at(50)], jobSince: since)
+        XCTAssertFalse(older.hasChildren)
+        var seen: Date?
+        XCTAssertEqual(ShellJobLiveness.judge(older, promptSeenAt: &seen, now: at(115)), .keep)
+        XCTAssertEqual(ShellJobLiveness.judge(older, promptSeenAt: &seen, now: at(120)), .drop(reason: "shell at its prompt"),
+                       "a child older than the job says nothing about it")
+        let younger = ShellJobLiveness.probe(shell, children: [at(11), at(100.2)], jobSince: since)
+        XCTAssertTrue(younger.hasChildren)
+        seen = nil
+        XCTAssertEqual(ShellJobLiveness.judge(younger, promptSeenAt: &seen, now: at(115)), .keep)
+        XCTAssertEqual(ShellJobLiveness.judge(younger, promptSeenAt: &seen, now: at(120)), .keep, "a child the job started keeps it")
+        XCTAssertFalse(ShellJobLiveness.probe(shell, children: [since], jobSince: since).hasChildren, "started at the begin: before the command")
     }
 }

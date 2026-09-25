@@ -352,8 +352,8 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   alive and watched, so the kqueue never fires.
 - **What the code does.** The snippet declares `_koffeelid_job` without assigning it, and an interactive
   shell loading it sends `job end --id zsh-$$` before registering its hooks, which ends the job the pid's
-  earlier image began. `exec` is a skipped prefix and `zsh` a skipped program, so `exec zsh` begins nothing.
-  `ShellInitTests` re-source the snippet and `exec` a shell in a real `zsh -f -i`.
+  earlier image began. `exec` is a skipped prefix and an interactive `zsh` a skipped program, so `exec zsh`
+  begins nothing. `ShellInitTests` re-source the snippet and `exec` a shell in a real `zsh -f -i`.
 - **Do not** assign any of the snippet's state at load, or drop the load's `job end`.
 
 ### A shell at its prompt is the truth about a job, not the journal
@@ -365,15 +365,20 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   (`docs/macOS.md` § zsh).
 - **What the code does.** `ActivityMonitor.probeJobs` asks each job's shell at every pass, at least every
   15 s while a job with a shell exists, and once at replay before the first count: `ShellJobLiveness.probe`
-  reads the pid (`ProcWalk.info`, `hasChildren`), `ShellJobLiveness.judge` decides. A pid gone, or held by a
-  process forked after the job began (a recycled pid), drops the job; a process that is no longer a shell (it
-  `exec`'d into the program) keeps it for the kqueue; a shell at its prompt with no child, seen so twice 5 s
-  apart, drops it; anything else keeps it, with no time limit. Each drop logs `activity: job <id> ended
+  reads the pid (`ProcWalk.info`, `childStartTimes`), `ShellJobLiveness.judge` decides. A pid gone, or held
+  by a process forked after the job began (a recycled pid), drops the job; a process that is no longer a shell
+  (it `exec`'d into the program) keeps it for the kqueue; a shell at its prompt with no child it started since
+  the job began, seen so twice 5 s apart, drops it; anything else keeps it, with no time limit. Each drop logs `activity: job <id> ended
   without a hook (<reason>)`. Only a job without a shell pid is dropped after 2 h.
 - **Do not** time out a job whose shell can be asked, trust a bare pid at replay, or drop a job on one
-  sighting of the prompt: the shell owns its terminal for milliseconds between `preexec` and the fork. Known
-  false negative: a builtin that blocks (`wait`, `read`) looks like the prompt, and its job ends after 5 s.
-  Known false positive: a lost end in a shell that keeps a background child holds until that child exits.
+  sighting of the prompt: the shell owns its terminal for milliseconds between `preexec` and the fork. **Do
+  not** count every child of the shell: Powerlevel10k keeps a `gitstatusd` child beside every interactive
+  shell on this Mac, so "has a child" is always true and a lost end would hold until the shell exits. Only a
+  child forked after the job began counts. Known false negative: a builtin that blocks (`wait`, `read`) looks
+  like the prompt, and its job ends after 5 s. Known false positive: a lost end in a shell that has started a
+  background child since the job began holds until that child exits.
+- **Do not** put a shell's name on the skip list as a plain skip: `bash build.sh` and `sh install.sh` are real
+  work. The snippet skips `zsh`, `bash`, `sh` and `fish` only when every word after the name is a flag.
 
 ### `precmd` must read `$?` first
 - **Why.** Later `precmd` hooks (prompts) expect the command's status.

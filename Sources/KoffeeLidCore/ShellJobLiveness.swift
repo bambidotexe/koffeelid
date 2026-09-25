@@ -21,7 +21,7 @@ public enum ShellJobLiveness {
     public enum Verdict: Equatable { case keep, drop(reason: String) }
 
     /// Gone → drop. Replaced by its program → keep; its exit ends the job (kqueue). At its prompt with no
-    /// child, seen so `jobPromptSettleSeconds` apart → drop: the end was lost. Anything else is a command
+    /// child started since the job began, seen so `jobPromptSettleSeconds` apart → drop: the end was lost. Anything else is a command
     /// running → keep, the settle forgotten. `promptSeenAt` is the job's own first sighting at the prompt.
     public static func judge(_ probe: Probe, promptSeenAt: inout Date?, now: Date) -> Verdict {
         guard probe.alive else { return .drop(reason: "shell gone") }
@@ -31,12 +31,15 @@ public enum ShellJobLiveness {
         return now.timeIntervalSince(seen) >= ActivityConstants.jobPromptSettleSeconds ? .drop(reason: "shell at its prompt") : .keep
     }
 
-    /// The probe of a job begun at `jobSince` whose shell pid reads as `info` (nil: no such process). A
-    /// process forked after the job began is a recycled pid, not the shell that began it.
-    public static func probe(_ info: ProcWalk.ProcInfo?, hasChildren: Bool, jobSince: Date) -> Probe {
+    /// The probe of a job begun at `jobSince` whose shell pid reads as `info` (nil: no such process), with the
+    /// start of each of its children. A process forked after the job began is a recycled pid, not the shell
+    /// that began it. Only a child forked after the job began counts: one older than the job (a prompt's
+    /// helper such as `gitstatusd`, an earlier `&` job) says nothing about it.
+    public static func probe(_ info: ProcWalk.ProcInfo?, children: [Date], jobSince: Date) -> Probe {
         guard let info, info.startedAt.map({ $0 <= jobSince }) ?? true else {
             return Probe(alive: false, isShell: false, atPrompt: false, hasChildren: false)
         }
-        return Probe(alive: true, isShell: info.isShell, atPrompt: info.pgid > 0 && info.tpgid == info.pgid, hasChildren: hasChildren)
+        return Probe(alive: true, isShell: info.isShell, atPrompt: info.pgid > 0 && info.tpgid == info.pgid,
+                     hasChildren: children.contains { $0 > jobSince })
     }
 }

@@ -70,8 +70,9 @@ final class ProcWalkTests: XCTestCase {
         // The KERN_PROCARGS2 reader, checked on this process, whose argv the runner set.
         XCTAssertEqual(ProcWalk.arguments(forPid: getpid()), CommandLine.arguments)
         XCTAssertNil(ProcWalk.arguments(forPid: 2_000_000))
-        let own = ProcWalk.info(for: getpid())!
-        XCTAssertFalse(ProcWalk.isManagedCodexDaemon(own)); XCTAssertFalse(ProcWalk.isSharedCodexHost(own))
+        let own = ProcWalk.info(for: getpid())!, ownArguments = ProcWalk.arguments(forPid: getpid()) ?? []
+        XCTAssertFalse(ProcWalk.isManagedCodexDaemon(path: own.path, arguments: ownArguments))
+        XCTAssertFalse(ProcWalk.isSharedCodexHost(path: own.path, arguments: ownArguments))
     }
     func testShellNamesAreRecognisedWithALoginDash() {
         for name in ["zsh", "-zsh", "bash", "-bash", "sh", "-sh", "fish", "dash", "ksh", "tcsh", "-tcsh"] {
@@ -86,12 +87,15 @@ final class ProcWalkTests: XCTestCase {
         XCTAssertEqual(own.pgid, getpgrp())
         let started = try XCTUnwrap(own.startedAt)
         XCTAssertLessThan(started, Date()); XCTAssertGreaterThan(started, Date().addingTimeInterval(-24 * 3600))
+        let before = Date().addingTimeInterval(-1)
         let child = Process(); child.executableURL = URL(fileURLWithPath: "/bin/sleep"); child.arguments = ["30"]
         try child.run()
         defer { child.terminate(); child.waitUntilExit() }
-        XCTAssertTrue(ProcWalk.hasChildren(pid: getpid()))
-        XCTAssertFalse(ProcWalk.hasChildren(pid: child.processIdentifier))
-        XCTAssertFalse(ProcWalk.hasChildren(pid: 2_000_000))
+        let childStart = try XCTUnwrap(ProcWalk.info(for: child.processIdentifier)?.startedAt)
+        XCTAssertGreaterThan(childStart, before)
+        XCTAssertTrue(ProcWalk.childStartTimes(pid: getpid()).contains(childStart), "the child is listed with its start")
+        XCTAssertEqual(ProcWalk.childStartTimes(pid: child.processIdentifier), [])
+        XCTAssertEqual(ProcWalk.childStartTimes(pid: 2_000_000), [])
     }
     func testNoClaudeInAnOrdinaryChainAndAliveness() {
         // Run from a plain terminal the chain has no Claude; run from inside a Claude Code shell it does.

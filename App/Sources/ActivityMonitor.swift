@@ -239,13 +239,14 @@ final class ActivityMonitor {
     }
 
     /// Asks each job's shell whether it still runs a command (`ShellJobLiveness`): a shell gone or recycled,
-    /// or back at its prompt with no child for `jobPromptSettleSeconds`, ends a job whose `job end` never came.
+    /// or back at its prompt with no child started since the job began for `jobPromptSettleSeconds`, ends a
+    /// job whose `job end` never came.
     /// A shell replaced by its program keeps the job until that program exits (the kqueue).
     private func probeJobs(now: Date) {
         for job in jobs.jobs.values {
             guard let pid = job.ownerPid else { continue }
             let info = ProcWalk.isAlive(pid: pid) ? ProcWalk.info(for: pid) : nil
-            let probe = ShellJobLiveness.probe(info, hasChildren: info != nil && ProcWalk.hasChildren(pid: pid), jobSince: job.since)
+            let probe = ShellJobLiveness.probe(info, children: info == nil ? [] : ProcWalk.childStartTimes(pid: pid), jobSince: job.since)
             if let reason = jobs.probe(id: job.id, probe, now: now) { onLog?("activity: job \(job.id) ended without a hook (\(reason))") }
         }
     }

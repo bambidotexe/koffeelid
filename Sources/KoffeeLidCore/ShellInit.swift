@@ -106,33 +106,49 @@ _koffeelid_preexec() {
   # $3 is the command line after alias expansion. Collect the head of every segment (split on
   # && || | |& ; & and the group characters), quotes stripped, basename taken: a launcher's
   # `cd '<dir>' && '<path>/vim'` must match on vim, and `(vim)` on vim, not on `(`. Leading
-  # VAR=value words and the prefixes below (sudo with its -flags) are not the program: `sudo vim`
-  # is vim.
-  local -a words heads
+  # VAR=value words and the prefixes below, with their -flags (and the argument of those that take
+  # one), are not the program: `sudo -u root vim` is vim. A segment of prefixes alone (`sudo -i`)
+  # opens an interactive shell; a shell counts as skipped only when every word after it is a flag
+  # (`bash -l`), not when it runs a script (`bash build.sh`, `sh -c …`).
+  local -a words heads checked
   words=(${(z)3})
-  local word bare head= sudoflags=
-  for word in $words; do
+  local word bare head= prefix= skiparg= shell= skip=
+  for word in $words ';'; do
     case $word in
-      '&&'|'||'|'|'|'|&'|';'|'&'|'('|')'|'{'|'}') head= sudoflags= ;;
+      '&&'|'||'|'|'|'|&'|';'|'&'|'('|')'|'{'|'}')
+        [[ -n $prefix && -z $head ]] && skip=1
+        [[ -n $shell ]] && checked+=($head)
+        head= prefix= skiparg= shell= ;;
       *)
-        [[ -n $head ]] && continue
+        if [[ -n $head ]]; then
+          [[ -n $shell && $word != -* ]] && shell=
+          continue
+        fi
+        if [[ -n $skiparg ]]; then skiparg=; continue; fi
+        if [[ -n $prefix && $word == -* ]]; then
+          case $prefix:$word in
+            sudo:-[ughpCDTUrt]|nice:-n|env:-[uCS]) skiparg=1 ;;
+          esac
+          continue
+        fi
         bare=${word%%=*}
         [[ $word == *=* && $bare == [A-Za-z_]* && $bare != *[^A-Za-z0-9_]* ]] && continue
         bare=${${(Q)word}:t}
-        [[ -n $sudoflags && $bare == -* ]] && continue
-        sudoflags=
         case $bare in
-          sudo) sudoflags=1; continue ;;
-          time|command|builtin|exec|nice|nohup|env|noglob|caffeinate) continue ;;
+          sudo|time|command|builtin|exec|nice|nohup|env|noglob|caffeinate) prefix=$bare; continue ;;
+          zsh|bash|sh|fish) shell=1 ;;
+          *) checked+=($bare) ;;
         esac
         head=$bare; heads+=($head) ;;
     esac
   done
   # One skipped head skips the whole line: the shell waits on the interactive program wherever it sits.
-  for head in $heads; do
+  [[ -n $skip ]] && return
+  for head in $checked; do
     (( ${KOFFEELID_SKIP[(I)$head]} )) && return
   done
-  local name=${heads[1]:-${${(Q)words[1]}:t}}
+  (( ${#heads} )) || return
+  local name=${heads[1]}
   local -a extra
   [[ -n ${KOFFEELID_ARM_AFTER-} ]] && extra=(--arm-after $KOFFEELID_ARM_AFTER)
   _koffeelid_job=zsh-$$

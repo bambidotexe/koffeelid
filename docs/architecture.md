@@ -366,7 +366,8 @@ record names (read from the same directory as the rescues) and drops the session
 `job end`, on the owner shell's exit (kqueue), when its shell answers that it runs nothing, or, for a job
 without a shell pid only, after 2 h. `ActivityMonitor.probeJobs` runs at every `sync()` and once at replay,
 after the prune: for each job with a shell pid, `ShellJobLiveness.probe` turns `ProcWalk.info` (process group,
-the terminal's foreground group, `p_comm`, fork time) and `ProcWalk.hasChildren` into a probe, and
+the terminal's foreground group, `p_comm`, fork time) and `ProcWalk.childStartTimes` (only a child forked
+after the job began counts) into a probe, and
 `ActivityJobStore.probe` applies `ShellJobLiveness.judge` with the job's own `promptSeenAt`, logging `activity:
 job <id> ended without a hook (<reason>)` for a drop. `nextDeadline` asks again `jobProbeSeconds` (15 s) later
 while a job has a shell, and when a first sighting at the prompt has settled (`jobPromptSettleSeconds`, 5 s).

@@ -10,7 +10,8 @@ public struct ActivityJob: Equatable {
     /// Not counted until this instant; nil once elapsed.
     public var armAfter: Date?
     public var since: Date
-    /// When a probe first found the shell at its prompt with no child (`ShellJobLiveness.judge`).
+    /// When a probe first found the shell at its prompt with no child started since the job began
+    /// (`ShellJobLiveness.judge`).
     public var promptSeenAt: Date?
 }
 

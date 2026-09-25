@@ -15,6 +15,7 @@ final class ShellInitTests: XCTestCase {
         // Stand-ins for the prefixes that must never run for real in a test.
         try write("bin/sudo", "#!/bin/sh\nexit 0\n")
         try write("bin/caffeinate", "#!/bin/sh\nexit 0\n")
+        try write("bin/bash", "#!/bin/sh\nexit 0\n")
         try ShellInit.zsh(hookPath: hook).write(to: dir.appendingPathComponent("init.zsh"), atomically: true, encoding: .utf8)
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: dir) }
@@ -102,9 +103,14 @@ final class ShellInitTests: XCTestCase {
     func testResourcingTheSnippetKeepsTheRunningJob() throws {
         let calls = try zshCalls("source \(dir.appendingPathComponent("init.zsh").path)\ntrue", preamble: printPid)
         let pid = try pid(in: calls)
-        XCTAssertEqual(calls.filter { $0.hasPrefix("job begin") }.count, 2, "\(calls)")
-        assertEveryBeginIsEnded(calls)
-        XCTAssertGreaterThanOrEqual(calls.filter { $0 == "job end --id zsh-\(pid)" }.count, 3, "each load and each command ends the slot: \(calls)")
+        let end = "job end --id zsh-\(pid)"
+        XCTAssertEqual(calls, ["pid \(pid)",
+                               end,                                                       // the first load
+                               "job begin --id zsh-\(pid) --pid \(pid) --label source",
+                               end,                                                       // the load inside `source`
+                               end,                                                       // precmd: the job variable survived
+                               "job begin --id zsh-\(pid) --pid \(pid) --label true",
+                               end])
     }
     func testTheLoadReleasesTheShellsSlot() throws {
         let calls = try zshCalls("true", preamble: printPid)
@@ -112,28 +118,49 @@ final class ShellInitTests: XCTestCase {
         XCTAssertEqual(calls.dropFirst().first, "job end --id zsh-\(pid)", "\(calls)")
         // `exec zsh` keeps the pid, and the new image's first call releases the slot the old one held.
         let snippet = dir.appendingPathComponent("init.zsh").path
-        let exec = try zshCalls("exec /bin/zsh -f -i\n\(printPid)\nsource \(snippet)\ntrue", preamble: printPid)
+        // With `zsh` off the skip list, `exec zsh` begins a job that the old image never ends.
+        let exec = try zshCalls("exec /bin/zsh -f -i\n\(printPid)\nsource \(snippet)\ntrue", preamble: "KOFFEELID_SKIP=(vim)\n" + printPid)
         let pids = exec.filter { $0.hasPrefix("pid ") }
         XCTAssertEqual(pids.count, 2, "\(exec)"); XCTAssertEqual(Set(pids).count, 1, "exec keeps the pid: \(exec)")
+        XCTAssertEqual(exec.filter { $0.hasPrefix("job begin") && $0.hasSuffix("--label zsh") }.count, 1, "\(exec)")
         let second = try XCTUnwrap(exec.lastIndex { $0.hasPrefix("pid ") })
         XCTAssertEqual(exec.dropFirst(second + 1).first, "job end --id zsh-\(try self.pid(in: exec))", "\(exec)")
         assertEveryBeginIsEnded(exec)
     }
     func testPrefixesAreSkippedBeforeTheHead() throws {
+        // `env -i` clears PATH: the stand-in is named by its path, so no real vim ever runs.
+        let stub = "'\(dir.appendingPathComponent("bin/vim").path)'"
         for line in ["sudo -n vim", "sudo -n -E vim", "FOO=1 vim", "FOO=1 BAR='a b' vim", "time vim", "env vim", "command vim",
-                     "nice vim", "noglob vim", "caffeinate vim", "true && sudo vim"] {
+                     "nice vim", "noglob vim", "caffeinate vim", "true && sudo vim", "builtin vim", "nohup vim",
+                     "env -i \(stub)", "env -i FOO=1 \(stub)", "env -u HOME vim", "nice -n 10 vim", "caffeinate -i vim",
+                     "sudo -u root vim", "sudo --chdir=/tmp vim", "sudo -u root nice -n 5 vim", "exec vim"] {
             XCTAssertEqual(try zsh(line).filter { $0.hasPrefix("job begin") }, [], line)
         }
-        let make = try zsh("sudo make")
-        XCTAssertEqual(make.count, 2, "\(make)"); XCTAssertTrue(make[0].hasPrefix("job begin"), "\(make)")
-        XCTAssertTrue(make[0].contains("--label make"), make[0])
+        for line in ["sudo make", "sudo -u root make"] {
+            let make = try zsh(line)
+            XCTAssertEqual(make.count, 2, "\(make)"); XCTAssertTrue(make.first?.hasPrefix("job begin") == true, "\(make)")
+            XCTAssertTrue(make.first?.contains("--label make") == true, "\(line): \(make)")
+        }
         let assigned = try zsh("FOO=1 true")
         XCTAssertTrue(assigned.first?.contains("--label true") == true, "\(assigned)")
     }
-    func testInteractiveShellsNeverCount() throws {
-        XCTAssertEqual(try zsh("bash -c true"), [])
-        XCTAssertEqual(try zsh("zsh -f -c true"), [])
-        XCTAssertEqual(try zsh("sh -c true"), [])
+    func testALineOfPrefixesAloneBeginsNothing() throws {
+        XCTAssertEqual(try zsh("sudo -i"), [], "the root shell it opens is interactive")
+        XCTAssertEqual(try zsh("sudo -s"), [])
+        XCTAssertEqual(try zsh("sudo -i && true"), [], "the line waits on the root shell")
+        XCTAssertEqual(try zsh("FOO=1"), [], "an assignment runs nothing")
+    }
+    func testAShellCountsOnlyWhenItRunsAScript() throws {
+        XCTAssertEqual(try zsh("bash -l"), [], "interactive: every word after it is a flag")
+        XCTAssertEqual(try zsh("zsh -f -i"), [])
+        XCTAssertEqual(try zsh("bash"), [])
+        for (line, label) in [("bash build.sh", "bash"), ("sh -c true", "sh"), ("zsh -f -c true", "zsh"), ("true && bash build.sh", "true")] {
+            let calls = try zsh(line)
+            XCTAssertEqual(calls.count, 2, "\(line): \(calls)")
+            XCTAssertTrue(calls.first?.contains("--label \(label)") == true, "\(line): \(calls)")
+        }
+        XCTAssertEqual(try zsh("su"), [], "su and login stay plain skips")
+        XCTAssertEqual(try zsh("login -f x"), [])
     }
     func testTheSkipListIsTheUsersToReplace() throws {
         XCTAssertEqual(try zsh("true", preamble: "KOFFEELID_SKIP=(true)"), [])

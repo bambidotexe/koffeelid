@@ -109,16 +109,23 @@ up any of the three hooks from that page or from the onboarding turns it on.
   turn id otherwise follows the rules above.
 - **Terminal (zsh)**: a `preexec`/`precmd` snippet in `~/.zshrc` reports each command. A command counts once it
   has run longer than "Ignore commands shorter than" (default 5 s, `KOFFEELID_ARM_AFTER` per shell).
-  Prefixes (`sudo` and its flags, `time`, `command`, `builtin`, `exec`, `nice`, `nohup`, `env`, `noglob`,
-  `caffeinate`) and leading `VAR=value` words are skipped before the program's name is read, and interactive
-  programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `tig`, `lazygit`, `claude`,
-  `codex`, …) never count; nor do the shells and logins `zsh`, `bash`, `sh`, `fish`, `su`, `login`. A shell
+  Leading `VAR=value` words and the prefixes `sudo`, `time`, `command`, `builtin`, `exec`, `nice`, `nohup`,
+  `env`, `noglob` and `caffeinate`, each with the `-` flags after it (and the argument of `sudo -u`, `-g`, `-h`,
+  `-p`, `-C`, `-D`, `-T`, `-U`, `-r`, `-t`, `nice -n`, `env -u`, `-C`, `-S`), are skipped before the program's
+  name is read; a line of prefixes alone (`sudo -i`, `sudo -s`) opens an interactive shell and begins nothing.
+  Interactive programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `tig`, `lazygit`,
+  `su`, `login`, `claude`, `codex`, …) never count. The shells in that list (`zsh`, `bash`, `sh`, `fish`) are
+  skipped only when they run interactively, every word after the shell's name being a flag (`zsh`, `bash -l`,
+  `zsh -f -i`); a shell that runs a script (`bash build.sh`, `sh -c '…'`, `zsh script.zsh`) counts. A shell
   that re-reads the snippet, or is replaced by `exec`, ends the job it was running; the snippet releases the
   shell's slot when it loads. While a command runs, its shell is asked every 15 s whether it still runs one: a
   shell gone ends the job at once (kqueue), and so does a shell pid now held by a process started after the
-  command began; a shell back at its prompt with no child for 5 s ends it, the end having been lost; a shell
-  replaced by its program is kept until that program exits; a job without a shell pid is dropped after 2 h.
-  At launch each replayed job's shell is asked once before anything counts.
+  command began; a shell back at its prompt with no child it started since the job began, for 5 s, ends it,
+  the end having been lost (a child older than the job, such as Powerlevel10k's `gitstatusd` or an earlier `&`
+  job, says nothing about it); a shell replaced by its program is kept until that program exits; a job without
+  a shell pid is dropped after 2 h. At launch each replayed job's shell is asked once before anything counts:
+  a job whose shell is gone never counts, and one whose shell sits at its prompt counts until the settle drops
+  it (up to 5 s, then the 60 s hold-off).
 - **Without an end event**: a Claude Code process or a shell that exits drops its sessions and jobs at once
   (kqueue). A Claude Code turn ended with Esc or Ctrl-C fires no hook; Claude Code's own
   `sessions/<pid>.json` record going `idle` ends it within about 35 s, and an `idle_prompt` or
