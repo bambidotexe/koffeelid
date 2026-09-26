@@ -227,6 +227,7 @@ Walk these with a stand-in release (`docs/development.md` § Testing an update w
 - [ ] With this Claude Code session working all day (the level never drops): Off from the menu, then `sleep 120` in a terminal → the Mac is still armed throughout (the auto level and the manual mode are independent)
 - [ ] Close the lid during the sleep → Mac stays awake; open it → lock screen; command ends → `activity: idle`, `auto-disarm scheduled in 60s`, then `disarmed (activity ended)` and normal lid sleep is back (`AppleClamshellCausesSleep = Yes`)
 - [ ] `sleep 2` alone never arms (arm-after 5 s); `vim` never arms (skip list)
+- [ ] A command an agent runs is never a terminal command: ask Codex (or OpenCode) to run `sleep 30`; the cup wears the agent's badge only, `koffeelid status` says 0 commands, and the log says `activity: commands of shell <pid> ignored, it runs under Codex`; a `sleep 30` typed in Terminal at the same time still counts as a command
 - [ ] `exec zsh`, wait 10 s → no `activity: running`
 - [ ] `source ~/.zshrc`, wait 10 s → no `activity: running`
 - [ ] `sleep 300`, then close the tab → `activity: idle` at once

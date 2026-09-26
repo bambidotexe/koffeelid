@@ -458,6 +458,11 @@ record names (read from the same directory as the rescues) and drops the session
 stored property. `ActivityMonitor.lastEventByAgent` is the same shape for the last hook event of each agent;
 `lastClaudeEvent` and `lastCodexEvent` are read-only conveniences over it for the Health page.
 
+A `job begin` whose shell has an agent's process on its chain (`ProcWalk.hostingAgent(in:)` over
+`ProcWalk.chain(from:)`, read when `ActivityMonitor.ingest` applies the line, live or replayed) never reaches
+the job store: it is the agent's tool shell, and `activity: commands of shell <pid> ignored, it runs under
+<agent>` is logged once per shell.
+
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
 `job end`, on the owner shell's exit (kqueue), when its shell answers that it runs nothing, or, for a job
 without a shell pid only, after 2 h. `ActivityMonitor.probeJobs` runs at every `sync()` and once at replay,

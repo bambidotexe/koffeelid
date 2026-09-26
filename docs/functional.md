@@ -145,7 +145,13 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   name is read; a line of prefixes alone (`sudo -i`, `sudo -s`) opens an interactive shell and begins nothing.
   Interactive programs listed in `KOFFEELID_SKIP` (editors, pagers, `ssh`, `tmux`, `top`, `tig`, `lazygit`,
   `su`, `login`, …) never count, and neither do the agents, which are followed through their own hooks
-  (`claude`, `codex`, `copilot`, `opencode`). The shells in that list (`zsh`, `bash`, `sh`, `fish`) are
+  (`claude`, `codex`, `copilot`, `opencode`). Nor does anything a shell under an agent runs: a shell with Claude
+  Code, Codex (its CLI or its app-server daemon), Copilot or OpenCode (its CLI or its server) anywhere on its
+  process chain is that agent's tool shell, or one a script it started opened, and its commands are the
+  agent's own work, which its session already counts; a command it began is dropped when the app reads it,
+  replayed ones included, even after the agent's session ended and the command runs on (OpenCode's server
+  keeps a tool's process running after a Ctrl+C in its window). A terminal pane opened in a desktop app is the
+  user's: the app's own window process is not the agent. The shells in that list (`zsh`, `bash`, `sh`, `fish`) are
   skipped only when they run interactively, every word after the shell's name being a flag (`zsh`, `bash -l`,
   `zsh -f -i`); a shell that runs a script (`bash build.sh`, `sh -c '…'`, `zsh script.zsh`) counts. A shell
   that re-reads the snippet, or is replaced by `exec`, ends the job it was running; the snippet releases the

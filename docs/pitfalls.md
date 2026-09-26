@@ -402,6 +402,19 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **Do not** put a shell's name on the skip list as a plain skip: `bash build.sh` and `sh install.sh` are real
   work. The snippet skips `zsh`, `bash`, `sh` and `fish` only when every word after the name is a flag.
 
+### An agent's tool shell loads the snippet
+- **Symptom.** A command an agent runs counts as a terminal command: a Terminal badge beside the agent's, the
+  menu saying "a command", and a job that outlives the agent's session. Seen: Codex's shell tool running under
+  its app-server daemon (`~/.codex/packages/app-server-daemon/…/bin/codex`), and an OpenCode tool's
+  `zsh -c … sleep` under `opencode serve --service`, still running after a Ctrl+C in OpenCode's window.
+- **Why.** An agent's shell tool can run an interactive zsh, which reads `~/.zshrc` and so the snippet; and
+  OpenCode's server, not its window, owns a tool's processes, so interrupting the session does not end them.
+- **What the code does.** `ActivityMonitor.ingest` drops a `job begin` whose shell has an agent's process on its
+  chain (`ProcWalk.hostingAgent(in:)`): the agent's own session is what counts its work.
+- **Do not** filter by environment variables (each agent sets its own, and none is promised), nor in the
+  snippet (it cannot see the process chain cheaply); and do not count a desktop app's window process as the
+  agent, or a terminal pane the user opens in that app stops counting.
+
 ### `precmd` must read `$?` first
 - **Why.** Later `precmd` hooks (prompts) expect the command's status.
 - **What the code does.** `local code=$?` is the first statement and the function returns it.

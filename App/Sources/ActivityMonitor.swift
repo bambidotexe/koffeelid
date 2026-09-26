@@ -78,6 +78,8 @@ final class ActivityMonitor {
     /// The same for each Copilot session's `events.jsonl`.
     private var transcriptCheckedAt: [String: Date] = [:]
     private var warnedNoTranscript: Set<String> = []
+    /// The agent-hosted shells already logged as ignored; one line per shell, the set kept small.
+    private var agentShells: Set<Int32> = []
     private var warnedDaemonSilent = false
     private var warnedDaemonStatuses: Set<String> = []
     /// False until the launch checks have answered: nothing is counted or published before them.
@@ -181,6 +183,12 @@ final class ActivityMonitor {
             switch e.event {
             case .jobBegin:
                 guard let id = e.jobId else { continue }
+                // A shell under an agent runs that agent's work: its session counts it, a terminal job never does.
+                if let pid = e.jobPid, let agent = ProcWalk.hostingAgent(in: ProcWalk.chain(from: pid)) {
+                    if agentShells.count >= 64 { agentShells.removeAll() }
+                    if agentShells.insert(pid).inserted { onLog?("activity: commands of shell \(pid) ignored, it runs under \(agent.name)") }
+                    continue
+                }
                 jobs.begin(id: id, pid: e.jobPid, label: e.jobLabel, armAfterSeconds: e.jobArmAfterSeconds ?? jobArmAfterSeconds, now: e.loggedAt)
             case .jobEnd:
                 if let id = e.jobId { jobs.end(id: id) }

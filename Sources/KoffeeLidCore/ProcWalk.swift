@@ -166,6 +166,16 @@ public enum ProcWalk {
         case .opencode: return isOpencodeProcess(info)
         }
     }
+    /// The agent whose process runs anywhere on a shell's chain (the shell first): the shell is that agent's
+    /// tool shell, or one a script it started opened, and its commands are the agent's own work, never a terminal
+    /// command. Its CLI or its server, never a desktop app's window process: a terminal pane the user opens in an
+    /// app is theirs. Nil for a shell in a terminal, an editor, tmux or over ssh.
+    public static func hostingAgent(in chain: [ProcInfo]) -> ActivityAgent? {
+        for info in chain {
+            if let agent = ActivityAgent.allCases.first(where: { isProcess(of: $0, info) }) { return agent }
+        }
+        return nil
+    }
     /// The ancestor of `pid` (inclusive) running `agent` that the hook ran under, or nil: `claimed` when the
     /// chain holds it running `agent` (OpenCode's payload names its server), else the nearest one. A Codex
     /// started from a Claude Code tool call, or the reverse, has both in its chain, and the nearest of the asked

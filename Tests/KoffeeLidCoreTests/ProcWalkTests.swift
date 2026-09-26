@@ -167,4 +167,37 @@ final class ProcWalkTests: XCTestCase {
         XCTAssertEqual(ClaudeRegistryRecord.parse(Data("{\"pid\": 1, \"status\": \"resting\"}".utf8), expectedPid: 1)?.isIdle, false, "unknown statuses are neither")
         XCTAssertNil(ClaudeRegistryRecord.parse(Data("nope".utf8), expectedPid: 1))
     }
+
+    // MARK: a shell under an agent
+
+    /// Pids no process holds, so the predicates decide on the name and path alone.
+    func shell(under parents: [(name: String, path: String?)]) -> [ProcWalk.ProcInfo] {
+        var chain = [ProcWalk.ProcInfo(pid: 999_900, ppid: 999_901, name: "zsh", path: "/bin/zsh")]
+        for (i, parent) in parents.enumerated() {
+            chain.append(ProcWalk.ProcInfo(pid: 999_901 + Int32(i), ppid: 999_902 + Int32(i), name: parent.name, path: parent.path))
+        }
+        return chain
+    }
+    /// An agent's tool shell, or a shell a script it started opened, runs the agent's own work: the shells seen
+    /// under OpenCode's server and Codex's app-server daemon, and under Claude Code and Copilot.
+    func testAShellUnderAnAgentIsThatAgents() {
+        let launchd = (name: "launchd", path: Optional("/sbin/launchd"))
+        XCTAssertEqual(ProcWalk.hostingAgent(in: shell(under: [("opencode", "/Users/u/.opencode/bin/opencode"), launchd])), .opencode)
+        XCTAssertEqual(ProcWalk.hostingAgent(in: shell(under: [
+            ("codex", "/Users/u/.codex/packages/app-server-daemon/releases/0.157.1-aarch64-apple-darwin/bin/codex"),
+            ("codex", "/Users/u/.codex/packages/app-server-daemon/releases/0.157.1-aarch64-apple-darwin/bin/codex"), launchd])), .codex)
+        XCTAssertEqual(ProcWalk.hostingAgent(in: shell(under: [("2.1.90", "/Users/u/.local/share/claude/versions/2.1.90"),
+                                                               ("zsh", "/bin/zsh"), ("login", "/usr/bin/login")])), .claude)
+        XCTAssertEqual(ProcWalk.hostingAgent(in: shell(under: [("copilot", "/Users/u/.local/bin/copilot"), ("zsh", "/bin/zsh")])), .copilot)
+    }
+    /// A shell in a terminal, an editor or a desktop app's own window is the user's.
+    func testAShellInATerminalOrAnAppIsNoAgents() {
+        XCTAssertNil(ProcWalk.hostingAgent(in: shell(under: [("login", "/usr/bin/login"),
+                                                             ("Terminal", "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal")])))
+        XCTAssertNil(ProcWalk.hostingAgent(in: shell(under: [("Code Helper", "/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper.app/Contents/MacOS/Code Helper")])))
+        XCTAssertNil(ProcWalk.hostingAgent(in: shell(under: [("Claude", "/Applications/Claude.app/Contents/MacOS/Claude"),
+                                                             ("Codex", "/Applications/Codex.app/Contents/MacOS/Codex")])))
+        XCTAssertNil(ProcWalk.hostingAgent(in: shell(under: [("tmux", "/opt/homebrew/bin/tmux"), ("launchd", "/sbin/launchd")])))
+        XCTAssertNil(ProcWalk.hostingAgent(in: []))
+    }
 }
