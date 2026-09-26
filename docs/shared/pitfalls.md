@@ -517,3 +517,39 @@ Every number was measured on an M-series Mac running macOS 27.0 (build 26A428).
   when the snippet loads in an interactive shell, and let the app ask the shell itself: a shell at its
   prompt owns its tty's foreground process group (`e_tpgid == e_pgid`) and has no child it started since the
   job began (Powerlevel10k keeps a `gitstatusd` child under every shell). (koffeelid, my-sidepulse)
+
+### H4. A hook Copilot cannot run is a denial, and a stale one denies everything
+- **Why.** Copilot runs a failing hook as its verdict: any non-zero exit, a crash or a missing binary denies
+  the tool for `preToolUse` (fail-closed), and exit 2 denies for `preToolUse` and `permissionRequest` alike. A
+  hook file left behind by an app removed without its uninstall blocks every Copilot tool, forever.
+- **What holds.** Subscribe to neither call an app has no use for; every `hook …` form of the binary exits 0,
+  unrecognised arguments included, after reading stdin to the end; the uninstall removes the whole file (each
+  app owns one file under `~/.copilot/hooks/`). (koffeelid, my-sidepulse)
+
+### H5. Copilot's Ctrl+C fires no hook, not even at an open permission prompt
+- **Why.** The only interrupt Copilot exposes fires nothing at all, and a failed turn fires only
+  `errorOccurred` (also fired on an error Copilot itself retries), never `agentStop`.
+- **What holds.** Ask the source of truth instead, H2's rule again: the session's own
+  `~/.copilot/session-state/<id>/events.jsonl`, whose `abort` / `session.error` / `session.shutdown` lines and
+  the `hook.start` mirror of the session's own `agentStop` say how the turn ended. A subagent's events are
+  mirrored into the parent's file with the subagent's id in `data.input.sessionId`. (koffeelid, my-sidepulse)
+
+### H6. Copilot's lifecycle does not run in the order, or the shape, a hook expects
+- **Symptom.** A state machine that resets on `sessionStart` loses the very turn it fires for; a payload with
+  nothing in it that names the event.
+- **Why.** `sessionStart` fires with the first prompt, *after* `userPromptSubmitted`. A subagent's own
+  `userPromptSubmitted` / `agentStop` carry the subagent's id, which owns no session-state directory of its
+  own. Event keys are camelCase with no field naming the event: it rides in the hook's arguments instead.
+- **What holds.** Never reset a turn on `sessionStart`; drop an event whose session id has no directory;
+  read the event name off the hook's own arguments. (koffeelid, my-sidepulse)
+
+### H7. OpenCode 2.x refuses the plugin API its own docs describe, and one instance answers for every directory
+- **Why.** 2.x has no command hooks: a plugin is `export default { id, setup(ctx) }` reading
+  `ctx.event.subscribe()`; `session.idle` / `session.status` are never published, only
+  `session.execution.started` followed by exactly one of `succeeded` / `failed` / `interrupted`. One instance
+  of a global plugin loads per open directory and every instance receives every directory's events; every
+  session, in every directory, runs inside one shared background server (`opencode serve --service`, parented
+  by launchd), so H2 holds here too.
+- **What holds.** De-duplicate by event id through `globalThis`; give each app its own plugin id, since a
+  duplicate id fails to load; ask a session's own state, never the server's liveness, for how a turn ended.
+  (koffeelid, my-sidepulse)
