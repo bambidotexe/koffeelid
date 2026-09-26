@@ -79,7 +79,8 @@ public enum CopilotTranscriptTail {
     public enum WaitDecision: Equatable {
         /// Ctrl+C or a double Esc at the prompt: `abandonWait`, the turn closed, dark.
         case aborted(at: Date)
-        /// The prompt's own `permission.completed` after the wait began: `dialogAnswered`, at its own stamp.
+        /// The prompt's own `permission.completed` after the wait began, at its stamp: `dialogAnswered`, as of the
+        /// check, like Claude Code's answered dialog.
         case answered(at: Date)
         case nothing
     }
