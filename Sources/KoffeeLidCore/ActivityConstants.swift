@@ -61,10 +61,12 @@ public enum ActivityConstants {
 
     // KoffeeLid's own.
     /// Between "nothing runs any more" and the auto-disarm, per kind that ran during the arm (the longest
-    /// wins). A finished Claude Code or Codex turn usually has its user on the other end of a remote
-    /// connection, about to prompt again — and a sleeping Mac would drop that connection — so it waits half
-    /// an hour; a finished command has nothing left to wait for.
-    public static let holdOffDefaults: [ActivityKind: TimeInterval] = [.claude: 30 * 60, .codex: 30 * 60, .terminal: 60]
+    /// wins). A finished Claude Code, Codex, Copilot or OpenCode turn usually has its user on the other end of
+    /// a remote connection, about to prompt again — and a sleeping Mac would drop that connection — so it waits
+    /// half an hour; a finished command has nothing left to wait for.
+    public static let holdOffDefaults: [ActivityKind: TimeInterval] = [
+        .claude: 30 * 60, .codex: 30 * 60, .copilot: 30 * 60, .opencode: 30 * 60, .terminal: 60,
+    ]
     /// "Disarm once finished": the wait after the work ends, so a turn that picks itself back up is not cut short.
     public static let disarmOnceHoldOffSeconds: TimeInterval = 60
 

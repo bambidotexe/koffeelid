@@ -19,7 +19,8 @@ final class Preferences {
             "hotKeyCode": UInt32(kVK_ANSI_L), "hotKeyModifiers": UInt32(controlKey | optionKey | cmdKey),
             "caffeinateHotKeyCode": UInt32(kVK_ANSI_K), "caffeinateHotKeyModifiers": UInt32(controlKey | optionKey | cmdKey),
             "armOnActivity": false, "activityJobArmAfterSeconds": 5.0,
-            "activityHoldOff.claude": 30.0 * 60, "activityHoldOff.codex": 30.0 * 60, "activityHoldOff.terminal": 60.0,
+            "activityHoldOff.claude": 30.0 * 60, "activityHoldOff.codex": 30.0 * 60, "activityHoldOff.copilot": 30.0 * 60,
+            "activityHoldOff.opencode": 30.0 * 60, "activityHoldOff.terminal": 60.0,
         ])
     }
 
@@ -34,8 +35,8 @@ final class Preferences {
     var armOnActivity: Bool { get { d.bool(forKey: "armOnActivity") } set { set("armOnActivity", newValue) } }
     var activityJobArmAfterSeconds: Double { get { d.double(forKey: "activityJobArmAfterSeconds") } set { set("activityJobArmAfterSeconds", min(30, max(0, newValue))) } }
     /// Seconds between "nothing runs any more" and the auto-disarm, per kind that ran (the longest wins):
-    /// Claude Code and Codex 1–120 min (default 30), a command 10 s–10 min (default 1 min). Keys
-    /// `activityHoldOff.claude|codex|terminal`.
+    /// Claude Code, Codex, Copilot and OpenCode 1–120 min (default 30), a command 10 s–10 min (default 1 min).
+    /// Keys `activityHoldOff.claude|codex|copilot|opencode|terminal`.
     func activityHoldOffSeconds(_ kind: ActivityKind) -> Double { d.double(forKey: Self.holdOffKey(kind)) }
     func setActivityHoldOffSeconds(_ kind: ActivityKind, _ s: Double) {
         set(Self.holdOffKey(kind), kind == .terminal ? min(600, max(10, s)) : min(120 * 60, max(60, s)))

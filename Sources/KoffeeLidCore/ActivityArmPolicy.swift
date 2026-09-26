@@ -1,8 +1,9 @@
 import Foundation
 
-/// The three things that can be running: Claude Code sessions, Codex sessions and terminal (zsh) commands.
+/// What can be running: a Claude Code, Codex, Copilot or OpenCode session, or a terminal (zsh) command. Sorted
+/// by raw value, which is that order.
 public enum ActivityKind: String, CaseIterable, Sendable, Codable, Comparable {
-    case claude, codex, terminal
+    case claude, codex, copilot, opencode, terminal
     public static func < (a: ActivityKind, b: ActivityKind) -> Bool { a.rawValue < b.rawValue }
 }
 
@@ -17,8 +18,8 @@ public enum ActivityArmChange: Equatable {
 
 /// The auto-arm as a level of its own, independent of the manual mode (the coordinator ORs the two): on
 /// from the moment work runs, off after a hold-off once nothing does. The hold-off is the longest one among
-/// the kinds that ran during the stretch (`holdOffs`; a Claude Code or Codex turn is followed by a long one,
-/// since its user is usually remote and about to prompt again; a command by a short one). `requestDisarmOnce`
+/// the kinds that ran during the stretch (`holdOffs`; an agent's turn is followed by a long one, since its
+/// user is usually remote and about to prompt again; a command by a short one). `requestDisarmOnce`
 /// is the user's "Disarm once finished": the current or next stretch ends `onceHoldOff` after the work,
 /// and the manual arm is released with it. A refused arm (`armFailed`) or a rail (`suspend`) keeps the
 /// level off until the running work stops and something starts again.

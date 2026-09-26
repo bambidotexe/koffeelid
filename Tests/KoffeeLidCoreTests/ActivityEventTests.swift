@@ -52,6 +52,48 @@ final class ActivityEventTests: XCTestCase {
         let e = ActivityCodec.decodeLine(Data("{\"event\":\"Stop\",\"logged_at\":\"2023-11-14T22:13:20Z\",\"claude_pid\":42,\"session_id\":\"s\"}".utf8))
         XCTAssertEqual(e?.agentPid, 42); XCTAssertNil(e?.agent); XCTAssertEqual(e?.effectiveAgent, .claude)
     }
+    func testTheFourAgentsAndTheNamesTheLogUses() {
+        XCTAssertEqual(ActivityAgent.allCases, [.claude, .codex, .copilot, .opencode])
+        XCTAssertEqual(ActivityAgent.allCases.map(\.name), ["Claude Code", "Codex", "Copilot", "OpenCode"])
+        XCTAssertEqual(ActivityAgent.allCases.map(\.rawValue), ["claude", "codex", "copilot", "opencode"])
+    }
+    func testACopilotAndAnOpencodeLineRoundTripWithTheirAgent() throws {
+        for agent in [ActivityAgent.copilot, .opencode] {
+            var e = ActivityEvent(loggedAt: Date(timeIntervalSince1970: 1_700_000_000), event: .stop)
+            e.sessionId = "s"; e.agent = agent; e.agentPid = 7
+            let text = String(decoding: try ActivityCodec.encodeLine(e), as: UTF8.self)
+            XCTAssertTrue(text.contains("\"agent\":\"\(agent.rawValue)\""), text)
+            XCTAssertEqual(ActivityCodec.decodeLine(Data(text.utf8)), e)
+            XCTAssertEqual(ActivityCodec.decodeLine(Data(text.utf8))?.effectiveAgent, agent)
+        }
+    }
+    func testEachAgentsJournalEvents() {
+        XCTAssertEqual(ActivityEventName.hookEvents(for: .claude), ActivityEventName.claudeCodeEvents)
+        XCTAssertEqual(ActivityEventName.hookEvents(for: .codex), ActivityEventName.codexEvents)
+        XCTAssertEqual(ActivityEventName.hookEvents(for: .copilot),
+                       [.sessionStart, .sessionEnd, .userPromptSubmit, .postToolUse, .postToolUseFailure, .notification, .stop])
+        XCTAssertEqual(ActivityEventName.hookEvents(for: .opencode),
+                       [.sessionStart, .sessionEnd, .userPromptSubmit, .preToolUse, .postToolUse, .postToolUseFailure,
+                        .permissionRequest, .permissionDenied, .notification, .stop, .stopFailure, .subagentStart, .subagentStop,
+                        .preCompact, .postCompact, .interrupt])
+        for agent in ActivityAgent.allCases {
+            let events = ActivityEventName.hookEvents(for: agent)
+            XCTAssertFalse(events.contains(.parseError) || events.contains(.jobBegin) || events.contains(.jobEnd) || events.contains(.verdict),
+                           "\(agent): KoffeeLid's own line kinds are no agent's")
+        }
+    }
+    func testCopilotsSubscribedEventsAreItsOwnWordsInTheFilesOrder() {
+        XCTAssertEqual(ActivityEventName.copilotHookEvents,
+                       ["sessionStart", "userPromptSubmitted", "postToolUse", "postToolUseFailure", "notification", "agentStop", "sessionEnd"])
+        XCTAssertFalse(ActivityEventName.copilotHookEvents.contains("preToolUse"), "a failed preToolUse hook denies the tool")
+        XCTAssertFalse(ActivityEventName.copilotHookEvents.contains("permissionRequest"), "a failed permissionRequest hook denies the tool")
+        let mapped = ActivityEventName.copilotHookEvents.compactMap(ActivityEventName.init(copilotHookEvent:))
+        XCTAssertEqual(mapped, [.sessionStart, .userPromptSubmit, .postToolUse, .postToolUseFailure, .notification, .stop, .sessionEnd])
+        XCTAssertEqual(Set(mapped), Set(ActivityEventName.hookEvents(for: .copilot)), "every Copilot line is one of its journal events, and each is reachable")
+        for name in ["preToolUse", "permissionRequest", "errorOccurred", "subagentStop", "preCompact", "SessionStart", "Stop", ""] {
+            XCTAssertNil(ActivityEventName(copilotHookEvent: name), name)
+        }
+    }
     func testUnknownEventNameFailsToDecodeInsteadOfCrashing() {
         XCTAssertNil(ActivityCodec.decodeLine(Data("{\"event\":\"Whatever\",\"logged_at\":\"2023-11-14T22:13:20Z\"}".utf8)))
     }
@@ -80,7 +122,8 @@ final class ActivityEventTests: XCTestCase {
         XCTAssertEqual(ActivityConstants.abandonRecheckSeconds, 15)
         XCTAssertEqual(ActivityConstants.abortQuarantineSeconds, 120)
         XCTAssertEqual(ActivityConstants.jobArmAfterDefaultSeconds, 5)
-        XCTAssertEqual(ActivityConstants.holdOffDefaults, [.claude: 1800, .codex: 1800, .terminal: 60]); XCTAssertEqual(ActivityConstants.disarmOnceHoldOffSeconds, 60)
+        XCTAssertEqual(ActivityConstants.holdOffDefaults, [.claude: 1800, .codex: 1800, .copilot: 1800, .opencode: 1800, .terminal: 60])
+        XCTAssertEqual(ActivityConstants.disarmOnceHoldOffSeconds, 60)
         XCTAssertEqual(ActivityConstants.journalLineMaxBytes, 4096)
     }
 }

@@ -47,11 +47,14 @@ final class ActivityBadgesTests: XCTestCase {
     func testTheDesktopAppsStandForTheAgents() {
         XCTAssertEqual(ActivityBadge.claude, ActivityBadge(kind: .claude, app: .bundleIdentifier("com.anthropic.claudefordesktop")))
         XCTAssertEqual(ActivityBadge.codex, ActivityBadge(kind: .codex, app: .bundleIdentifier("com.openai.codex")))
+        XCTAssertEqual(ActivityBadge.copilot, ActivityBadge(kind: .copilot, app: .bundleIdentifier("com.github.githubapp")))
+        XCTAssertEqual(ActivityBadge.opencode, ActivityBadge(kind: .opencode, app: .bundleIdentifier("ai.opencode.desktop")))
     }
-    func testBadgesSortClaudeCodeFirstThenCodexThenTheTerminalsByPath() {
+    func testBadgesSortClaudeCodeCodexCopilotOpencodeThenTheTerminalsByPath() {
         let code = ActivityBadge(kind: .terminal, app: .bundlePath(codePath))
         let terminal = ActivityBadge(kind: .terminal, app: .bundlePath(terminalPath))
         XCTAssertEqual([terminal, code, ActivityBadge.codex, ActivityBadge.claude].sorted(), [.claude, .codex, code, terminal])
+        XCTAssertEqual([terminal, .opencode, code, .copilot, .codex, .claude].sorted(), [.claude, .codex, .copilot, .opencode, code, terminal])
     }
 
     func testTheCupWearsNothingWhileTheLevelIsOff() {

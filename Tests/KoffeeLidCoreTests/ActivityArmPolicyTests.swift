@@ -43,6 +43,19 @@ final class ActivityArmPolicyTests: XCTestCase {
         _ = q.update(running: [], enabled: true, now: at(30))
         XCTAssertEqual(q.nextDeadline(after: at(30)), at(1830), "Claude Code joined the stretch, and its wait is the longer")
     }
+    func testTheKindsSortAgentsFirstThenTheTerminal() {
+        XCTAssertEqual(ActivityKind.allCases.sorted(), [.claude, .codex, .copilot, .opencode, .terminal])
+        XCTAssertEqual(Set(ActivityConstants.holdOffDefaults.keys), Set(ActivityKind.allCases), "every kind has a default wait")
+    }
+    func testCopilotAndOpencodeGetTheirOwnLongHoldOff() {
+        var q = ActivityArmPolicy(holdOffs: [.claude: 600, .codex: 600, .copilot: 1200, .opencode: 900, .terminal: 60])
+        XCTAssertEqual(q.update(running: [.opencode], enabled: true, now: t0), .on)
+        _ = q.update(running: [], enabled: true, now: at(10))
+        XCTAssertEqual(q.nextDeadline(after: at(10)), at(910), "OpenCode's wait")
+        _ = q.update(running: [.copilot, .terminal], enabled: true, now: at(20))
+        _ = q.update(running: [], enabled: true, now: at(30))
+        XCTAssertEqual(q.nextDeadline(after: at(30)), at(1230), "Copilot joined the stretch, and its wait is the longest")
+    }
     func testACommandFinishingLastDoesNotShortenClaudesHoldOff() {
         _ = p.update(running: [.claude], enabled: true, now: t0)
         _ = p.update(running: [.claude, .terminal], enabled: true, now: at(5))

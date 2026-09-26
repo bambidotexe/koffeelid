@@ -14,7 +14,7 @@ links the SwiftPM package; `Package.swift` defines the two libraries and their t
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library (AppKit, Metal, ScreenCaptureKit) | Core | The lid effect: `EffectController`, `DesktopCapture`, `PlaneRenderer`, `PlaneShader`, `EffectOverlayPanel`, `CaptureStartGate`, `PlaneRemap`. |
 | `KoffeeLid` (`App/Sources`) | app, `LSUIElement` | Core, LidPlaneKit | The coordinator, one adapter per system API, the UI, the update feature (`UpdateController` and what it runs), App Intents, the CLI client. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | LaunchAgent that relaunches the app after an unclean exit. |
-| `KoffeeLidHook` (`Hook/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | `hook` (Claude Code), `hook codex` and `job begin\|end`: append one line to the activity journal. |
+| `KoffeeLidHook` (`Hook/Sources/main.swift`) | tool embedded in `Contents/MacOS` | Core | `hook` (Claude Code), `hook codex`, `hook copilot <event>`, `hook opencode` and `job begin\|end`: append one line to the activity journal. |
 
 Rule: what can be expressed without AppKit or IOKit and tested with an injected clock belongs in Core. App
 files are thin adapters around one system API with closures back to the coordinator (`onX`, `onLog`).
@@ -253,8 +253,10 @@ with `CaptureStartGate` (a stop landing during an in-flight start wins; the toke
 ## Auto-arm on activity
 
 ```
-Claude Code hook ─┐
-Codex hook ───────┤
+Claude Code hook ──┐
+Codex hook ────────┤
+Copilot hook ──────┤
+OpenCode plugin ───┤
 zsh preexec/precmd ┴▶ KoffeeLidHook ─▶ activity.jsonl ─▶ ActivityJournalTailer ─▶ ActivityMonitor
                                                            ActivitySessionStore + ActivityJobStore
                                                            ActivityProcessWatcher (kqueue exit)
@@ -276,17 +278,59 @@ publish (`launched` holds `sync` back until the daemon's answer, at most 1 s; a 
 `launchAnswerFallbackSeconds`, runs `finishLaunch` once should the answer never arrive, and a later answer is
 dropped) and only ends turns, but for a
 dialog the registry says was answered; the tailer starts at the byte offset the replay consumed. A separate
-tiny binary, not the app: it runs inside every Claude Code turn, every Codex turn and every shell command, so
-it must start fast, never launch the app and never block. The hook's verb says which agent sent the payload (`hook` is Claude Code, `hook codex` is
-Codex), never the payload: both agents send the same event names.
+tiny binary, not the app: it runs inside every Claude Code, Codex and Copilot turn, for every OpenCode event
+a plugin forwards to it (OpenCode has no command hooks) and around every shell command, so it must start fast, never launch the app and
+never block. The hook's arguments say which agent sent the payload (`HookCall`: `hook` is Claude Code, `hook
+codex` Codex, `hook copilot <event>` Copilot, `hook opencode` OpenCode), never the payload: Claude Code and
+Codex send the same event names, Copilot's camelCase payloads name none, and OpenCode's are its own. Any other
+arguments after `hook` write nothing, and every `hook …` form exits 0 (Copilot denies a tool whose hook fails);
+only a malformed `job` line, or no known verb, exits 2.
 
 `ActivityTrim` reduces a hook payload to event name, session id, agent id, tool name, turn id (Codex's
 `turn_id`, else Claude Code's `prompt_id`), notification type, source, background task ids and, on
 `SessionStart`, `UserPromptSubmit`, `Stop` and `Interrupt` only, the transcript path (up to 1024 characters),
 stamps it with the agent, caps every field and the line (4 KB), and turns
-anything unparseable, or any name outside that agent's events (`ActivityEventName.claudeCodeEvents`,
-`codexEvents`), into a `ParseError` line. Each line carries the pid of the nearest ancestor running its agent
-(`ProcWalk.pid(of:inChainFrom:)`; a Codex started from a Claude Code tool call has both in its chain). For a
+anything unparseable, or any name outside that agent's events (`ActivityEventName.hookEvents(for:)`), into a
+`ParseError` line. Each agent's payload is read its own way:
+
+- **Claude Code and Codex** (`event(fromHookPayload:agent:loggedAt:)`): `hook_event_name` names the event,
+  which must be one of `claudeCodeEvents` or `codexEvents`.
+- **Copilot** (`copilotEvent(fromHookPayload:named:loggedAt:)`): the event is the hook's third argument, one of
+  Copilot's seven words in `ActivityEventName.copilotHookEvents` (`sessionStart`, `userPromptSubmitted`,
+  `postToolUse`, `postToolUseFailure`, `notification`, `agentStop`, `sessionEnd`), mapped to `SessionStart`,
+  `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `Stop`, `SessionEnd`; the body gives
+  `sessionId` (else `session_id`), `toolName`, `notification_type`, `source` and `transcriptPath`. Copilot
+  names no turn. The hook then passes the line through `CopilotSessionState.line`: a line whose session id has
+  no folder under the session-state root (`$COPILOT_HOME/session-state`, else `~/.copilot/session-state`), when
+  that root exists, is a subagent's and is dropped; a `SessionStart`, `UserPromptSubmit` or `Stop` that names
+  no transcript gets `<root>/<session id>/events.jsonl`.
+- **OpenCode** (`opencodeEvent(fromHookPayload:loggedAt:)`): `hook_event_name` is OpenCode's own event type,
+  mapped below; nil writes nothing. A session with a `parent_id` is a subagent, whose events become helper
+  events of the parent (`sessionId` the parent, `agentId` the child). An event of no session (`session_id`
+  null, or `global` for a form outside any session) writes nothing. OpenCode names no turn. `opencode_pid`
+  becomes the claimed `agentPid`.
+
+  | OpenCode event | top-level session | subagent |
+  |---|---|---|
+  | `session.created`, `session.forked` | `SessionStart` | `SubagentStart` |
+  | `session.inbox.enqueued`, `session.execution.started` | `UserPromptSubmit` | `UserPromptSubmit` |
+  | `session.tool.called` / `.success` / `.failed` | `PreToolUse` / `PostToolUse` / `PostToolUseFailure` | the same |
+  | `permission.asked` (its action as the tool name) | `PermissionRequest` | `PermissionRequest` |
+  | `permission.replied`, `status` `once` or `always` | `PostToolUse` | `PostToolUse` |
+  | `permission.replied`, `status` `reject` | `PermissionDenied` | `PostToolUse` |
+  | `form.created` with `question: true` | `Notification` `elicitation_dialog` | `PermissionRequest` |
+  | `form.created` otherwise | nothing | nothing |
+  | `form.replied`, `form.cancelled` | `PostToolUse` | `PostToolUse` |
+  | `session.compaction.started` / `.ended`, `.failed` | `PreCompact` / `PostCompact` | the same |
+  | `session.execution.succeeded` / `.failed` / `.interrupted` | `Stop` / `StopFailure` / `Interrupt` | `SubagentStop` |
+  | `session.deleted` | `SessionEnd` | `SubagentStop` |
+  | anything else | nothing | nothing |
+
+Each line carries the pid of the nearest ancestor running its agent (`ProcWalk.pid(of:inChainFrom:claimed:)`;
+a Codex started from a Claude Code tool call has both in its chain). A claimed pid, OpenCode's server as its
+payload names it, wins only when it is one of those ancestors running OpenCode. A Copilot line's pid is the
+`copilot` process, the hook's parent; an OpenCode line's is the server, which hosts every session of every
+client. For a
 Codex TUI session that ancestor is Codex's managed daemon, shared by every TUI session and outliving them; for
 a desktop-app session, the app's own `codex app-server`, shared the same way. The monitor reads each Codex
 pid's path and arguments once and marks its sessions `hostedBySharedCodex` (`ProcWalk.isSharedCodexHost`: any
@@ -300,13 +344,14 @@ pid's path and arguments once and marks its sessions `hostedBySharedCodex` (`Pro
 | Event | State |
 |---|---|
 | `SessionStart` | `idle`, helpers and background ids cleared; unchanged when `source == "compact"` (helpers and background ids kept too) |
+| `SessionStart` of a Copilot session | unchanged: records its pid and transcript path only (Copilot starts a session with its first prompt, after the prompt's line) |
 | `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionDenied` | `working` |
 | `PreCompact` | `working`, remembering the state it found (`stateBeforeCompaction`) unless an earlier `PreCompact` since the last turn boundary already did; a prompt, `Stop`, `Interrupt` or non-`compact` `SessionStart` forgets it |
 | `PostCompact` | restores `stateBeforeCompaction` (`working` if none was recorded) |
 | `PreToolUse` | `working`; `waiting` for `AskUserQuestion`, `ExitPlanMode` (Claude Code) and `request_user_input` (Codex) |
 | `PermissionRequest`, `StopFailure`; `Notification` of type `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog` | `waiting` |
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |
-| `Interrupt` (Codex only) | `done`, helpers and background ids cleared: Esc ended everything |
+| `Interrupt` (Codex; OpenCode's `session.execution.interrupted`) | `done`, helpers and background ids cleared: Esc ended everything |
 | `Notification` `idle_prompt` / `agent_needs_input`, state `working`, 50 s of main-agent quiet | treated as a lost `Stop` |
 | any event of a turn an `Interrupt` or a verdict closed (`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`, `Stop`, …; a helper's too), but a prompt, a `SessionStart`, or a main-agent `PreToolUse` of a turn a verdict closed | unchanged (liveness only) |
 | main-agent `PreToolUse` of a turn a verdict closed (not in `interruptedTurnIds`) | the turn opens again (its id leaves `closedTurnIds`), then as `PreToolUse` above |
@@ -365,10 +410,12 @@ session: `task_complete` or `turn_aborted` stamped after the last main event, or
 `turnOver`; `task_started` with no end, the file written less than 2 h before (`staleSeconds`) → `noteBusy`
 (the same 5 min warning), written earlier → nothing, so staleness ends the session; an earlier turn's end, or
 unreadable → nothing, unreadable logged once per session. A rollout read with no event since is read again 15 s
-later at the earliest (`rolloutCheckedAt`), however often `sync()` runs. `nextDeadline` schedules both. `pruneDead` keeps a
+later at the earliest (`rolloutCheckedAt`), however often `sync()` runs. `nextDeadline` schedules both; a
+Copilot or OpenCode session is not asked about when quiet (its hooks, its process's exit and staleness end
+it), so it adds only its staleness deadline. `pruneDead` keeps a
 `hostedBySharedCodex` session without asking about its pid; the kqueue on the host still drops them all when
 it exits. For a Claude Code session with a live pid, `pruneDead` asks `registrySession` for the session the pid's
-record names (read from the same directory as the rescues) and drops the session when it is another. Only `working` counts as running, and the snapshot counts it per agent (`claudeSessions`,
+record names (read from the same directory as the rescues) and drops the session when it is another. Only `working` counts as running, and the snapshot counts Claude Code's and Codex's per agent (`claudeSessions`,
 `codexSessions`).
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
@@ -382,7 +429,9 @@ job <id> ended without a hook (<reason>)` for a drop. `nextDeadline` asks again 
 while a job has a shell, and when a first sighting at the prompt has settled (`jobPromptSettleSeconds`, 5 s).
 
 The snapshot also carries the badges of the work (`ActivityBadge`: a kind and the app that stands for it):
-Claude Code's and Codex's are fixed bundle identifiers, a command's is the app hosting its shell, read from
+Claude Code's and Codex's are fixed bundle identifiers, as are `ActivityBadge.copilot` (GitHub Copilot.app,
+`com.github.githubapp`) and `ActivityBadge.opencode` (OpenCode.app, `ai.opencode.desktop`), which sort after
+them in `ActivityKind`'s order (Claude Code, Codex, Copilot, OpenCode, terminal); a command's is the app hosting its shell, read from
 the shell pid's process chain (`ProcWalk.hostApplicationPath`) at every publish, Terminal when none.
 `AutoArmBadges` in the coordinator shows the running ones, keeps the last running set through the hold-off
 and clears them when the level drops
@@ -398,8 +447,9 @@ accumulates the kinds seen (`involved`); when nothing runs, `offAt = idleSince +
 
 `HookInstaller` is stateless and has no link to the coordinator; the CLI verbs `install-hooks [claude|codex]`,
 `uninstall-hooks [claude|codex]` and `shell-init zsh` run it in-process without contacting the app.
-`HookConfig` is one spec per agent (`HookConfig.claude`, `HookConfig.codex`: the events, the marker that
-recognises our entries whatever bundle path they were installed from, the matcher, the timeouts) and
+`HookConfig` is one spec per agent whose hooks live in a `hooks` object (`HookConfig.claude`,
+`HookConfig.codex`: the events, the marker that recognises our entries whatever bundle path they were
+installed from, the matcher, the timeouts; `HookConfig.of` answers nil for Copilot and OpenCode) and
 transforms the `hooks` object of `~/.claude/settings.json` or `~/.codex/hooks.json` (entries recognised by
 the suffix `/Contents/MacOS/KoffeeLidHook hook`, or `… hook codex`, other tools' entries untouched, ours
 appended after them so their indices stand). `HookSettingsFile` loads either JSON file strictly and backs it

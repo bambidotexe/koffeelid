@@ -2,7 +2,7 @@ import Foundation
 
 public enum ActivitySessionState: Equatable { case idle, working, waiting, done }
 
-/// One Claude Code or Codex session. Only `.working` counts as running.
+/// One agent session: Claude Code's, Codex's, Copilot's or OpenCode's. Only `.working` counts as running.
 public struct ActivitySession: Equatable {
     public var id: String
     public var agent: ActivityAgent = .claude
@@ -21,7 +21,7 @@ public struct ActivitySession: Equatable {
     /// thread. Set by `markCodexHosts`; implies `hostedBySharedCodex`.
     public var hostedByManagedDaemon = false
     /// The session's transcript file, from the last main-agent line that named one: Claude Code's
-    /// conversation, Codex's rollout.
+    /// conversation, Codex's rollout, Copilot's `events.jsonl`.
     public var transcriptPath: String?
     /// Helpers believed running, each with its last-seen time; there is no reliable end event.
     public var liveAgents: [String: Date] = [:]
@@ -80,6 +80,12 @@ public struct ActivitySessionStore {
         s.agent = agent
         s.lastEventAt = now
         if let pid = e.agentPid { s.agentPid = pid }
+        // Copilot starts a session lazily, with its first prompt and after it: its SessionStart says nothing
+        // about the turn and records only what it carries.
+        if agent == .copilot, e.event == .sessionStart {
+            if let path = e.transcriptPath { s.transcriptPath = path }
+            sessions[sid] = s; return
+        }
         if Self.changesNothing(e, in: s) { sessions[sid] = s; return } // liveness only
 
         if let agentId = e.agentId {
@@ -281,8 +287,9 @@ public struct ActivitySessionStore {
             }
             if s.state == .done { deadlines.append(s.stateSince.addingTimeInterval(ActivityConstants.doneVisibleSeconds)) }
             // A quiet working session is asked about at its source: Claude Code's registry, found by the pid,
-            // or Codex's rollout, found by the session.
-            if s.state == .working, !s.pendingDone, s.agent == .codex || s.agentPid != nil {
+            // or Codex's rollout, found by the session. A Copilot or OpenCode session is not asked: its hooks,
+            // its process's exit and staleness end it.
+            if s.state == .working, !s.pendingDone, s.agent == .codex || (s.agent == .claude && s.agentPid != nil) {
                 let eligibleAt = s.lastEventAt.addingTimeInterval(ActivityConstants.abandonQuietSeconds)
                 deadlines.append(eligibleAt > now ? eligibleAt : now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds))
             }

@@ -2,30 +2,29 @@ import Foundation
 import Darwin
 import KoffeeLidCore
 
-/// `KoffeeLidHook hook` runs inside every Claude Code turn and `KoffeeLidHook hook codex` inside every
-/// Codex turn: it must never block on anything but one append, never launch the app, and always exit 0.
-/// `job begin|end` are the zsh snippet's primitives.
+/// `KoffeeLidHook hook` runs inside every Claude Code turn, `hook codex` inside every Codex turn, `hook copilot
+/// <event>` inside every Copilot turn and `hook opencode` for every OpenCode event a plugin forwards to it:
+/// it must never block on anything but one append, never launch the app, and always exit 0, whatever its
+/// arguments (Copilot denies a tool whose hook fails). `job begin|end` are the zsh snippet's primitives.
 enum HookMain {
     static func run(_ args: [String]) -> Int32 {
         if ProcessInfo.processInfo.environment["KOFFEELID_DISABLE"] == "1" { return 0 }
         switch args.first {
         case "hook":
-            switch Array(args.dropFirst()) {
-            case []: return hook(agent: .claude)
-            case ["codex"]: return hook(agent: .codex)
-            default: return usage()
-            }
+            // Arguments no agent's hook sends write nothing.
+            guard let call = HookCall(arguments: Array(args.dropFirst())) else { return 0 }
+            return hook(call)
         case "job": return job(Array(args.dropFirst()))
         default: return usage()
         }
     }
 
     static func usage() -> Int32 {
-        FileHandle.standardError.write(Data("usage: KoffeeLidHook hook [codex] | job begin --id ID --pid PID [--label TEXT] [--arm-after SECONDS] | job end --id ID\n".utf8))
+        FileHandle.standardError.write(Data("usage: KoffeeLidHook hook [codex | copilot EVENT | opencode] | job begin --id ID --pid PID [--label TEXT] [--arm-after SECONDS] | job end --id ID\n".utf8))
         return 2
     }
 
-    static func hook(agent: ActivityAgent) -> Int32 {
+    static func hook(_ call: HookCall) -> Int32 {
         var input = Data()
         let stdin = FileHandle.standardInput
         // Read everything so the writer is never broken by a closed pipe, but retain at most the cap.
@@ -36,11 +35,32 @@ enum HookMain {
                 input.append(chunk.prefix(ActivityConstants.hookStdinMaxBytes - input.count))
             }
         }
-        var event = ActivityTrim.event(fromHookPayload: input, agent: agent, loggedAt: Date())
-        // Ancestors from the parent: both agents spawn the hook through a shell, which may exec it directly.
-        event.agentPid = ProcWalk.pid(of: agent, inChainFrom: getppid())
+        let now = Date()
+        let trimmed: ActivityEvent?
+        switch call {
+        case .claude, .codex:
+            trimmed = ActivityTrim.event(fromHookPayload: input, agent: call.agent, loggedAt: now)
+        case .copilot(let name):
+            // A subagent's line carries an id with no session folder: dropped. `COPILOT_HOME` moves the folders.
+            let root = CopilotSessionState.root(environment: ProcessInfo.processInfo.environment,
+                                                home: FileManager.default.homeDirectoryForCurrentUser.path)
+            trimmed = CopilotSessionState.line(ActivityTrim.copilotEvent(fromHookPayload: input, named: name, loggedAt: now),
+                                               root: root, directoryExists: isDirectory)
+        case .opencode:
+            trimmed = ActivityTrim.opencodeEvent(fromHookPayload: input, loggedAt: now)
+        }
+        guard var event = trimmed else { return 0 }
+        // Ancestors from the parent: Claude Code and Codex spawn the hook through a shell, which may exec it
+        // directly; Copilot and OpenCode's server spawn it themselves. OpenCode's payload names its server,
+        // believed only when it is one of those ancestors.
+        event.agentPid = ProcWalk.pid(of: call.agent, inChainFrom: getppid(), claimed: event.agentPid)
         if let line = try? ActivityTrim.cappedLine(event) { ActivityJournalWriter.append(line, to: AppSupport.activityJournalURL) }
         return 0
+    }
+
+    static func isDirectory(_ path: String) -> Bool {
+        var directory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &directory) && directory.boolValue
     }
 
     static func job(_ args: [String]) -> Int32 {

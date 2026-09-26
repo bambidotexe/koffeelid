@@ -108,6 +108,8 @@ final class HookConfigTests: XCTestCase {
         let both = HookConfig.codex.install(into: HookConfig.claude.install(into: [:], command: cmd), command: codexCmd)
         XCTAssertEqual(HookConfig.codex.installedCount(in: both, command: codexCmd), 12)
         XCTAssertEqual(HookConfig.claude.installedCount(in: both, command: cmd), 15)
-        XCTAssertEqual(HookConfig.of(.claude).marker, HookConfig.claude.marker); XCTAssertEqual(HookConfig.of(.codex).agent, .codex)
+        XCTAssertEqual(HookConfig.of(.claude)?.marker, HookConfig.claude.marker); XCTAssertEqual(HookConfig.of(.codex)?.agent, .codex)
+        XCTAssertNil(HookConfig.of(.copilot), "Copilot's hook file is not a `hooks` object of this shape")
+        XCTAssertNil(HookConfig.of(.opencode), "OpenCode takes a plugin, not hooks")
     }
 }

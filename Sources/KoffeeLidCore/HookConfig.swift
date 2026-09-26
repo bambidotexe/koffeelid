@@ -23,7 +23,15 @@ public struct HookConfig {
         agent: .codex, events: ActivityEventName.codexEvents.map(\.rawValue),
         marker: "/Contents/MacOS/KoffeeLidHook hook codex", matcher: nil,
         timeout: { $0 == "SessionEnd" || $0 == "Interrupt" ? 3 : 5 })
-    public static func of(_ agent: ActivityAgent) -> HookConfig { agent == .claude ? claude : codex }
+    /// The spec of an agent whose hooks live in such a `hooks` object; nil for Copilot, whose hook file has
+    /// another shape, and OpenCode, which takes a plugin.
+    public static func of(_ agent: ActivityAgent) -> HookConfig? {
+        switch agent {
+        case .claude: return claude
+        case .codex: return codex
+        case .copilot, .opencode: return nil
+        }
+    }
 
     public func timeoutSeconds(for event: String) -> Int { timeout(event) }
 

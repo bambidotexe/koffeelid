@@ -79,6 +79,17 @@ final class ActivityTrimTests: XCTestCase {
         XCTAssertEqual(stop.agent, .codex)
         XCTAssertFalse(String(decoding: try! ActivityCodec.encodeLine(stop), as: UTF8.self).contains("secret"))
     }
+    func testTheHooksArgumentsSayWhichAgentSpeaks() {
+        XCTAssertEqual(HookCall(arguments: []), .claude)
+        XCTAssertEqual(HookCall(arguments: ["codex"]), .codex)
+        XCTAssertEqual(HookCall(arguments: ["copilot", "agentStop"]), .copilot(event: "agentStop"))
+        XCTAssertEqual(HookCall(arguments: ["copilot", "preToolUse"]), .copilot(event: "preToolUse"), "the trim, not the arguments, refuses the name")
+        XCTAssertEqual(HookCall(arguments: ["opencode"]), .opencode)
+        XCTAssertEqual([HookCall.claude, .codex, .copilot(event: "x"), .opencode].map(\.agent), [.claude, .codex, .copilot, .opencode])
+        for arguments in [["copilot"], ["copilot", "agentStop", "extra"], ["codex", "extra"], ["opencode", "x"], ["claude"], ["job"], [""]] {
+            XCTAssertNil(HookCall(arguments: arguments), "\(arguments): the hook writes nothing and still exits 0")
+        }
+    }
     func testLabelIsTrimmedTo60() {
         XCTAssertEqual(ActivityTrim.clampLabel(String(repeating: "a", count: 100)).count, 60)
     }

@@ -1,8 +1,8 @@
 import Foundation
 
 /// Reads the process ancestor chain via sysctl — microseconds, no subprocesses. Used by the hook to find
-/// the Claude Code or Codex process it runs under, and by the app to prune sessions whose pid died or was
-/// recycled and to tell Codex's shared hosts apart.
+/// the agent process (Claude Code, Codex, Copilot, OpenCode) it runs under, and by the app to prune sessions
+/// whose pid died or was recycled and to tell Codex's shared hosts apart.
 public enum ProcWalk {
     public struct ProcInfo: Equatable {
         public let pid: Int32, ppid: Int32, name: String, path: String?
@@ -134,14 +134,49 @@ public enum ProcWalk {
     public static func isSharedCodexHost(path: String?, arguments: [String]) -> Bool {
         isManagedCodexDaemon(path: path, arguments: arguments) || arguments.dropFirst().contains("app-server")
     }
-    public static func isProcess(of agent: ActivityAgent, _ info: ProcInfo) -> Bool {
-        agent == .claude ? isClaudeProcess(info) : isCodexProcess(info)
+    /// Copilot CLI's executable is `copilot` wherever it lives: `~/.local/bin/copilot`, or the copy GitHub
+    /// Copilot.app runs its sessions in, `~/Library/Caches/github-copilot-sdk/cli/<version>/copilot`. That process
+    /// is the hook's parent; one can hold several sessions, and no daemon outlives them.
+    public static func isCopilotPath(_ path: String) -> Bool { executableName(path) == "copilot" }
+    public static func isCopilotProcess(_ info: ProcInfo) -> Bool {
+        if info.name == "copilot" { return true }
+        if let path = info.path, isCopilotPath(path) { return true }
+        if let argv0 = execPath(for: info.pid), isCopilotPath(argv0) { return true }
+        return false
     }
-    /// The nearest ancestor of `pid` (inclusive) running `agent`, or nil. A Codex started from a Claude Code
-    /// tool call, or the reverse, has both in its chain, and the nearest of the asked kind is the one the
-    /// hook ran under.
-    public static func pid(of agent: ActivityAgent, inChainFrom pid: Int32) -> Int32? {
-        chain(from: pid).first { isProcess(of: agent, $0) }?.pid
+    /// OpenCode's server, the hook's parent, runs one of three executables: `opencode` (`~/.opencode/bin/`,
+    /// Homebrew), `opencode-cli` (inside OpenCode.app, and the copy it stages under Application Support) or
+    /// `.opencode` (the npm package's). The desktop app's own window process and the `opencode2` launcher are not
+    /// it. One server hosts every session of every client.
+    static let opencodeExecutables: Set<String> = ["opencode", "opencode-cli", ".opencode"]
+    public static func isOpencodePath(_ path: String) -> Bool { opencodeExecutables.contains(executableName(path)) }
+    public static func isOpencodeProcess(_ info: ProcInfo) -> Bool {
+        if opencodeExecutables.contains(info.name) { return true }
+        if let path = info.path, isOpencodePath(path) { return true }
+        if let argv0 = execPath(for: info.pid), isOpencodePath(argv0) { return true }
+        return false
+    }
+    static func executableName(_ path: String) -> String { path.split(separator: "/").last.map(String.init) ?? "" }
+
+    public static func isProcess(of agent: ActivityAgent, _ info: ProcInfo) -> Bool {
+        switch agent {
+        case .claude: return isClaudeProcess(info)
+        case .codex: return isCodexProcess(info)
+        case .copilot: return isCopilotProcess(info)
+        case .opencode: return isOpencodeProcess(info)
+        }
+    }
+    /// The ancestor of `pid` (inclusive) running `agent` that the hook ran under, or nil: `claimed` when the
+    /// chain holds it running `agent` (OpenCode's payload names its server), else the nearest one. A Codex
+    /// started from a Claude Code tool call, or the reverse, has both in its chain, and the nearest of the asked
+    /// kind is the one the hook ran under.
+    public static func pid(of agent: ActivityAgent, inChainFrom pid: Int32, claimed: Int32? = nil) -> Int32? {
+        self.pid(of: agent, claimed: claimed, in: chain(from: pid))
+    }
+    /// `pid(of:inChainFrom:claimed:)` over a chain already read.
+    public static func pid(of agent: ActivityAgent, claimed: Int32?, in chain: [ProcInfo]) -> Int32? {
+        if let claimed, let info = chain.first(where: { $0.pid == claimed }), isProcess(of: agent, info) { return claimed }
+        return chain.first { isProcess(of: agent, $0) }?.pid
     }
     /// The nearest Claude Code ancestor of `pid` (inclusive), or nil.
     public static func claudePid(inChainFrom pid: Int32) -> Int32? { self.pid(of: .claude, inChainFrom: pid) }

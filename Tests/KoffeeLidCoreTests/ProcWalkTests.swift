@@ -39,6 +39,70 @@ final class ProcWalkTests: XCTestCase {
         XCTAssertFalse(ProcWalk.isProcess(of: .claude, .init(pid: 1, ppid: 0, name: "codex", path: nil)))
         if let pid = ProcWalk.pid(of: .codex, inChainFrom: getpid()) { XCTAssertTrue(ProcWalk.looksLike(.codex, pid: pid)) }
     }
+    // Pids no process holds: the argv[0] fallback reads nothing, so only the name and the path decide.
+    typealias P = ProcWalk.ProcInfo
+    static let noPid: Int32 = 2_000_000
+
+    func testCopilotProcessShapes() {
+        XCTAssertTrue(ProcWalk.isCopilotPath("/Users/x/.local/bin/copilot"))
+        XCTAssertTrue(ProcWalk.isCopilotPath("/Users/x/Library/Caches/github-copilot-sdk/cli/1.0.87-0/copilot"), "GitHub Copilot.app's pooled CLI")
+        XCTAssertFalse(ProcWalk.isCopilotPath("/Applications/GitHub Copilot.app/Contents/MacOS/github"), "the desktop app itself runs no hook")
+        XCTAssertFalse(ProcWalk.isCopilotPath("/Users/x/Library/Caches/copilot/pkg/darwin-arm64/1.0.88/prebuilds/darwin-arm64/runtime.node"))
+        XCTAssertFalse(ProcWalk.isCopilotPath("/usr/local/bin/copilot-language-server"))
+        XCTAssertTrue(ProcWalk.isCopilotProcess(P(pid: Self.noPid, ppid: 0, name: "copilot", path: nil)))
+        XCTAssertTrue(ProcWalk.isCopilotProcess(P(pid: Self.noPid, ppid: 0, name: "node", path: "/Users/x/.local/bin/copilot")))
+        XCTAssertFalse(ProcWalk.isCopilotProcess(P(pid: Self.noPid, ppid: 0, name: "github", path: "/Applications/GitHub Copilot.app/Contents/MacOS/github")))
+        if let pid = ProcWalk.pid(of: .copilot, inChainFrom: getpid()) { XCTAssertTrue(ProcWalk.looksLike(.copilot, pid: pid)) }
+    }
+    func testOpencodeProcessShapes() {
+        for path in ["/Users/x/.opencode/bin/opencode", "/Applications/OpenCode.app/Contents/Resources/opencode-cli",
+                     "/Users/x/Library/Application Support/ai.opencode.desktop/cli/2.0.6/opencode-cli",
+                     "/opt/homebrew/Cellar/opencode-v2/2.0.17/bin/opencode", "/Users/x/.npm/lib/node_modules/@opencode/cli/bin/.opencode"] {
+            XCTAssertTrue(ProcWalk.isOpencodePath(path), path)
+        }
+        XCTAssertFalse(ProcWalk.isOpencodePath("/Applications/OpenCode.app/Contents/MacOS/OpenCode"), "the desktop window is a client, not the server")
+        XCTAssertFalse(ProcWalk.isOpencodePath("/Users/x/.opencode/bin/opencode2"), "a launcher script that execs opencode")
+        XCTAssertFalse(ProcWalk.isOpencodePath("/usr/local/bin/node"))
+        for name in ["opencode", "opencode-cli", ".opencode"] {
+            XCTAssertTrue(ProcWalk.isOpencodeProcess(P(pid: Self.noPid, ppid: 0, name: name, path: nil)), name)
+        }
+        XCTAssertTrue(ProcWalk.isOpencodeProcess(P(pid: Self.noPid, ppid: 0, name: "bun", path: "/Users/x/.opencode/bin/opencode")))
+        XCTAssertFalse(ProcWalk.isOpencodeProcess(P(pid: Self.noPid, ppid: 0, name: "OpenCode", path: "/Applications/OpenCode.app/Contents/MacOS/OpenCode")))
+        if let pid = ProcWalk.pid(of: .opencode, inChainFrom: getpid()) { XCTAssertTrue(ProcWalk.looksLike(.opencode, pid: pid)) }
+    }
+    func testEachAgentsProcessIsItsOwnAlone() {
+        let samples: [ActivityAgent: P] = [
+            .claude: P(pid: Self.noPid, ppid: 0, name: "claude", path: "/Users/x/.local/bin/claude"),
+            .codex: P(pid: Self.noPid, ppid: 0, name: "codex", path: "/Users/x/.local/bin/codex"),
+            .copilot: P(pid: Self.noPid, ppid: 0, name: "copilot", path: "/Users/x/.local/bin/copilot"),
+            .opencode: P(pid: Self.noPid, ppid: 0, name: "opencode", path: "/Users/x/.opencode/bin/opencode"),
+        ]
+        for agent in ActivityAgent.allCases {
+            for (other, info) in samples {
+                XCTAssertEqual(ProcWalk.isProcess(of: agent, info), agent == other, "\(agent) asked about \(other)'s process")
+            }
+        }
+    }
+    func testTheHookTakesTheClaimedPidOnlyWhenItIsAnAncestorRunningTheAgent() {
+        // OpenCode's plugin names its server; the hook's chain decides whether to believe it. Pids above
+        // PID_MAX, so the argv[0] fallback reads nothing.
+        let hook = Self.noPid + 10, server = Self.noPid + 20, client = Self.noPid + 30, shell = Self.noPid + 40
+        let chain = [P(pid: hook, ppid: server, name: "KoffeeLidHook", path: "/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook"),
+                     P(pid: server, ppid: client, name: "opencode-cli", path: "/Applications/OpenCode.app/Contents/Resources/opencode-cli"),
+                     P(pid: client, ppid: shell, name: "opencode-cli", path: "/Applications/OpenCode.app/Contents/Resources/opencode-cli"),
+                     P(pid: shell, ppid: 1, name: "-zsh", path: "/bin/zsh")]
+        XCTAssertEqual(ProcWalk.pid(of: .opencode, claimed: server, in: chain), server)
+        XCTAssertEqual(ProcWalk.pid(of: .opencode, claimed: client, in: chain), client, "a claimed OpenCode ancestor wins over the nearest")
+        XCTAssertEqual(ProcWalk.pid(of: .opencode, claimed: Self.noPid + 99, in: chain), server, "not an ancestor: the nearest OpenCode")
+        XCTAssertEqual(ProcWalk.pid(of: .opencode, claimed: shell, in: chain), server, "an ancestor that is not OpenCode: the nearest OpenCode")
+        XCTAssertEqual(ProcWalk.pid(of: .opencode, claimed: nil, in: chain), server)
+        XCTAssertNil(ProcWalk.pid(of: .copilot, claimed: server, in: chain), "a claim never names another agent's process")
+        XCTAssertNil(ProcWalk.pid(of: .opencode, claimed: nil, in: []))
+        let copilot = [P(pid: hook, ppid: server, name: "KoffeeLidHook", path: nil),
+                       P(pid: server, ppid: client, name: "copilot", path: "/Users/x/Library/Caches/github-copilot-sdk/cli/1.0.87-0/copilot"),
+                       P(pid: client, ppid: 1, name: "github", path: "/Applications/GitHub Copilot.app/Contents/MacOS/github")]
+        XCTAssertEqual(ProcWalk.pid(of: .copilot, claimed: nil, in: copilot), server, "the hook's parent is the copilot process")
+    }
     func testOnlyTheManagedDaemonIsAsked() {
         let daemonPath = "/Users/x/.codex/packages/app-server-daemon/releases/0.157.0-aarch64-apple-darwin/bin/codex"
         let daemonArguments = [daemonPath, "app-server", "--listen", "unix://", "--managed-daemon"]

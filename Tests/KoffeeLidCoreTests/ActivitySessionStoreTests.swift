@@ -480,4 +480,158 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(store.abandonCandidates(at: justNow, quietSeconds: 0).map(\.sessionId), ["s1"],
                        "at launch every working Claude Code session is asked; a held Stop and a Codex session are not")
     }
+
+    // MARK: Copilot and OpenCode: their recorded sequences, replayed through the trim
+
+    let copilotSid = "82abe98c-fefc-4234-9a14-5560c2e44bc3"
+    let copilotRoot = "/Users/x/.copilot/session-state"
+    /// One Copilot line as the hook writes it: trimmed from its name and camelCase body, past the subagent
+    /// filter, stamped with the copilot pid.
+    func copilot(_ name: String, at dt: TimeInterval, _ body: [String: Any] = [:]) -> ActivityEvent {
+        let base: [String: Any] = ["sessionId": copilotSid, "timestamp": 1_790_379_605_324, "cwd": "/Users/x/repo2"]
+        let obj = base.merging(body) { $1 }
+        let trimmed = ActivityTrim.copilotEvent(fromHookPayload: try! JSONSerialization.data(withJSONObject: obj), named: name,
+                                                loggedAt: t0.addingTimeInterval(dt))
+        let folders: Set<String> = [copilotRoot, copilotRoot + "/" + copilotSid]
+        var line = CopilotSessionState.line(trimmed, root: copilotRoot, directoryExists: folders.contains)!
+        line.agentPid = 19860
+        return line
+    }
+    let ocParent = "ses_f250e485cffeL98O0E64vYlBAI", ocChild = "ses_f250295d1ffe2LKJIwPvWIX4cW"
+    /// One OpenCode line as the hook writes it, or nil where it writes nothing.
+    func opencode(_ type: String, _ sid: String? = nil, parent: String? = nil, at dt: TimeInterval, _ extra: [String: Any] = [:]) -> ActivityEvent? {
+        var obj: [String: Any] = ["hook_event_name": type, "session_id": sid ?? ocParent, "event_time": 1_790_380_436_031, "opencode_pid": 86711]
+        if let parent { obj["parent_id"] = parent }
+        return ActivityTrim.opencodeEvent(fromHookPayload: try! JSONSerialization.data(withJSONObject: obj.merging(extra) { $1 }),
+                                          loggedAt: t0.addingTimeInterval(dt))
+    }
+    func replay(_ e: ActivityEvent?) { if let e { store.apply(e) } }
+
+    func testACopilotPromptRunReplaysToDoneThenGone() {
+        // `copilot -p`: the prompt, the lazy start after it, a tool, the stop, and an end after every turn.
+        store.apply(copilot("userPromptSubmitted", at: 0, ["prompt": "run echo probe"])); XCTAssertEqual(state(copilotSid), .working)
+        XCTAssertEqual(store.sessions[copilotSid]?.agent, .copilot); XCTAssertEqual(store.workingCount(of: .copilot), 1)
+        XCTAssertEqual(store.sessions[copilotSid]?.transcriptPath, "\(copilotRoot)/\(copilotSid)/events.jsonl", "known before the first Stop")
+        store.apply(copilot("sessionStart", at: 0.18, ["source": "new", "initialPrompt": "run echo probe"]))
+        XCTAssertEqual(state(copilotSid), .working, "the start comes after the prompt and changes nothing")
+        store.apply(copilot("postToolUse", at: 2.25, ["toolName": "bash"])); XCTAssertEqual(state(copilotSid), .working)
+        store.apply(copilot("agentStop", at: 3.08, ["transcriptPath": "\(copilotRoot)/\(copilotSid)/events.jsonl", "stopReason": "end_turn"]))
+        XCTAssertEqual(state(copilotSid), .done); XCTAssertEqual(store.workingCount(of: .copilot), 0); XCTAssertFalse(store.isRunning)
+        store.apply(copilot("sessionEnd", at: 3.21, ["reason": "complete"])); XCTAssertNil(store.sessions[copilotSid])
+    }
+    func testACopilotSessionStartRecordsOnlyItsPidAndItsPath() {
+        store.apply(ev(.userPromptSubmit, "cp", pid: nil, by: .copilot)); XCTAssertEqual(state("cp"), .working)
+        store.apply(ev(.sessionStart, "cp", at: 1, source: "new", pid: 500, by: .copilot, path: "/x/cp/events.jsonl"))
+        XCTAssertEqual(state("cp"), .working); XCTAssertEqual(store.sessions["cp"]?.stateSince, t0)
+        XCTAssertEqual(store.sessions["cp"]?.agentPid, 500); XCTAssertEqual(store.sessions["cp"]?.transcriptPath, "/x/cp/events.jsonl")
+        XCTAssertEqual(store.sessions["cp"]?.lastMainEventAt, t0, "the turn's quiet is measured from the prompt")
+        XCTAssertEqual(store.sessions["cp"]?.lastEventAt, t0.addingTimeInterval(1), "but the session is alive")
+        store.apply(ev(.stop, "cp", at: 2, pid: 500, by: .copilot)); XCTAssertEqual(state("cp"), .done)
+        store.apply(ev(.sessionStart, "cp", at: 3, source: "resume", pid: 500, by: .copilot)); XCTAssertEqual(state("cp"), .done, "a resumed session keeps its state")
+        store.apply(ev(.sessionStart, "fresh", at: 4, source: "new", pid: 500, by: .copilot)); XCTAssertEqual(state("fresh"), .idle, "a start alone is a session at rest")
+        store.apply(ev(.sessionStart, "claude", at: 5, source: "startup")); XCTAssertEqual(state("claude"), .idle)
+        store.apply(ev(.userPromptSubmit, "claude", at: 6)); store.apply(ev(.sessionStart, "claude", at: 7, source: "startup"))
+        XCTAssertEqual(state("claude"), .idle, "Claude Code's start still sets the session at rest")
+    }
+    func testACopilotPermissionPromptAndQuestionWaitAndTheNextToolAnswers() {
+        // Interactive: a permission prompt, then an ask_user question, then a long shell; answering fires no hook.
+        store.apply(copilot("userPromptSubmitted", at: 0)); store.apply(copilot("sessionStart", at: 0.2, ["source": "new"]))
+        store.apply(copilot("notification", at: 2, ["notification_type": "permission_prompt", "hook_event_name": "Notification", "message": "Run command"]))
+        XCTAssertEqual(state(copilotSid), .waiting); XCTAssertFalse(store.isRunning)
+        store.apply(copilot("postToolUse", at: 9, ["toolName": "bash"])); XCTAssertEqual(state(copilotSid), .working, "the next tool result is the answer")
+        store.apply(copilot("notification", at: 12, ["notification_type": "elicitation_dialog", "hook_event_name": "Notification"]))
+        XCTAssertEqual(state(copilotSid), .waiting, "an ask_user question needs the user")
+        store.apply(copilot("postToolUse", at: 20, ["toolName": "ask_user"])); XCTAssertEqual(state(copilotSid), .working)
+        store.apply(copilot("notification", at: 21, ["notification_type": "permission_prompt", "hook_event_name": "Notification"]))
+        store.apply(copilot("postToolUse", at: 55, ["toolName": "bash"])); XCTAssertEqual(state(copilotSid), .working)
+        store.apply(copilot("notification", at: 70, ["notification_type": "shell_completed", "hook_event_name": "Notification"]))
+        XCTAssertEqual(state(copilotSid), .working, "a finished background shell is news, not a question")
+        store.apply(copilot("agentStop", at: 72, ["stopReason": "end_turn"])); XCTAssertEqual(state(copilotSid), .done)
+        store.apply(copilot("sessionEnd", at: 90, ["reason": "user_exit"])); XCTAssertNil(store.sessions[copilotSid])
+        store.apply(copilot("sessionEnd", at: 91, ["reason": "user_exit"])); XCTAssertTrue(store.sessions.isEmpty, "an end for a session never seen is nothing")
+    }
+    func testAnOpencodeRunWithAPermissionApprovedThreeMillisecondsLater() {
+        replay(opencode("session.created", at: 0)); XCTAssertEqual(state(ocParent), .idle)
+        replay(opencode("session.inbox.enqueued", at: 0.006, ["delivery": "steer"])); XCTAssertEqual(state(ocParent), .working)
+        replay(opencode("session.execution.started", at: 0.019)); XCTAssertEqual(state(ocParent), .working)
+        XCTAssertEqual(store.sessions[ocParent]?.agent, .opencode); XCTAssertEqual(store.sessions[ocParent]?.agentPid, 86711)
+        XCTAssertEqual(store.workingCount(of: .opencode), 1)
+        replay(opencode("session.tool.called", at: 1.909, ["tool_name": "shell", "tool_use_id": "call-1"])); XCTAssertEqual(state(ocParent), .working)
+        replay(opencode("permission.asked", at: 1.912, ["permission": "shell"])); XCTAssertEqual(state(ocParent), .waiting)
+        replay(opencode("permission.replied", at: 1.915, ["status": "once"])); XCTAssertEqual(state(ocParent), .working, "auto-approved 3 ms later")
+        replay(opencode("session.tool.success", at: 1.923, ["tool_name": "shell", "tool_use_id": "call-1"])); XCTAssertEqual(state(ocParent), .working)
+        replay(opencode("session.execution.succeeded", at: 4.846, ["status": "succeeded"])); XCTAssertEqual(state(ocParent), .done)
+        XCTAssertNil(opencode("session.renamed", at: 4.856), "the title after the turn writes nothing")
+        XCTAssertFalse(store.isRunning)
+        replay(opencode("session.deleted", at: 10)); XCTAssertNil(store.sessions[ocParent])
+    }
+    func testAnOpencodePermissionRejectedEndsInAnInterrupt() {
+        // `opencode run` without --auto: it rejects the permission, the tool fails as aborted, the turn is interrupted.
+        replay(opencode("session.created", at: 0)); replay(opencode("session.inbox.enqueued", at: 0.01)); replay(opencode("session.execution.started", at: 0.02))
+        replay(opencode("session.tool.called", at: 2, ["tool_name": "shell"]))
+        replay(opencode("permission.asked", at: 2.01, ["permission": "shell"])); XCTAssertEqual(state(ocParent), .waiting)
+        replay(opencode("permission.replied", at: 2.02, ["status": "reject"])); XCTAssertEqual(state(ocParent), .working)
+        replay(opencode("session.tool.failed", at: 2.03, ["tool_name": "shell", "error_name": "aborted"])); XCTAssertEqual(state(ocParent), .working)
+        replay(opencode("session.execution.interrupted", at: 2.05, ["status": "interrupted", "reason": "user"]))
+        XCTAssertEqual(state(ocParent), .done); XCTAssertFalse(store.isRunning)
+        replay(opencode("session.tool.failed", at: 6, ["tool_name": "shell", "error_name": "aborted"]))
+        XCTAssertEqual(state(ocParent), .done, "an aborted tool's straggler does not reopen the turn")
+        replay(opencode("session.inbox.enqueued", at: 30, ["delivery": "steer"])); XCTAssertEqual(state(ocParent), .working, "the next prompt does")
+    }
+    func testAnOpencodeTurnWaitsForItsBackgroundSubagent() {
+        replay(opencode("session.created", at: 0)); replay(opencode("session.inbox.enqueued", at: 1)); replay(opencode("session.execution.started", at: 1))
+        replay(opencode("session.tool.called", at: 2, ["tool_name": "subagent"]))
+        replay(opencode("session.created", ocChild, parent: ocParent, at: 3))
+        XCTAssertNil(store.sessions[ocChild], "a subagent is a helper of its parent, not a session")
+        XCTAssertNotNil(store.sessions[ocParent]?.liveAgents[ocChild])
+        replay(opencode("session.execution.started", ocChild, parent: ocParent, at: 3))
+        replay(opencode("session.tool.called", ocChild, parent: ocParent, at: 4, ["tool_name": "read"]))
+        replay(opencode("session.tool.success", at: 5, ["tool_name": "subagent"]))
+        replay(opencode("session.execution.succeeded", at: 6)); XCTAssertEqual(state(ocParent), .working, "held while the subagent runs")
+        XCTAssertEqual(store.sessions[ocParent]?.pendingDone, true); XCTAssertTrue(store.isRunning)
+        replay(opencode("session.tool.success", ocChild, parent: ocParent, at: 50, ["tool_name": "read"]))
+        replay(opencode("session.execution.succeeded", ocChild, parent: ocParent, at: 60)); XCTAssertEqual(state(ocParent), .working, "the grace after the release")
+        XCTAssertNil(store.sessions[ocParent]?.liveAgents[ocChild])
+        store.tick(now: t0.addingTimeInterval(60 + ActivityConstants.holdGraceSeconds - 1)); XCTAssertEqual(state(ocParent), .working)
+        store.tick(now: t0.addingTimeInterval(60 + ActivityConstants.holdGraceSeconds)); XCTAssertEqual(state(ocParent), .done)
+    }
+    func testAnOpencodeQuestionFormWaitsForTheUser() {
+        replay(opencode("session.created", at: 0)); replay(opencode("session.inbox.enqueued", at: 1)); replay(opencode("session.execution.started", at: 1))
+        replay(opencode("session.tool.called", at: 2, ["tool_name": "question"])); XCTAssertEqual(state(ocParent), .working)
+        replay(opencode("form.created", at: 2.1, ["question": true])); XCTAssertEqual(state(ocParent), .waiting); XCTAssertFalse(store.isRunning)
+        replay(opencode("form.replied", at: 30)); XCTAssertEqual(state(ocParent), .working)
+        replay(opencode("form.created", at: 31, ["question": false])); XCTAssertEqual(state(ocParent), .working, "an MCP form writes nothing")
+        // A subagent's question holds the parent's turn too, and its answer releases it.
+        replay(opencode("session.created", ocChild, parent: ocParent, at: 32)); replay(opencode("session.execution.started", ocChild, parent: ocParent, at: 32))
+        replay(opencode("form.created", ocChild, parent: ocParent, at: 33, ["question": true])); XCTAssertEqual(state(ocParent), .waiting)
+        replay(opencode("form.cancelled", ocChild, parent: ocParent, at: 40)); XCTAssertEqual(state(ocParent), .working)
+        replay(opencode("session.execution.succeeded", ocChild, parent: ocParent, at: 41))
+        replay(opencode("session.execution.succeeded", at: 42)); XCTAssertEqual(state(ocParent), .done, "the subagent ended before its parent")
+    }
+    func testAWorkingOpencodeSessionHasNoSourceToAskWhenQuiet() {
+        replay(opencode("session.inbox.enqueued", at: 1))
+        XCTAssertEqual(store.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(1 + ActivityConstants.staleSeconds),
+                       "every busy period ends in a terminal event; a lost one is the server's death or staleness")
+        XCTAssertTrue(store.abandonCandidates(at: t0.addingTimeInterval(100)).isEmpty)
+        XCTAssertTrue(store.codexCandidates(at: t0.addingTimeInterval(100)).isEmpty)
+    }
+    func testEachAgentCountsItsOwnWorkingSessionsAndIsPrunedByItsOwnProcess() {
+        store.apply(ev(.userPromptSubmit, "claude", pid: 100))
+        store.apply(ev(.userPromptSubmit, "codex", pid: 200, by: .codex))
+        store.apply(ev(.userPromptSubmit, "copilot", pid: 300, by: .copilot))
+        store.apply(ev(.userPromptSubmit, "opencode", pid: 400, by: .opencode))
+        for agent in ActivityAgent.allCases { XCTAssertEqual(store.workingCount(of: agent), 1, "\(agent)") }
+        XCTAssertEqual(store.workingCount, 4); XCTAssertEqual(store.trackedPids, [100, 200, 300, 400])
+        var asked: [Int32: ActivityAgent] = [:]
+        store.pruneDead(isAlive: { pid, agent in asked[pid] = agent; return agent != .opencode }, registrySession: { _ in nil })
+        XCTAssertEqual(asked, [100: .claude, 200: .codex, 300: .copilot, 400: .opencode])
+        XCTAssertEqual(Set(store.sessions.keys), ["claude", "codex", "copilot"])
+        store.processExited(pid: 300); XCTAssertEqual(store.workingCount(of: .copilot), 0)
+    }
+    func testAnAgentsLinesCountOnlyWithItsOwnEvents() {
+        store.apply(ev(.preToolUse, "cp", tool: "bash", by: .copilot)); XCTAssertNil(state("cp"), "Copilot's lines never carry PreToolUse")
+        store.apply(ev(.permissionRequest, "cp", by: .copilot)); XCTAssertNil(state("cp"))
+        store.apply(ev(.interrupt, "cp", by: .copilot)); XCTAssertNil(state("cp"))
+        store.apply(ev(.preToolUse, "oc", tool: "shell", by: .opencode)); XCTAssertEqual(state("oc"), .working)
+    }
 }

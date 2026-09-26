@@ -201,6 +201,7 @@ final class ActivityMonitor {
             switch e.effectiveAgent {
             case .claude: if lastClaudeEvent.map({ e.loggedAt > $0.at }) ?? true { lastClaudeEvent = seen }
             case .codex: if lastCodexEvent.map({ e.loggedAt > $0.at }) ?? true { lastCodexEvent = seen }
+            case .copilot, .opencode: break // no Health reading of their own
             }
         }
     }

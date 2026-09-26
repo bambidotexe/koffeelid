@@ -3,7 +3,8 @@ import Foundation
 /// The app that stands for one kind of running work: its icon is the badge on the auto-armed cup and in
 /// the menu's auto-arm line. The app layer turns it into an icon; a reference no app answers gives no badge.
 public enum ActivityApp: Hashable, Sendable {
-    /// An app LaunchServices finds by identifier: the Claude and Codex desktop apps, Terminal.
+    /// An app LaunchServices finds by identifier: the Claude, Codex, GitHub Copilot and OpenCode desktop apps,
+    /// Terminal.
     case bundleIdentifier(String)
     /// An app found on a process chain: the terminal hosting a shell.
     case bundlePath(String)
@@ -14,7 +15,7 @@ public enum ActivityApp: Hashable, Sendable {
 }
 
 /// One badge: a kind of work and the app that stands for it. Sorted front to back: Claude Code, Codex,
-/// then the terminals by path.
+/// Copilot, OpenCode, then the terminals by path.
 public struct ActivityBadge: Hashable, Comparable, Sendable {
     public let kind: ActivityKind
     public let app: ActivityApp
@@ -28,6 +29,10 @@ public struct ActivityBadge: Hashable, Comparable, Sendable {
     public static let claude = ActivityBadge(kind: .claude, app: .bundleIdentifier("com.anthropic.claudefordesktop"))
     /// Codex's work wears the icon of the app that owns Codex's identifier (`docs/macOS.md` § Codex).
     public static let codex = ActivityBadge(kind: .codex, app: .bundleIdentifier("com.openai.codex"))
+    /// Copilot's work wears GitHub Copilot.app's icon, the desktop app that runs Copilot CLI sessions itself.
+    public static let copilot = ActivityBadge(kind: .copilot, app: .bundleIdentifier("com.github.githubapp"))
+    /// OpenCode's work wears OpenCode.app's icon.
+    public static let opencode = ActivityBadge(kind: .opencode, app: .bundleIdentifier("ai.opencode.desktop"))
     /// A command whose shell no app hosts (over ssh, from launchd): Terminal stands for it.
     public static let terminal = ActivityBadge(kind: .terminal, app: .bundleIdentifier("com.apple.Terminal"))
     /// A command's badge from its shell's process chain: the app hosting the shell, Terminal when none.

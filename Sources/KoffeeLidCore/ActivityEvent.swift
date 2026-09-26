@@ -1,14 +1,22 @@
 import Foundation
 
-/// The two agents whose hooks feed the journal. A journal line without an agent is Claude Code's: lines
-/// written before Codex was supported carry none.
+/// The four agents whose hooks feed the journal, in the order every list of them follows. A journal line
+/// without an agent is Claude Code's: lines written before Codex was supported carry none.
 public enum ActivityAgent: String, Codable, Equatable, CaseIterable, Sendable {
-    case claude, codex
-    /// The name the log and the command line use; the windows have their own words.
-    public var name: String { self == .claude ? "Claude Code" : "Codex" }
+    case claude, codex, copilot, opencode
+    /// The name the log uses; the command line uses the raw value, the windows have their own words.
+    public var name: String {
+        switch self {
+        case .claude: return "Claude Code"
+        case .codex: return "Codex"
+        case .copilot: return "Copilot"
+        case .opencode: return "OpenCode"
+        }
+    }
 }
 
-/// Claude Code and Codex hook event names, plus KoffeeLid's own line kinds.
+/// The journal's event names: Claude Code's hook events, which Codex shares and onto which Copilot's and
+/// OpenCode's are mapped, Codex's `Interrupt`, plus KoffeeLid's own line kinds.
 public enum ActivityEventName: String, Codable, Equatable {
     case sessionStart = "SessionStart", sessionEnd = "SessionEnd", userPromptSubmit = "UserPromptSubmit"
     case preToolUse = "PreToolUse", postToolUse = "PostToolUse", postToolUseFailure = "PostToolUseFailure"
@@ -35,8 +43,45 @@ public enum ActivityEventName: String, Codable, Equatable {
         .sessionStart, .sessionEnd, .userPromptSubmit, .preToolUse, .postToolUse, .permissionRequest,
         .stop, .subagentStart, .subagentStop, .preCompact, .postCompact, .interrupt,
     ]
+    /// The 7 journal events a Copilot line carries: its subscribed events (`copilotHookEvents`) under the
+    /// journal's names. Copilot's tool-start and permission hooks are left out (a failing one denies the tool),
+    /// and it has no hook for a helper's or a compaction's end, a failed turn or an interrupt.
+    public static let copilotEvents: [ActivityEventName] = [
+        .sessionStart, .sessionEnd, .userPromptSubmit, .postToolUse, .postToolUseFailure, .notification, .stop,
+    ]
+    /// The 16 journal events an OpenCode line carries once `ActivityTrim.opencodeEvent` has mapped OpenCode's
+    /// own event onto them: Claude Code's 15 and `Interrupt`.
+    public static let opencodeEvents: [ActivityEventName] = [
+        .sessionStart, .sessionEnd, .userPromptSubmit, .preToolUse, .postToolUse, .postToolUseFailure,
+        .permissionRequest, .permissionDenied, .notification, .stop, .stopFailure, .subagentStart, .subagentStop,
+        .preCompact, .postCompact, .interrupt,
+    ]
+    /// The journal events a line of `agent` can carry: what the store takes from that agent.
     public static func hookEvents(for agent: ActivityAgent) -> [ActivityEventName] {
-        agent == .claude ? claudeCodeEvents : codexEvents
+        switch agent {
+        case .claude: return claudeCodeEvents
+        case .codex: return codexEvents
+        case .copilot: return copilotEvents
+        case .opencode: return opencodeEvents
+        }
+    }
+
+    /// Copilot CLI's names for the events KoffeeLid subscribes to, in the order its hook file lists them, each
+    /// with the journal event its line carries. Copilot's words, not the journal's: a camelCase payload names no
+    /// event, so the name rides in the hook's arguments (`hook copilot <name>`). Never `preToolUse` or
+    /// `permissionRequest`: Copilot denies the tool when either hook fails, so a hook file outliving the app
+    /// would block every tool call.
+    static let copilotHookMapping: KeyValuePairs<String, ActivityEventName> = [
+        "sessionStart": .sessionStart, "userPromptSubmitted": .userPromptSubmit, "postToolUse": .postToolUse,
+        "postToolUseFailure": .postToolUseFailure, "notification": .notification, "agentStop": .stop,
+        "sessionEnd": .sessionEnd,
+    ]
+    /// The 7 Copilot events KoffeeLid subscribes to, in Copilot's words and in the order its hook file lists them.
+    public static let copilotHookEvents: [String] = copilotHookMapping.map(\.key)
+    /// The journal event of one of `copilotHookEvents`; nil for any other name.
+    public init?(copilotHookEvent name: String) {
+        guard let event = Self.copilotHookMapping.first(where: { $0.key == name })?.value else { return nil }
+        self = event
     }
 }
 
@@ -55,15 +100,17 @@ public struct ActivityEvent: Codable, Equatable {
     public var agentId: String?
     public var toolName: String?
     /// The turn the event belongs to: Codex's `turn_id`, Claude Code's `prompt_id`. Nil on SessionStart,
-    /// SessionEnd and lines written before the field.
+    /// SessionEnd, every Copilot and OpenCode line (neither names a turn) and lines written before the field.
     public var turnId: String?
     public var notificationType: String?
     public var source: String?
-    /// The session's transcript file: Claude Code's conversation, Codex's rollout. Kept on `SessionStart`,
-    /// `UserPromptSubmit`, `Stop` and `Interrupt` only; nil on the others and on lines written before the field.
+    /// The session's transcript file: Claude Code's conversation, Codex's rollout, Copilot's `events.jsonl`.
+    /// Kept on `SessionStart`, `UserPromptSubmit`, `Stop` and `Interrupt` only; nil on the others, on OpenCode's
+    /// lines and on lines written before the field.
     public var transcriptPath: String?
     public var backgroundTaskIds: [String]?
-    /// The agent process the hook ran under: the nearest ancestor of that agent's kind.
+    /// The agent process the hook ran under: the nearest ancestor of that agent's kind, or the OpenCode server
+    /// the payload names when it is one of those ancestors.
     public var agentPid: Int32?
     public var rawPrefix: String?
     public var jobId: String?
