@@ -85,6 +85,9 @@ enum HookMain {
             i += 2
         }
         guard let id, !id.isEmpty else { return 2 }
+        // A shell whose chain holds an agent process runs that agent's own work, never a terminal command:
+        // nothing is written, so a relaunch never has to explain or drop the line.
+        if verb == "begin", ProcWalk.hostingAgent(in: ProcWalk.chain(from: pid)) != nil { return 0 }
         var e = ActivityEvent(loggedAt: Date(), event: verb == "begin" ? .jobBegin : .jobEnd)
         e.jobId = String(id.prefix(ActivityConstants.metadataMaxChars))
         if verb == "begin" {

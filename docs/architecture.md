@@ -467,10 +467,12 @@ record names (read from the same directory as the rescues) and drops the session
 stored property. `ActivityMonitor.lastEventByAgent` is the same shape for the last hook event of each agent;
 `lastClaudeEvent` and `lastCodexEvent` are read-only conveniences over it for the Health page.
 
-A `job begin` whose shell has an agent's process on its chain (`ProcWalk.hostingAgent(in:)` over
-`ProcWalk.chain(from:)`, read when `ActivityMonitor.ingest` applies the line, live or replayed) never reaches
-the job store: it is the agent's tool shell, and `activity: commands of shell <pid> ignored, it runs under
-<agent>` is logged once per shell.
+A shell whose chain holds an agent's process never becomes a job, checked in two places over the same
+`ProcWalk.hostingAgent(in:)` (over `ProcWalk.chain(from:)`): the hook, at `job begin` (`Hook/Sources/main.swift`
+`job()`, from the shell's own pid, `--pid`), writes nothing and exits 0, so the journal never carries the line;
+the app, at `ActivityMonitor.ingest` and at replay, from the live `ownerPid`, drops one anyway (an older hook
+binary's line, or a mixed-version install) and logs `activity: commands of shell <pid> ignored, it runs under
+<agent>` once per shell.
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
 `job end`, on the owner shell's exit (kqueue), when its shell answers that it runs nothing, or, for a job

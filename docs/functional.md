@@ -154,9 +154,10 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   anything a shell under an agent runs: a shell with Claude
   Code, Codex (its CLI or its app-server daemon), Copilot or OpenCode (its CLI or its server) anywhere on its
   process chain is that agent's tool shell, or one a script it started opened, and its commands are the
-  agent's own work, which its session already counts; a command it began is dropped when the app reads it,
-  replayed ones included, even after the agent's session ended and the command runs on (OpenCode's server
-  keeps a tool's process running after a Ctrl+C in its window). A terminal pane opened in a desktop app is the
+  agent's own work, which its session already counts; a command it began writes nothing at the hook, and the
+  app drops one anyway (an older hook binary's line, replayed ones included), even after the agent's session
+  ended and the command runs on (OpenCode's server keeps a tool's process running after a Ctrl+C in its
+  window). A terminal pane opened in a desktop app is the
   user's: the app's own window process is not the agent. The shells in that list (`zsh`, `bash`, `sh`, `fish`,
   `dash`, `ksh`) are
   skipped only when they run interactively, every word after the shell's name being a flag (`zsh`, `bash -l`,

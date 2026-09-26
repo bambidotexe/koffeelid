@@ -418,11 +418,17 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   `zsh -c … sleep` under `opencode serve --service`, still running after a Ctrl+C in OpenCode's window.
 - **Why.** An agent's shell tool can run an interactive zsh, which reads `~/.zshrc` and so the snippet; and
   OpenCode's server, not its window, owns a tool's processes, so interrupting the session does not end them.
-- **What the code does.** `ActivityMonitor.ingest` drops a `job begin` whose shell has an agent's process on its
-  chain (`ProcWalk.hostingAgent(in:)`): the agent's own session is what counts its work.
+- **What the code does.** Checked in two places, both over the same pure `ProcWalk.hostingAgent(in:)`. The
+  hook, at `job begin`: `Hook/Sources/main.swift`'s `job()` walks `ProcWalk.chain(from: pid)` (the shell's own
+  pid, `--pid`) and writes nothing, exiting 0, when an agent sits on it — the journal never carries the line,
+  so nothing needs replaying or explaining later. The app, at `ActivityMonitor.ingest` and at replay: drops a
+  `job begin` whose live `ownerPid` chain holds an agent, which is what catches a line an older hook binary
+  wrote, or a mixed-version install, before the hook-side check existed or ran. Either way the agent's own
+  session is what counts its work.
 - **Do not** filter by environment variables (each agent sets its own, and none is promised), nor in the
   snippet (it cannot see the process chain cheaply); and do not count a desktop app's window process as the
-  agent, or a terminal pane the user opens in that app stops counting.
+  agent, or a terminal pane the user opens in that app stops counting. **Do not** drop the app-side check once
+  the hook-side one exists: it is what catches an old hook binary already installed.
 
 ### `precmd` must read `$?` first
 - **Why.** Later `precmd` hooks (prompts) expect the command's status.
