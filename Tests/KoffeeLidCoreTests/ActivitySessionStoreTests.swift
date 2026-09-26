@@ -53,7 +53,7 @@ final class ActivitySessionStoreTests: XCTestCase {
             store = ActivitySessionStore()
             store.apply(ev(.userPromptSubmit, "c1", at: 10, by: .codex, turn: "t1")); store.apply(ev(.preCompact, "c1", at: 11, by: .codex, turn: "t1"))
             store.apply(boundary)
-            XCTAssertNil(store.sessions["c1"]?.stateBeforeCompaction, "\(boundary.event) is a turn boundary")
+            XCTAssertNil(store.sessions["c1"]?.compactionSnapshot, "\(boundary.event) is a turn boundary")
         }
 
         // Between two PreCompacts with no boundary, the first snapshot wins.
@@ -61,6 +61,22 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.apply(ev(.sessionStart, source: "startup")); XCTAssertEqual(state(), .idle)
         store.apply(ev(.preCompact, at: 1)); store.apply(ev(.preCompact, at: 2)); XCTAssertEqual(state(), .working)
         store.apply(ev(.postCompact, at: 3)); XCTAssertEqual(state(), .idle, "a second PreCompact does not snapshot the first one's working")
+    }
+    func testACompactionRestoresAWaitExactly() {
+        // A helper raises a wait, then a compaction runs inside it: PostCompact must restore the wait's own
+        // start and that it was helper-raised, not a fresh one, or the helper acting again could not answer it.
+        store.apply(ev(.userPromptSubmit))
+        store.apply(ev(.permissionRequest, at: 5, tool: "Bash", agent: "h1"))
+        XCTAssertEqual(state(), .waiting); XCTAssertTrue(store.sessions["s1"]!.waitingFromAgent)
+        let waitStart = t0.addingTimeInterval(5)
+        store.apply(ev(.preCompact, at: 6)); XCTAssertEqual(state(), .working)
+        store.apply(ev(.sessionStart, at: 7, source: "compact")); XCTAssertEqual(state(), .working)
+        store.apply(ev(.postCompact, at: 8))
+        XCTAssertEqual(state(), .waiting, "the wait itself, not a fresh one")
+        XCTAssertEqual(store.sessions["s1"]?.stateSince, waitStart, "the restored stateSince equals the original")
+        XCTAssertTrue(store.sessions["s1"]!.waitingFromAgent, "still known to be helper-raised")
+        store.apply(ev(.postToolUse, at: 9, tool: "Bash", agent: "h1"))
+        XCTAssertEqual(state(), .working, "the helper acting again answers its own prompt, as it would have without the compaction")
     }
     func testACompactSessionStartAloneChangesNothing() {
         store.apply(ev(.sessionStart, source: "startup")); XCTAssertEqual(state(), .idle)

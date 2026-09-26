@@ -89,7 +89,9 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   turn running until they finish or fall silent (240 s per helper, 90 s grace, 30 min cap). A compaction is work
   while it runs and changes nothing once it ends: `PreCompact` counts as working, the `SessionStart` of source
   `compact` in between changes nothing, and `PostCompact` puts the session back to the state `PreCompact` found
-  it in — working if the compaction ran inside a turn, idle or finished if it ran at the prompt; a compaction
+  it in — working if the compaction ran inside a turn, idle or finished if it ran at the prompt, and a wait
+  restored exactly: its own start (so the registry's 2 s lead and a Copilot wait's own start still measure from
+  it) and whether a helper raised it, so the helper acting again still answers it; a compaction
   whose `PostCompact` never came is forgotten at the next prompt, `Stop`, `Interrupt` or new `SessionStart`.
 - **Codex**: 12 hook events in `~/.codex/hooks.json` run `KoffeeLidHook hook codex`, which appends the same
   kind of line. Codex runs a hook of the user's only once it is trusted, so the set-up also writes each hook's

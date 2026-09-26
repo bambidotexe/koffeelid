@@ -358,8 +358,8 @@ pid's path and arguments once and marks its sessions `hostedBySharedCodex` (`Pro
 | `SessionStart` | `idle`, helpers and background ids cleared; unchanged when `source == "compact"` (helpers and background ids kept too) |
 | `SessionStart` of a Copilot session | unchanged: records its pid and transcript path only (Copilot starts a session with its first prompt, after the prompt's line) |
 | `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionDenied` | `working` |
-| `PreCompact` | `working`, remembering the state it found (`stateBeforeCompaction`) unless an earlier `PreCompact` since the last turn boundary already did; a prompt, `Stop`, `Interrupt` or non-`compact` `SessionStart` forgets it |
-| `PostCompact` | restores `stateBeforeCompaction` (`working` if none was recorded) |
+| `PreCompact` | `working`, remembering the state, `stateSince` and `waitingFromAgent` it found (`compactionSnapshot`) unless an earlier `PreCompact` since the last turn boundary already did; a prompt, `Stop`, `Interrupt` or non-`compact` `SessionStart` forgets it |
+| `PostCompact` | restores the state, `stateSince` and `waitingFromAgent` of `compactionSnapshot` verbatim (`working`, with a fresh `stateSince`, if none was recorded) |
 | `PreToolUse` | `working`; `waiting` for `AskUserQuestion`, `ExitPlanMode` (Claude Code) and `request_user_input` (Codex) |
 | `PermissionRequest`, `StopFailure`; `Notification` of type `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog` | `waiting` |
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |

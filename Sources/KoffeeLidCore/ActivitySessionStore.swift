@@ -39,10 +39,12 @@ public struct ActivitySession: Equatable {
     public var interruptedTurnIds: Set<String> = []
     /// When the last turn was closed by an `Interrupt`; starts the quarantine for lines without a turn id.
     public var interruptedAt: Date?
-    /// The state the first `PreCompact` since the last turn boundary found the session in: `PostCompact`
-    /// restores it, and a prompt, a `Stop`, an `Interrupt` or a `SessionStart` not from a compaction forgets
-    /// it. A compaction is work while it runs and changes nothing once it ends.
-    public var stateBeforeCompaction: ActivitySessionState?
+    /// What the first `PreCompact` since the last turn boundary found: the state, when it began (`stateSince`)
+    /// and, for a wait, whether a helper raised it (`waitingFromAgent`). `PostCompact` restores all three
+    /// exactly, so a wait's start (the registry's 2 s lead, a Copilot wait's `waitSince`) and a helper-raised
+    /// wait survive a compaction inside it; a prompt, a `Stop`, an `Interrupt` or a `SessionStart` not from a
+    /// compaction forgets it. A compaction is work while it runs and changes nothing once it ends.
+    public var compactionSnapshot: CompactionSnapshot?
 
     public init(id: String, at now: Date) { self.id = id; stateSince = now; lastEventAt = now; lastMainEventAt = now }
 
@@ -53,6 +55,14 @@ public struct ActivitySession: Equatable {
         guard hasLiveHelpers(at: now), let last = liveAgents.values.max() else { return nil }
         return last.addingTimeInterval(ActivityConstants.agentStaleSeconds)
     }
+}
+
+/// What `PreCompact` remembers of the state it found, for `PostCompact` to restore verbatim rather than as a
+/// fresh one.
+public struct CompactionSnapshot: Equatable {
+    public var state: ActivitySessionState
+    public var stateSince: Date
+    public var waitingFromAgent: Bool
 }
 
 /// The per-session state machine. Pure: driven by event timestamps and explicit `tick(now:)`,
@@ -119,7 +129,7 @@ public struct ActivitySessionStore {
         // A turn boundary forgets a compaction's snapshot: a PostCompact lost, or set aside with its closed turn,
         // must not hand a later compaction the state an earlier one found.
         if [.userPromptSubmit, .stop, .interrupt].contains(e.event) || (e.event == .sessionStart && e.source != "compact") {
-            s.stateBeforeCompaction = nil
+            s.compactionSnapshot = nil
         }
 
         switch e.event {
@@ -134,12 +144,19 @@ public struct ActivitySessionStore {
         case .preCompact:
             // A compaction is work while it runs: PostCompact puts the session back to what this remembers. The
             // first PreCompact since the last turn boundary remembers; a second one would remember its working.
-            if s.stateBeforeCompaction == nil { s.stateBeforeCompaction = s.state }
+            if s.compactionSnapshot == nil {
+                s.compactionSnapshot = CompactionSnapshot(state: s.state, stateSince: s.stateSince, waitingFromAgent: s.waitingFromAgent)
+            }
             clearPending(&s); set(&s, .working, now)
         case .postCompact:
-            let restored = s.stateBeforeCompaction ?? .working
-            s.stateBeforeCompaction = nil
+            // `set` gives the restored state a fresh stateSince and clears waitingFromAgent, as a real
+            // transition into it would: the snapshot's own values are copied back over that, so a wait's start
+            // (the registry's lead, a Copilot wait's waitSince) and a helper-raised wait survive the compaction.
+            let snap = s.compactionSnapshot
+            let restored = snap?.state ?? .working
+            s.compactionSnapshot = nil
             set(&s, restored, now)
+            if let snap { s.stateSince = snap.stateSince; s.waitingFromAgent = snap.waitingFromAgent }
         case .preToolUse:
             clearPending(&s)
             set(&s, e.toolName.map(Self.dialogTools.contains) ?? false ? .waiting : .working, now)
