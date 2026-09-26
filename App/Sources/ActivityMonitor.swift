@@ -400,13 +400,9 @@ final class ActivityMonitor {
         if record == nil { noteDaemonSilent() }
         switch verdict {
         case .over:
-            // Dated to the source: the rollout's own end marker when reading it finds one, else the record's
-            // own `updatedAt`, else this check's own time — never just `now`, the way every other rescue is
-            // dated to when the turn actually ended (`rescueStamp`), not to when we happened to ask.
-            let rolloutEnd = rolloutEndDate(sid: sid, recorded: session.transcriptPath, daemonPath: record?.rolloutPath)
-            let endedAt = rolloutEnd ?? record?.updatedAt ?? now
             onLog?("activity: Codex daemon says thread \(sid.prefix(8)) has nothing running, turn over")
-            endTurn(sid, finished: true, endedAt: endedAt, now: now)
+            endByRollout(sid, recorded: session.transcriptPath, daemonPath: record?.rolloutPath,
+                         fallbackEnd: record?.updatedAt ?? now, now: now)
         case .busy:
             if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                 onLog?("activity: hooks look dead for \(sid.prefix(8)) — daemon says active, no hook for 5 min")
@@ -426,16 +422,15 @@ final class ActivityMonitor {
     }
 
     /// At launch: a working session the managed daemon hosts whose thread it does not hold in memory has nothing
-    /// running, dated to the source like `daemonAnswered`'s (the rollout's own end marker when reading it finds
-    /// one, else this check's own time, through `rescueStamp`). A nil answer leaves every session to its rollout.
+    /// running, and ends as `daemonAnswered`'s does (`endByRollout`, this check's own time when the rollout has no
+    /// end of the turn). A nil answer leaves every session to its rollout.
     private func daemonListed(_ loaded: Set<String>?, asked: [String: Date]) {
         guard let loaded else { noteDaemonSilent(); return }
         let now = Date()
         for (sid, lastMain) in asked where !loaded.contains(sid) {
             guard let session = sessions.sessions[sid], session.state == .working, !session.pendingDone, session.lastMainEventAt == lastMain else { continue }
             onLog?("activity: Codex daemon has not loaded thread \(sid.prefix(8)), turn over")
-            let endedAt = rolloutEndDate(sid: sid, recorded: session.transcriptPath, daemonPath: nil) ?? now
-            endTurn(sid, finished: true, endedAt: endedAt, now: now)
+            endByRollout(sid, recorded: session.transcriptPath, daemonPath: nil, fallbackEnd: now, now: now)
         }
     }
 
@@ -455,15 +450,24 @@ final class ActivityMonitor {
         onLog?("activity: Codex daemon not answering; using the rollout")
     }
 
-    /// The rollout's own end marker for a session the daemon says has nothing running, or nil when reading it
-    /// finds none (still running, unreadable, or no rollout at all): the daemon's "nothing runs" verdict is
-    /// authoritative on its own, so this only asks the rollout when the turn ended, never whether it did.
-    private func rolloutEndDate(sid: String, recorded: String?, daemonPath: String?) -> Date? {
+    /// Ends a turn the daemon says has nothing running. The daemon's verdict is authoritative on whether the turn
+    /// is over; the rollout says how and when: its own `task_complete` of this turn is a finish, dated to it; its
+    /// `turn_aborted`, or no end of this turn at all (still reading as running, an earlier turn's end, unreadable,
+    /// no rollout), is an end that delivered nothing, idle, dated to the marker or to `fallbackEnd`.
+    private func endByRollout(_ sid: String, recorded: String?, daemonPath: String?, fallbackEnd: Date, now: Date) {
+        guard let session = sessions.sessions[sid] else { return }
         let path = [recorded, daemonPath].compactMap { $0 }.first {
             CodexRolloutTail.isInSessions($0, sessionsDirectory: CodexRollout.sessionsDirectory) && CodexRolloutTail.isRollout(path: $0, ofSession: sid)
         } ?? CodexRollout.locate(sessionId: sid)
-        guard let path, let read = CodexRollout.read(path: path) else { return nil }
-        return CodexRolloutTail.endMarkerDate(CodexRolloutTail.verdict(tail: read.tail))
+        let read = path.flatMap(CodexRollout.read(path:))
+        let verdict = read.map { CodexRolloutTail.verdict(tail: $0.tail) } ?? .unreadable
+        switch CodexRolloutTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt,
+                                         lastMainTurnId: session.lastMainTurnId, writtenAt: read?.writtenAt, now: now) {
+        case .turnOver(let reason, let at):
+            endTurn(sid, finished: reason == "finished", endedAt: at, now: now)
+        case .busy, .nothing:
+            endTurn(sid, finished: false, endedAt: fallbackEnd, now: now)
+        }
     }
 
     /// The rollout's verdict on a quiet Codex session: the path its hooks named, else the one the daemon

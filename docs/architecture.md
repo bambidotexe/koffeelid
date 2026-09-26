@@ -427,8 +427,10 @@ daemon first while its socket exists (`CodexDaemonClient.readThread`, not at lau
 session): the answer arrives on main and applies only if the session is still `working` with the same
 `lastMainEventAt` as when it was asked; an answer whose `thread.id` is not the thread asked about is nil
 (`CodexThreadRecord.parse(_:expecting:)`); `CodexThreadRecord.verdict` maps `notLoaded` and `idle` to
-`finishTurn` (a lost `Stop`) — dated to the rollout's own end marker when reading it (`rolloutEndDate`) finds
-one, else the record's own `updatedAt`, else this check's own time, through `rescueStamp` — `active` to `noteBusy` (dated to
+the turn over, its outcome read from the rollout (`endByRollout`, through `CodexRolloutTail.decision`): its
+`task_complete` of this turn → `finishTurn` (a lost `Stop`), dated to it; its `turn_aborted`, or no end of this
+turn → `abandonTurn` (idle), dated to the marker, else the record's own `updatedAt`, else this check's own time,
+through `rescueStamp` — `active` to `noteBusy` (dated to
 this check's own time, the same 5 min warning), anything else to the rollout, as is a nil answer; after one of
 those two the daemon is not asked about that session again for 15 s, and the rollout decides meanwhile. The
 rollout check (every other session, and those): the session's `transcriptPath` when it sits

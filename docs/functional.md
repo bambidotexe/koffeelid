@@ -206,14 +206,14 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   rollout that decided nothing is read again 15 s later at the earliest, however much else the journal
   receives, and only a path under `~/.codex/sessions/` that names the session's own rollout is
   read. When Codex's managed daemon is running, it is asked first (`thread/read`): a thread it has not
-  loaded, or has idle, has nothing running — the same finished, lost-`Stop` outcome as the rollout's
-  `task_complete`, dated to the rollout's own end marker when reading it finds one, else this check's own time;
-  an active one keeps the session alive; the rollout decides when the daemon does not answer. Only a session the
+  loaded, or has idle, has nothing running, and the turn is over; the rollout says how: its `task_complete` of
+  this turn is a finish (a lost `Stop`, held while a helper is live), dated to it; its `turn_aborted`, or no end
+  of this turn at all, leaves the session idle, dated to the marker, else the record's own `updatedAt`, else this
+  check's own time; an active one keeps the session alive; the rollout decides when the daemon does not answer. Only a session the
   managed daemon hosts is asked: the desktop app's `codex` is never asked, and its sessions are decided by the
   rollout alone; a status other than these three decides nothing either, and every question has 1 s to be
   answered. At launch the managed daemon is asked which threads it holds (`thread/loaded/list`): a working
-  session it hosts whose thread is not among them has nothing running, finished the same way and dated the same
-  way; nothing counts before that answer, or before 2 s without one (an answer later than
+  session it hosts whose thread is not among them has nothing running, and ends the same way; nothing counts before that answer, or before 2 s without one (an answer later than
   that is dropped). An answer about a thread other than the one asked about decides nothing. A Copilot turn ended with Ctrl+C
   or a double Esc fires no hook, and a failed turn fires no `agentStop`: a working Copilot session quiet for
   20 s with nothing out is checked against its `events.jsonl` every 15 s, and once at launch before anything
