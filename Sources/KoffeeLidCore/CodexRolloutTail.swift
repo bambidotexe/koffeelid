@@ -86,6 +86,16 @@ public enum CodexRolloutTail {
         }
     }
 
+    /// The last turn marker's own end stamp, when it names one (`complete`/`aborted`), else nil: what a Codex
+    /// daemon "nothing runs" verdict is dated to when the rollout itself has an end to show; still running or
+    /// unreadable leaves the caller with nothing to date the verdict to from the rollout.
+    public static func endMarkerDate(_ verdict: Verdict) -> Date? {
+        switch verdict {
+        case .complete(let at, _), .aborted(let at, _): return at
+        case .running, .unreadable: return nil
+        }
+    }
+
     private static let eventMessage = Data("\"event_msg\"".utf8)
     private static let markerTypes: Set<String> = ["task_started", "task_complete", "turn_aborted"]
 

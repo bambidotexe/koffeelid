@@ -25,6 +25,13 @@ final class CodexRolloutTailTests: XCTestCase {
         ])
         XCTAssertEqual(CodexRolloutTail.verdict(tail: rollout), .aborted(at: date("2026-09-25T18:52:34.702Z"), turnId: "t1"))
     }
+    func testTheEndMarkerDateIsTheCompleteOrAbortedStamp() {
+        let at = date("2026-09-25T19:00:09.250Z")
+        XCTAssertEqual(CodexRolloutTail.endMarkerDate(.complete(at: at, turnId: "t1")), at)
+        XCTAssertEqual(CodexRolloutTail.endMarkerDate(.aborted(at: at, turnId: "t1")), at, "whatever ended it, its own stamp")
+        XCTAssertNil(CodexRolloutTail.endMarkerDate(.running(turnId: "t1")), "still running: no end to date a verdict to")
+        XCTAssertNil(CodexRolloutTail.endMarkerDate(.unreadable))
+    }
     func testATaskCompleteIsAFinish() {
         let rollout = tail([
             line("event_msg", "task_started", at: "2026-09-25T19:00:00.000Z", turn: "t1"),

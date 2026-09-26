@@ -392,8 +392,13 @@ final class ActivityMonitor {
         if record == nil { noteDaemonSilent() }
         switch verdict {
         case .over:
+            // Dated to the source: the rollout's own end marker when reading it finds one, else the record's
+            // own `updatedAt`, else this check's own time — never just `now`, the way every other rescue is
+            // dated to when the turn actually ended (`rescueStamp`), not to when we happened to ask.
+            let rolloutEnd = rolloutEndDate(sid: sid, recorded: session.transcriptPath, daemonPath: record?.rolloutPath)
+            let endedAt = rolloutEnd ?? record?.updatedAt ?? now
             onLog?("activity: Codex daemon says thread \(sid.prefix(8)) has nothing running, turn over")
-            endTurn(sid, endedAt: now, now: now)
+            endTurn(sid, endedAt: endedAt, now: now)
         case .busy:
             if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                 onLog?("activity: hooks look dead for \(sid.prefix(8)) — daemon says active, no hook for 5 min")
@@ -438,6 +443,17 @@ final class ActivityMonitor {
         guard !warnedDaemonSilent else { return }
         warnedDaemonSilent = true
         onLog?("activity: Codex daemon not answering; using the rollout")
+    }
+
+    /// The rollout's own end marker for a session the daemon says has nothing running, or nil when reading it
+    /// finds none (still running, unreadable, or no rollout at all): the daemon's "nothing runs" verdict is
+    /// authoritative on its own, so this only asks the rollout when the turn ended, never whether it did.
+    private func rolloutEndDate(sid: String, recorded: String?, daemonPath: String?) -> Date? {
+        let path = [recorded, daemonPath].compactMap { $0 }.first {
+            CodexRolloutTail.isInSessions($0, sessionsDirectory: CodexRollout.sessionsDirectory) && CodexRolloutTail.isRollout(path: $0, ofSession: sid)
+        } ?? CodexRollout.locate(sessionId: sid)
+        guard let path, let read = CodexRollout.read(path: path) else { return nil }
+        return CodexRolloutTail.endMarkerDate(CodexRolloutTail.verdict(tail: read.tail))
     }
 
     /// The rollout's verdict on a quiet Codex session: the path its hooks named, else the one the daemon

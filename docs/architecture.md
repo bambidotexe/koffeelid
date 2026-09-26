@@ -390,7 +390,8 @@ Copilot `events.jsonl`,
 `ActivityJournalWriter.append`, carrying `session_id`, `verdict` (`ActivityVerdict`: `turn-over`,
 `dialog-answered`) and `logged_at`, nothing else. A rescued turn is ended at
 `ActivitySessionStore.rescueStamp(endedAt:lastMainEventAt:now:)`, the source's own stamp (the registry's
-`statusUpdatedAt`, the end marker's of a rollout or an `events.jsonl`; now for the daemon) clamped between the
+`statusUpdatedAt`, the end marker's of a rollout or an `events.jsonl`; the rollout's own end marker or the
+record's `updatedAt` for the daemon) clamped between the
 last main-agent event and now,
 and the line carries that stamp, so the replay gives the same `stateSince`. `apply` hands the line to
 `applyVerdict`: a session it does not hold, a stamp before the session's `lastMainEventAt` or an unknown
@@ -413,9 +414,11 @@ daemon first while its socket exists (`CodexDaemonClient.readThread`, not at lau
 session): the answer arrives on main and applies only if the session is still `working` with the same
 `lastMainEventAt` as when it was asked; an answer whose `thread.id` is not the thread asked about is nil
 (`CodexThreadRecord.parse(_:expecting:)`); `CodexThreadRecord.verdict` maps `notLoaded` and `idle` to
-`turnOver`, `active` to `noteBusy` (the same 5 min warning), anything else to the rollout, as is a nil answer;
-after one of those two the daemon is not asked about that session again for 15 s, and the rollout decides
-meanwhile. The rollout check (every other session, and those): the session's `transcriptPath` when it sits
+`turnOver` — dated to the rollout's own end marker when reading it (`rolloutEndDate`) finds one, else the
+record's own `updatedAt`, else this check's own time, through `rescueStamp` — `active` to `noteBusy` (dated to
+this check's own time, the same 5 min warning), anything else to the rollout, as is a nil answer; after one of
+those two the daemon is not asked about that session again for 15 s, and the rollout decides meanwhile. The
+rollout check (every other session, and those): the session's `transcriptPath` when it sits
 under `~/.codex/sessions/<y>/<m>/<d>/` and names the session's own rollout (`CodexRolloutTail.isInSessions`,
 `isRollout`), else the daemon's `path` under the same rule, else the newest `~/.codex/sessions/*/*/*/rollout-*-<session id>.jsonl` (`CodexRollout.locate`);
 `CodexRollout.read` hands the last 64 KB of that regular file, and its modification date, to `CodexRolloutTail.verdict`, which reads only
