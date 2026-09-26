@@ -1,9 +1,9 @@
 import XCTest
 import KoffeeLidCore
 
-/// `~/.config/opencode/plugins/koffeelid.js`: the plugin source Core generates, tested for shape (a real
-/// OpenCode server was tested by hand against `research-opencode.md` § 9.2, which this mirrors save for the
-/// two changes the brief calls for).
+/// `~/.config/opencode/plugins/koffeelid.js`: the plugin source Core generates, tested for shape (the source
+/// was tested by hand against a real OpenCode 2.0.17 server; `OpencodePluginExecutedTests` runs the generated
+/// source itself, under node, against a synthetic event stream).
 final class OpencodePluginTests: XCTestCase {
     let hookPath = "/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook"
 

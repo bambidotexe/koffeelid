@@ -499,10 +499,12 @@ event, `exec` the hook binary's absolute path, `args` `["hook","copilot",<event>
 entry by that shape whatever bundle path it names, `installedCount` counts only entries that name THIS
 bundle's path, and `disabled` reads `disableAllHooks` from `~/.copilot/settings.json` and
 `~/.copilot/config.json` (whole-line `//` comments stripped first). `OpencodePlugin.source(hookPath:)` renders
-the plugin text from `research-opencode.md` § 9.2 for that path (`location.shutdown` dropped from its
-forwarded events and every `directory` field removed, no path leaving OpenCode; a subagent's events attach to
-the top-level session by walking the plugin's own `state.parents` map to its root, capped at 16 hops against a
-cycle); `isOurs` looks for the hook binary's marker and the plugin's id, `isCurrent` compares byte for byte.
+the whole plugin file for that path: the v2 shape (`export default { id, setup(ctx) }` over
+`ctx.event.subscribe()` — a v1-style plugin fails to load) forwarding OpenCode's own session lifecycle events,
+with `location.shutdown` dropped and every `directory` field removed so no path leaves OpenCode; a subagent's
+events attach to the top-level session by walking the plugin's own `state.parents` map to its root, capped at
+16 hops against a cycle; `isOurs` looks for the hook binary's marker and the plugin's id, `isCurrent` compares
+byte for byte.
 `HookInstaller.installCopilot`/`installOpencode` write these whole files to `~/.copilot/hooks/koffeelid.json`
 and `~/.config/opencode/plugins/koffeelid.js` (creating the `hooks/`/`plugins/` directory); `uninstallCopilot`/
 `uninstallOpencode` refuse the same way install does, reporting a file that cannot even be parsed as a failure

@@ -571,6 +571,59 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **Do not** trust a `transcriptPath` to name its line's session, and do not count every `agentStop` of a file
   as its session's end.
 
+## OpenCode plugin
+
+### OpenCode 2 is not the OpenCode its public documentation describes
+- **Symptom.** A plugin written from the published API never runs, with one `failed to load plugin` line in
+  `~/.local/share/opencode/log/opencode.log`.
+- **Why.** The documentation still describes the v1 shape (`export const X = async ({ client, $ }) => ({
+  event })`, `session.idle`, `experimental.hook`). OpenCode 2.x refuses that shape outright: it loads
+  `export default { id, setup(ctx) }` only, reads events through `ctx.event.subscribe()`, and never publishes
+  `session.idle` or `session.status`. A session's lifecycle is `session.execution.started`, then exactly one
+  of `session.execution.succeeded`, `.failed` or `.interrupted`.
+- **What the code does.** `OpencodePlugin.source(hookPath:)` renders the v2 shape only; `ActivityTrim`'s
+  OpenCode mapping (`opencodeMapping`) ends a turn on the three terminal events above and never waits for an
+  idle notification OpenCode does not send.
+- **Do not** write or expect a v1-shaped plugin, and do not add a wait for `session.idle`/`session.status`.
+
+### One plugin instance per open directory, each seeing every directory's events
+- **Symptom.** Every OpenCode event counted two, three or more times.
+- **Why.** OpenCode's server loads a global plugin once per open directory it hosts, and each instance's event
+  stream carries every open directory's events, not just its own.
+- **What the code does.** The generated plugin keeps one shared de-duplication set behind a `globalThis`
+  symbol keyed by the plugin id, common to every instance in the server process; the first instance to see an
+  event id forwards it and every other instance skips it. The id, `dev.rubens.koffeelid.opencode`
+  (`OpencodePlugin.id`), is distinct from every other app of the family: OpenCode refuses to load a second
+  plugin whose id is already loaded, so a reused id would silence one app rather than double its events.
+- **Do not** assume one running instance is the only one, and do not reuse another app's plugin id.
+
+### The server hosts every session, so its pid proves nothing about one
+- **Symptom.** An OpenCode session that stays counted as working after its TUI, `opencode run` or OpenCode.app
+  has quit.
+- **Why.** The TUI, `opencode run` and OpenCode.app are all clients of one background server, parented by
+  launchd; a session's turn runs on inside that server after its client quits, and the hook's parent is always
+  the server, never the client.
+- **What the code does.** `ProcWalk.isOpencodeProcess` recognises the server by name or executable basename
+  (`opencode`, `opencode-cli`, `.opencode`); `ProcWalk.pid(of:inChainFrom:claimed:)` keeps the payload's own
+  `opencode_pid` only when it names an OpenCode ancestor of the hook, and only the server's own exit (kqueue)
+  drops every session it hosted. Every OpenCode turn ends in exactly one of the three terminal events above,
+  so no staleness read of a transcript is needed the way Copilot's quiet check is.
+- **Do not** end an OpenCode session because a client process quit, and do not read the server's pid as proof
+  that one particular session is still running.
+
+### A subagent's session and an instant permission are not what they look like
+- **Symptom.** A subagent's turn shown as a session of its own; a badge or a hold-off for a permission nobody
+  was asked.
+- **Why.** A subagent session carries a `parent_id` naming the session that started it, and its events belong
+  with that session's, not on their own. A permission granted by a rule or an auto-approval flag is still
+  asked and replied to, about 3 ms apart — indistinguishable in the payload from a person answering at once.
+- **What the code does.** `ActivityTrim.opencodeMapping` reads `parent_id` and turns a subagent's events into
+  helper events of the parent (`sessionId` the parent, `agentId` the child); a `permission.asked` followed a
+  few milliseconds later by `permission.replied` still counts as the wait ending, never as a person
+  interrupted mid-turn.
+- **Do not** create a session for an id that carries a `parent_id`, and do not read a fast
+  `permission.asked` → `permission.replied` pair as anything but the wait ending.
+
 ## Working on this Mac
 
 - **The installed app is the daily driver.** `AppleClamshellCausesSleep = No` is usually its arm. Run

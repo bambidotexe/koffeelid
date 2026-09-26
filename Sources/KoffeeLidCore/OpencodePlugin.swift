@@ -1,12 +1,13 @@
 import Foundation
 
 /// The whole `~/.config/opencode/plugins/koffeelid.js` file: OpenCode has no command hooks, so KoffeeLid
-/// installs a plugin instead. The source is the one tested against a real OpenCode 2.0.17 server
-/// (`research-opencode.md` § 9.2), generated for `hookPath` (the hook binary's absolute path), with
-/// `location.shutdown` left out of the forwarded events and no `directory` field anywhere: no path leaves
-/// OpenCode. A subagent's events attach to the ROOT top-level session: the plugin walks `state.parents` up
-/// to the top (capped at 16 steps, which also guards against a cycle) before writing `parent_id`, so a
-/// grandchild's events become helper events of the top session, not of its immediate parent.
+/// installs a plugin instead. The source is the v2 shape (`export default { id, setup(ctx) }` over
+/// `ctx.event.subscribe()`; a v1-style plugin fails to load), tested by hand against a real OpenCode 2.0.17
+/// server, generated for `hookPath` (the hook binary's absolute path), with `location.shutdown` left out of
+/// the forwarded events and no `directory` field anywhere: no path leaves OpenCode. A subagent's events
+/// attach to the ROOT top-level session: the plugin walks `state.parents` up to the top (capped at 16 steps,
+/// which also guards against a cycle) before writing `parent_id`, so a grandchild's events become helper
+/// events of the top session, not of its immediate parent.
 public enum OpencodePlugin {
     /// KoffeeLid's plugin id: OpenCode refuses a second plugin whose id is already loaded, so every app of
     /// the family needs its own.
