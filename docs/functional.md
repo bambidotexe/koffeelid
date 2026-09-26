@@ -97,7 +97,9 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   are backed up first (`hooks.json.backup-koffeelid`, `config.toml.backup-koffeelid`). The hook counts as set up
   only while all 12 events point at this copy **and** are trusted and not disabled there. A session counts as
   working from a prompt or tool event until its `Stop`, or until its turn closes (below); its `Interrupt` (Esc,
-  Ctrl-C) closes the turn and ends its helpers at once. A session blocked on a permission or on `request_user_input`
+  Ctrl-C) closes the turn, ends its helpers at once and leaves the session idle, not held: a later helper line
+  the closed turn carries no id for (OpenCode's, among others) finds an idle session and cannot start it working
+  again the way one can a `Stop`'s `done`. A session blocked on a permission or on `request_user_input`
   does not count. Helpers hold a `Stop` as they do for Claude Code.
 - **Copilot**: 7 hook events in `~/.copilot/hooks/koffeelid.json` run `KoffeeLidHook hook copilot <event>`;
   camelCase keys, `exec` (no shell), the event name riding in `args` since a camelCase payload carries none.
@@ -123,8 +125,10 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   session counts as working from a prompt or tool event until its execution ends:
   `session.execution.succeeded` fires `Stop`; `session.execution.failed` fires `StopFailure`, which does not
   count as running, the way a permission wait does not; `session.execution.interrupted` fires `Interrupt`,
-  which closes the turn and ends its helpers at once. Every busy period ends in exactly one of these three, so
-  OpenCode needs no rescue for a quiet turn the way Claude Code, Codex and Copilot do.
+  which closes the turn, ends its helpers at once and leaves the session idle (a subagent's own helper line,
+  which carries no turn id, cannot reopen an idle session as a `Stop`'s `done` can). Every busy period ends in
+  exactly one of these three, so OpenCode needs no rescue for a quiet turn the way Claude Code, Codex and
+  Copilot do.
 - **A closed turn stays closed.** Every event of a turn carries the turn's id: Claude Code's `prompt_id`,
   Codex's `turn_id`. An `Interrupt`, or a verdict that the turn is over (§ Without an end event), closes the
   turn. Any event that arrives for a closed turn, but a prompt, a `SessionStart`, a `SessionEnd` or a tool call

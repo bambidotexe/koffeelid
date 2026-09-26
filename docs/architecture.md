@@ -363,11 +363,11 @@ pid's path and arguments once and marks its sessions `hostedBySharedCodex` (`Pro
 | `PreToolUse` | `working`; `waiting` for `AskUserQuestion`, `ExitPlanMode` (Claude Code) and `request_user_input` (Codex) |
 | `PermissionRequest`, `StopFailure`; `Notification` of type `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog` | `waiting` |
 | `Stop` | `done` if no live helper and no background id; otherwise held `working` (`pendingDone`) |
-| `Interrupt` (Codex; OpenCode's `session.execution.interrupted`) | `done`, helpers and background ids cleared: Esc ended everything |
+| `Interrupt` (Codex; OpenCode's `session.execution.interrupted`) | `idle`, helpers and background ids cleared: Esc ended everything, and idle rather than `done` so a helper straggler carrying no turn id (§ below) cannot reopen it |
 | `Notification` `idle_prompt` / `agent_needs_input`, state `working`, 50 s of main-agent quiet | treated as a lost `Stop` |
 | any event of a turn an `Interrupt` or a verdict closed (`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`, `Stop`, …; a helper's too), but a prompt, a `SessionStart`, or a main-agent `PreToolUse` of a turn a verdict closed | unchanged (liveness only) |
 | main-agent `PreToolUse` of a turn a verdict closed (not in `interruptedTurnIds`) | the turn opens again (its id leaves `closedTurnIds`), then as `PreToolUse` above |
-| helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`), and the next helper event ends that wait; a helper active after `done` reopens it |
+| helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`), and the next helper event ends that wait; a helper active after a `Stop`'s `done` reopens it, but one after an `Interrupt`'s `idle` does not |
 | `SessionEnd`, process exit | session removed |
 
 Turns: every main-agent event that carries a turn id, a prompt included, records it as `lastMainTurnId`. An

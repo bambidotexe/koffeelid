@@ -160,8 +160,10 @@ public struct ActivitySessionStore {
             // Ends the turn without closing it: a Stop hook that blocks the Stop keeps the same turn running.
             clearPending(&s); applyStopVerdict(&s, now: now)
         case .interrupt:
-            // Esc in Codex ends the turn and its helpers at once; nothing is left out to hold it.
-            s.liveAgents.removeAll(); s.backgroundIds.removeAll(); clearPending(&s); set(&s, .done, now)
+            // Esc in Codex, or OpenCode's own interrupt, ends the turn and its helpers at once, idle: nothing
+            // is left out to hold it, and a straggler with no turn id (OpenCode's helper lines carry none)
+            // finds the session idle, not done, so it cannot re-open it as working.
+            s.liveAgents.removeAll(); s.backgroundIds.removeAll(); clearPending(&s); set(&s, .idle, now)
             closeTurn(&s, byInterrupt: true, now: now)
         case .sessionEnd, .subagentStart, .subagentStop, .parseError, .jobBegin, .jobEnd, .verdict:
             break // handled above, or helper shapes without agent_id, which carry no signal
