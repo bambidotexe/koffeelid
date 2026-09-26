@@ -95,6 +95,15 @@ final class ShellInitTests: XCTestCase {
             XCTAssertEqual(try zsh("cd '\(dir.path)' && \(agent)"), [], agent)
         }
     }
+    /// The sibling app's own CLI is not a terminal command either: `mysidepulse status` in a terminal is its
+    /// own auto-arm, not a command being run.
+    func testNeitherAppsOwnCLIIsATerminalCommand() throws {
+        for name in ["koffeelid", "mysidepulse"] {
+            try write("bin/\(name)", "#!/bin/sh\nexit 0\n")
+            XCTAssertEqual(try zsh(name), [], name)
+            XCTAssertEqual(try zsh("\(name) status"), [], name)
+        }
+    }
     /// The shell's pid, written by the script before it sources the snippet.
     let printPid = #"print -r -- "pid $$" >> $KOFFEELID_LOG"#
     func pid(in calls: [String]) throws -> String {
@@ -171,6 +180,19 @@ final class ShellInitTests: XCTestCase {
         }
         XCTAssertEqual(try zsh("su"), [], "su and login stay plain skips")
         XCTAssertEqual(try zsh("login -f x"), [])
+    }
+    /// `dash` and `ksh` join `zsh bash sh fish` in the skip list and in the case that recognises a shell: a
+    /// bare one is a plain skip, one running a script counts under its own name.
+    func testDashAndKshCountOnlyWhenTheyRunAScript() throws {
+        try write("bin/dash", "#!/bin/sh\nexit 0\n")
+        try write("bin/ksh", "#!/bin/sh\nexit 0\n")
+        XCTAssertEqual(try zsh("dash"), [], "interactive: a bare shell is a plain skip")
+        XCTAssertEqual(try zsh("ksh"), [])
+        for (line, label) in [("dash script.sh", "dash"), ("ksh -c true", "ksh")] {
+            let calls = try zsh(line)
+            XCTAssertEqual(calls.count, 2, "\(line): \(calls)")
+            XCTAssertTrue(calls.first?.contains("--label \(label)") == true, "\(line): \(calls)")
+        }
     }
     func testTheSkipListIsTheUsersToReplace() throws {
         XCTAssertEqual(try zsh("true", preamble: "KOFFEELID_SKIP=(true)"), [])

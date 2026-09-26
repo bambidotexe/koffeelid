@@ -96,8 +96,8 @@ typeset -ga KOFFEELID_SKIP
 (( ${#KOFFEELID_SKIP} )) || KOFFEELID_SKIP=(
   vi vim nvim emacs nano pico less more man info
   ssh mosh tmux screen top htop btop watch tig lazygit
-  zsh bash sh fish su login
-  claude codex copilot opencode grok koffeelid
+  zsh bash sh fish dash ksh su login
+  claude codex copilot opencode grok koffeelid mysidepulse
 )
 # Declared, never reset: a `source ~/.zshrc` inside a command keeps the job it belongs to.
 (( ${+_koffeelid_job} )) || typeset -g _koffeelid_job=
@@ -136,7 +136,7 @@ _koffeelid_preexec() {
         bare=${${(Q)word}:t}
         case $bare in
           sudo|time|command|builtin|exec|nice|nohup|env|noglob|caffeinate) prefix=$bare; continue ;;
-          zsh|bash|sh|fish) shell=1 ;;
+          zsh|bash|sh|fish|dash|ksh) shell=1 ;;
           *) checked+=($bare) ;;
         esac
         head=$bare; heads+=($head) ;;
