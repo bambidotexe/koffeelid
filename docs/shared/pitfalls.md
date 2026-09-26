@@ -553,3 +553,27 @@ Every number was measured on an M-series Mac running macOS 27.0 (build 26A428).
 - **What holds.** De-duplicate by event id through `globalThis`; give each app its own plugin id, since a
   duplicate id fails to load; ask a session's own state, never the server's liveness, for how a turn ended.
   (koffeelid, my-sidepulse)
+
+### H8. Answering a Copilot permission prompt fires no hook
+- **Symptom.** A command the user approved runs for minutes while the session still reads as waiting on the
+  user: the `notification` (`permission_prompt`) was the last hook, and the next one, `postToolUse`, fires
+  only when the approved tool ends.
+- **Why.** Copilot writes the answer to the session's `events.jsonl` (`permission.completed`) and tells no
+  hook; the hooks that would see it, `preToolUse` and `permissionRequest`, are the ones H4 rules out.
+- **What holds.** While a Copilot session waits, read its `events.jsonl`: with the turn still at work, a latest
+  permission line that is `permission.completed`, stamped after the wait began, is the prompt answered, and the
+  session is working again as of the check; journal that verdict so a replay agrees. A latest
+  `permission.requested` is a prompt still open (a second one opens right after the first is answered), and no
+  other step is an answer: a tool called beside the prompt can finish while it waits. A question needs none of
+  this: its answer ends the `ask_user` tool, and `postToolUse` fires. (koffeelid, my-sidepulse)
+
+### H9. An agent's tool shell loads the zsh snippet
+- **Symptom.** A command an agent runs counts as the user's terminal command, and outlives the agent: Codex's
+  shell tool runs an interactive zsh under its app-server daemon, and OpenCode's server keeps a tool's
+  process running after a Ctrl+C in its window.
+- **Why.** An interactive zsh reads `~/.zshrc`, whoever starts it; the snippet cannot tell who did.
+- **What holds.** Walk the shell's process chain: a Claude Code, Codex (CLI or daemon), Copilot or OpenCode (CLI
+  or server) process on it makes the shell the agent's. The hook writes no `job begin` for it, and the app drops
+  one it reads anyway (from an older hook, or replayed). Never filter on environment variables, none is
+  promised, and never count a desktop app's window process as the agent, or a terminal pane opened in that app
+  stops being the user's. (koffeelid, my-sidepulse; `activity-detection.md` rule 28)
