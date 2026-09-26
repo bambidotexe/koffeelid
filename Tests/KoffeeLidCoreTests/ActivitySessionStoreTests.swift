@@ -222,7 +222,7 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.noteBusy(sessionId: "c1", now: t0.addingTimeInterval(20))
         XCTAssertFalse(candidates(30).keys.contains("c1"), "busy re-arms the quiet gate")
         XCTAssertEqual(store.sessions["c1"]?.lastMainEventAt, t0, "busy is liveness only")
-        store.turnOver(sessionId: "c1", now: t0.addingTimeInterval(45))
+        store.finishTurn(sessionId: "c1", endedAt: t0.addingTimeInterval(45), now: t0.addingTimeInterval(45))
         XCTAssertEqual(state("c1"), .done); XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1"], "the rollout's verdict closes the turn")
         store.apply(ev(.postToolUse, "c1", at: 50, tool: "exec_command", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .done)
     }
@@ -330,19 +330,19 @@ final class ActivitySessionStoreTests: XCTestCase {
     }
     func testARegistryVerdictClosesTheTurn() {
         store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
-        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
+        store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
         store.apply(ev(.postToolUse, at: 31, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
     }
     func testAToolCallAfterARegistryVerdictReopensTheTurn() {
         // A dialog whose hook lines were lost: the registry's idle closes the turn while Claude Code waits.
         store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
-        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
+        store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
         store.apply(ev(.preToolUse, at: 40, tool: "Bash", turn: "p1"))
         XCTAssertEqual(state(), .working, "a new tool call is never an aborted tool's straggler")
         XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, [], "the tool call opens the turn again, as a prompt does")
         store.apply(ev(.postToolUse, at: 41, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .working)
         XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0.addingTimeInterval(41), "the reopened turn's work counts")
-        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(70)); XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["p1"], "and a verdict closes it again")
+        store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(70), now: t0.addingTimeInterval(70)); XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["p1"], "and a verdict closes it again")
         store.apply(ev(.preToolUse, at: 80, tool: "AskUserQuestion", turn: "p1")); XCTAssertEqual(state(), .waiting, "a dialog's tool call reopens it into the dialog")
     }
     func testAToolCallAfterAnInterruptDoesNotReopenTheTurn() {
@@ -353,12 +353,12 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(store.sessions["c1"]?.closedTurnIds, ["t1"]); XCTAssertEqual(store.sessions["c1"]?.lastMainEventAt, t0.addingTimeInterval(10))
         // Only a prompt opens it; closed afterwards by a verdict, a tool call opens it again.
         store.apply(ev(.userPromptSubmit, "c1", at: 210, pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .working)
-        store.turnOver(sessionId: "c1", now: t0.addingTimeInterval(240)); XCTAssertEqual(state("c1"), .done)
+        store.finishTurn(sessionId: "c1", endedAt: t0.addingTimeInterval(240), now: t0.addingTimeInterval(240)); XCTAssertEqual(state("c1"), .done)
         store.apply(ev(.preToolUse, "c1", at: 250, tool: "Bash", pid: 300, by: .codex, turn: "t1")); XCTAssertEqual(state("c1"), .working, "the verdict's close is not the Interrupt's")
     }
     func testALatePostToolUseAfterAVerdictStillChangesNothing() {
         store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
-        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
+        store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
         store.apply(ev(.postToolUse, at: 31, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
         store.apply(ev(.postToolUseFailure, at: 32, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
         store.apply(ev(.permissionRequest, at: 33, tool: "Bash", turn: "p1")); XCTAssertEqual(state(), .done)
@@ -384,12 +384,12 @@ final class ActivitySessionStoreTests: XCTestCase {
     }
     func testAHelperEventAfterAVerdictCloseIsIgnored() {
         store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
-        store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
+        store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)
         store.apply(ev(.preToolUse, at: 31, tool: "Bash", agent: "h1", turn: "p1"))
         XCTAssertEqual(state(), .done); XCTAssertTrue(store.sessions["s1"]!.liveAgents.isEmpty); XCTAssertFalse(store.sessions["s1"]!.pendingDone)
     }
     func testAStopOrANotificationOfAClosedTurnIsIgnored() {
-        store.apply(ev(.userPromptSubmit, turn: "p1")); store.turnOver(sessionId: "s1", now: t0.addingTimeInterval(30))
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30))
         store.apply(ev(.notification, at: 31, notif: "permission_prompt", turn: "p1")); XCTAssertEqual(state(), .done, "not waiting: the dialog belongs to a closed turn")
         store.apply(ev(.stop, at: 32, bg: ["b1"], turn: "p1")); XCTAssertEqual(state(), .done, "not held behind its background shell")
         XCTAssertTrue(store.sessions["s1"]!.backgroundIds.isEmpty); XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0)
@@ -433,7 +433,7 @@ final class ActivitySessionStoreTests: XCTestCase {
         var live = ActivitySessionStore()
         hooks.forEach { live.apply($0) }
         let stamp = ActivitySessionStore.rescueStamp(endedAt: t0.addingTimeInterval(8), lastMainEventAt: t0.addingTimeInterval(5), now: t0.addingTimeInterval(30))
-        live.turnOver(sessionId: "s1", now: stamp)
+        live.finishTurn(sessionId: "s1", endedAt: stamp, now: stamp)
         let line = verdict("turn-over", at: 8)
         // Replay: the same hook lines and the verdict line give the same session.
         (hooks + [line]).forEach { store.apply($0) }
@@ -453,6 +453,54 @@ final class ActivitySessionStoreTests: XCTestCase {
         (dialog + [verdict("dialog-answered", "s2", at: 40)]).forEach { replayDialog.apply($0) }
         XCTAssertEqual(replayDialog.sessions["s2"], liveDialog.sessions["s2"])
         XCTAssertEqual(replayDialog.sessions["s2"]?.state, .working); XCTAssertEqual(replayDialog.sessions["s2"]?.lastEventAt, t0.addingTimeInterval(5))
+    }
+    func testFinishTurnHoldsBehindALiveHelperExactlyAsStopDoes() {
+        // No helper out: a lost Stop is done outright, and the turn closes.
+        store.apply(ev(.userPromptSubmit, turn: "p1"))
+        XCTAssertEqual(store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30)), t0.addingTimeInterval(30))
+        XCTAssertEqual(state(), .done); XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["p1"])
+
+        // A live helper holds it, exactly as a Stop would: working, pendingDone, the turn not closed, nothing to journal.
+        store = ActivitySessionStore()
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.subagentStart, at: 1, agent: "a1"))
+        XCTAssertNil(store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30)),
+                     "held, not a definitive outcome: nothing to journal")
+        XCTAssertEqual(state(), .working, "held behind the live helper"); XCTAssertTrue(store.sessions["s1"]!.pendingDone)
+        XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, [], "a held finish does not close the turn")
+        store.apply(ev(.subagentStop, at: 2, agent: "a1")); XCTAssertEqual(state(), .working, "release starts the grace, not an instant done")
+    }
+    func testAbandonTurnIsIdleWhateverIsStillOutAndDoesNotReopen() {
+        // Aborted, failed or the session closed: idle whatever is still out — it is not paused behind an answer.
+        store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.subagentStart, at: 1, agent: "a1"))
+        XCTAssertEqual(store.abandonTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30)), t0.addingTimeInterval(30))
+        XCTAssertEqual(state(), .idle, "idle despite the live helper"); XCTAssertEqual(store.sessions["s1"]?.closedTurnIds, ["p1"])
+        // No reopen after an aborted rescue: only a done outcome's helper reopens the session.
+        store.apply(ev(.postToolUse, at: 31, tool: "Bash", agent: "a1"))
+        XCTAssertEqual(state(), .idle, "the helper's own report does not restart an abandoned session")
+        XCTAssertFalse(store.isRunning)
+    }
+    func testFinishTurnAndAbandonTurnOnlyActOnAWorkingTurn() {
+        store.apply(ev(.userPromptSubmit)); store.apply(ev(.stop, at: 1)); XCTAssertEqual(state(), .done)
+        XCTAssertNil(store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30)))
+        XCTAssertNil(store.abandonTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30)))
+        XCTAssertEqual(state(), .done, "idempotent, neither acts outside a working turn")
+    }
+    /// Only a definitive outcome is ever journaled; replaying it applies the same outcome, at the same stamp,
+    /// with no helper check of its own — a live check already made that call.
+    func testNewRescueVerdictsReplayTheSameOutcome() {
+        let hooksF = [ev(.userPromptSubmit, "f1", turn: "tf"), ev(.preToolUse, "f1", at: 5, tool: "Bash", turn: "tf")]
+        var liveF = ActivitySessionStore(); hooksF.forEach { liveF.apply($0) }
+        XCTAssertEqual(liveF.finishTurn(sessionId: "f1", endedAt: t0.addingTimeInterval(8), now: t0.addingTimeInterval(8)), t0.addingTimeInterval(8))
+        var replayF = ActivitySessionStore()
+        (hooksF + [verdict("turn-finished", "f1", at: 8)]).forEach { replayF.apply($0) }
+        XCTAssertEqual(replayF.sessions["f1"], liveF.sessions["f1"]); XCTAssertEqual(replayF.sessions["f1"]?.state, .done)
+
+        let hooksA = [ev(.userPromptSubmit, "a1", turn: "ta"), ev(.preToolUse, "a1", at: 5, tool: "Bash", turn: "ta")]
+        var liveA = ActivitySessionStore(); hooksA.forEach { liveA.apply($0) }
+        XCTAssertEqual(liveA.abandonTurn(sessionId: "a1", endedAt: t0.addingTimeInterval(9)), t0.addingTimeInterval(9))
+        var replayA = ActivitySessionStore()
+        (hooksA + [verdict("turn-abandoned", "a1", at: 9)]).forEach { replayA.apply($0) }
+        XCTAssertEqual(replayA.sessions["a1"], liveA.sessions["a1"]); XCTAssertEqual(replayA.sessions["a1"]?.state, .idle)
     }
     func testAVerdictThenALaterPromptReplaysInFileOrder() {
         // The journal holds the live verdict, then the next prompt: replayed in that order, the prompt opens its turn.
@@ -608,7 +656,7 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(store.sessions[copilotSid]?.lastMainEventAt, t0.addingTimeInterval(2), "busy is liveness only")
         // The file's abort, stamped at 25, ends the turn at that stamp.
         let at = ActivitySessionStore.rescueStamp(endedAt: t0.addingTimeInterval(25), lastMainEventAt: t0.addingTimeInterval(2), now: t0.addingTimeInterval(45))
-        store.turnOver(sessionId: copilotSid, now: at)
+        store.finishTurn(sessionId: copilotSid, endedAt: at, now: at)
         XCTAssertEqual(state(copilotSid), .done); XCTAssertEqual(store.sessions[copilotSid]?.stateSince, t0.addingTimeInterval(25))
         XCTAssertEqual(store.workingCount(of: .copilot), 1)
         store.apply(copilot("userPromptSubmitted", at: 60)); XCTAssertEqual(state(copilotSid), .working, "the next prompt is a new turn")

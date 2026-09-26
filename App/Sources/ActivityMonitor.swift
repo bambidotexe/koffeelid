@@ -308,7 +308,7 @@ final class ActivityMonitor {
             }
             if record.isIdle, let stamped = record.statusUpdatedAt, stamped > session.lastMainEventAt {
                 onLog?("activity: quiet turn \(sid.prefix(8)) — registry idle, turn over")
-                endTurn(sid, endedAt: stamped, now: now)
+                endTurn(sid, finished: true, endedAt: stamped, now: now)
             } else if record.isBusy {
                 if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                     onLog?("activity: hooks look dead for \(sid.prefix(8)) — registry busy, no hook for 5 min")
@@ -336,13 +336,21 @@ final class ActivityMonitor {
         return dirs
     }
 
-    /// A rescue found the turn over: it ends at the moment the turn ended (`rescueStamp`), and the verdict is
-    /// journaled with that stamp, so a relaunch replays the same end.
-    private func endTurn(_ sid: String, endedAt: Date, now: Date) {
+    /// A rescue found the turn over: `finished` (a lost `Stop`) is done, or held behind a live helper or a
+    /// background shell still out, exactly as `Stop` is; every other end (aborted, failed, the session closed)
+    /// is idle whatever is still out. Either way it ends at the moment the turn ended (`rescueStamp`), and, when
+    /// it reached a definitive outcome, the verdict is journaled with that stamp, so a relaunch replays the same
+    /// end; a held finish is not journaled — the hold rules end it, and a relaunch decides it afresh.
+    private func endTurn(_ sid: String, finished: Bool, endedAt: Date, now: Date) {
         guard let session = sessions.sessions[sid] else { return }
         let at = ActivitySessionStore.rescueStamp(endedAt: endedAt, lastMainEventAt: session.lastMainEventAt, now: now)
-        sessions.turnOver(sessionId: sid, now: at)
-        journal(.turnOver, sid: sid, at: at)
+        if finished {
+            guard let stamp = sessions.finishTurn(sessionId: sid, endedAt: at, now: now) else { return }
+            journal(.turnFinished, sid: sid, at: stamp)
+        } else {
+            guard let stamp = sessions.abandonTurn(sessionId: sid, endedAt: at) else { return }
+            journal(.turnAbandoned, sid: sid, at: stamp)
+        }
     }
 
     /// One `KoffeeLidVerdict` line: the session, the verdict, its stamp, nothing else. The tailer hands it back to
@@ -398,7 +406,7 @@ final class ActivityMonitor {
             let rolloutEnd = rolloutEndDate(sid: sid, recorded: session.transcriptPath, daemonPath: record?.rolloutPath)
             let endedAt = rolloutEnd ?? record?.updatedAt ?? now
             onLog?("activity: Codex daemon says thread \(sid.prefix(8)) has nothing running, turn over")
-            endTurn(sid, endedAt: endedAt, now: now)
+            endTurn(sid, finished: true, endedAt: endedAt, now: now)
         case .busy:
             if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                 onLog?("activity: hooks look dead for \(sid.prefix(8)) — daemon says active, no hook for 5 min")
@@ -425,7 +433,7 @@ final class ActivityMonitor {
         for (sid, lastMain) in asked where !loaded.contains(sid) {
             guard let session = sessions.sessions[sid], session.state == .working, !session.pendingDone, session.lastMainEventAt == lastMain else { continue }
             onLog?("activity: Codex daemon has not loaded thread \(sid.prefix(8)), turn over")
-            endTurn(sid, endedAt: now, now: now)
+            endTurn(sid, finished: true, endedAt: now, now: now)
         }
     }
 
@@ -473,7 +481,7 @@ final class ActivityMonitor {
                                          writtenAt: read?.writtenAt, now: now) {
         case .turnOver(let reason, let endedAt):
             onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says \(reason), turn over")
-            endTurn(sid, endedAt: endedAt, now: now)
+            endTurn(sid, finished: reason == "finished", endedAt: endedAt, now: now)
         case .busy(let writtenAt):
             if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                 onLog?("activity: hooks look dead for \(sid.prefix(8)) — rollout says running, no hook for 5 min")
@@ -508,7 +516,7 @@ final class ActivityMonitor {
             switch CopilotTranscriptTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt, writtenAt: read?.writtenAt, now: now) {
             case .turnOver(let reason, let endedAt):
                 onLog?("activity: quiet Copilot turn \(sid.prefix(8)) — transcript says \(reason), turn over")
-                endTurn(sid, endedAt: endedAt, now: now)
+                endTurn(sid, finished: reason == "finished", endedAt: endedAt, now: now)
             case .busy(let writtenAt):
                 sessions.noteBusy(sessionId: sid, now: min(writtenAt ?? now, now))
             case .nothing:

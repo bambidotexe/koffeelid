@@ -176,14 +176,16 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
 - **Without an end event**: a Claude Code process or a shell that exits drops its sessions and jobs at once
   (kqueue). A Claude Code turn ended with Esc or Ctrl-C fires no hook; Claude Code's own
   `sessions/<pid>.json` record going `idle` ends it within about 35 s, and an `idle_prompt` or
-  `agent_needs_input` notification after 50 s of main-agent quiet ends it too. The registry's verdict closes
-  the turn; the notification, a timer rather than proof, does not. The registry is found from the session's
+  `agent_needs_input` notification after 50 s of main-agent quiet ends it too. The registry's idle finishes the
+  turn, a lost `Stop`: done, or held behind a live helper or a background shell still out, exactly as a `Stop`
+  is; the notification, a timer rather than proof, does not. The registry is found from the session's
   transcript path (`<config>/projects/…`), so a relocated `CLAUDE_CONFIG_DIR` is found; a session no line has
   named a path for falls back to the process's own `CLAUDE_CONFIG_DIR` (read from its environment), then to
-  `~/.claude`. The app records its own verdicts (a turn over, from the registry, a rollout, Codex's daemon or a
-  Copilot `events.jsonl`, and a dialog answered) in the journal, stamped when the turn ended or the answer was seen, so a relaunch replays
-  them; a verdict older than the session's last main-agent event changes nothing, and a verdict about a
-  session the journal does not hold is ignored. At launch,
+  `~/.claude`. The app records its own verdicts (a turn finished or a turn abandoned, from the registry, a
+  rollout, Codex's daemon or a Copilot `events.jsonl`, and a dialog answered) in the journal, stamped when the
+  turn ended or the answer was seen, so a relaunch replays a definitive one; a held finish is not journaled — the
+  hold rules end it, and a relaunch decides it afresh. A verdict older than the session's last main-agent event
+  changes nothing, and a verdict about a session the journal does not hold is ignored. At launch,
   after the 2 h rule below, a replayed session is kept only while its pid is alive, runs its agent and, when a
   Claude Code registry record exists for the pid, names the same session; then the registry, the rollouts and
   Copilot's `events.jsonl` files are read before the first arm, whatever the turn's quiet, and a session
@@ -194,27 +196,33 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   drops its sessions. `codex exec` records its own process, and its death drops its sessions. Every Codex hook names the
   session's rollout file (`transcript_path`), and a working Codex session quiet for 20 s with nothing out is
   checked against it every 15 s, and once at launch before anything counts: a
-  `task_complete` or `turn_aborted` that is stamped after the last main-agent event, or that names the turn
-  that event belonged to, ends the turn, however it ended, and closes it (the late `PostToolUse` of a tool
-  Codex aborted arrives after the `turn_aborted`, under the same turn id); an end of an earlier turn stamped
+  `task_complete` (it finished) or `turn_aborted` (it was aborted) that is stamped after the last main-agent
+  event, or that names the turn that event belonged to, ends the turn and closes it (the late `PostToolUse` of a
+  tool Codex aborted arrives after the `turn_aborted`, under the same turn id): a finish is a lost `Stop` — done,
+  or held behind a live helper or a background shell still out, exactly as a `Stop` is; an abort is idle
+  whatever is still out, since it is not paused behind an answer, it is over; an end of an earlier turn stamped
   before that event decides nothing; a `task_started` with no end keeps it alive while Codex still writes to
   the rollout; a rollout silent for 2 h no longer does; a rollout that cannot be read decides nothing, and a
   rollout that decided nothing is read again 15 s later at the earliest, however much else the journal
   receives, and only a path under `~/.codex/sessions/` that names the session's own rollout is
   read. When Codex's managed daemon is running, it is asked first (`thread/read`): a thread it has not
-  loaded, or has idle, has nothing running; an active one keeps the session alive; the rollout decides when
-  the daemon does not answer. Only a session the managed daemon hosts is asked: the desktop app's `codex` is
-  never asked, and its sessions are decided by the rollout alone; a status other than these three decides
-  nothing either, and every question has 1 s to be answered. At launch the managed daemon is asked which
-  threads it holds (`thread/loaded/list`): a working session it hosts whose thread is not among them has
-  nothing running, and nothing counts before that answer, or before 2 s without one (an answer later than
+  loaded, or has idle, has nothing running — the same finished, lost-`Stop` outcome as the rollout's
+  `task_complete`, dated to the rollout's own end marker when reading it finds one, else this check's own time;
+  an active one keeps the session alive; the rollout decides when the daemon does not answer. Only a session the
+  managed daemon hosts is asked: the desktop app's `codex` is never asked, and its sessions are decided by the
+  rollout alone; a status other than these three decides nothing either, and every question has 1 s to be
+  answered. At launch the managed daemon is asked which threads it holds (`thread/loaded/list`): a working
+  session it hosts whose thread is not among them has nothing running, finished the same way and dated the same
+  way; nothing counts before that answer, or before 2 s without one (an answer later than
   that is dropped). An answer about a thread other than the one asked about decides nothing. A Copilot turn ended with Ctrl+C
   or a double Esc fires no hook, and a failed turn fires no `agentStop`: a working Copilot session quiet for
   20 s with nothing out is checked against its `events.jsonl` every 15 s, and once at launch before anything
-  counts. An `abort` (the turn was aborted), a `session.error` (it failed), a `session.shutdown` (the session
-  closed) or the start of the session's own `agentStop` hook (it finished), stamped after the last main-agent
-  event, ends the turn and closes it; Copilot names no turn, so an end stamped before that event is an earlier
-  turn's and decides nothing. A subagent's `agentStop`, written into its parent's file under the subagent's
+  counts. The start of the session's own `agentStop` hook (it finished), stamped after the last main-agent
+  event, ends the turn and closes it as a lost `Stop` would — done, or held behind a live helper or a background
+  shell still out, exactly as a `Stop` is. An `abort` (the turn was aborted), a `session.error` (it failed) or a
+  `session.shutdown` (the session closed), stamped after the last main-agent event, ends the turn and closes it
+  idle whatever is still out, since it is not paused behind an answer, it is over. Copilot names no turn, so an
+  end stamped before that event is an earlier turn's and decides nothing. A subagent's `agentStop`, written into its parent's file under the subagent's
   id, is not the parent's end. A step of a turn with no end after it (a prompt taken, a model call, a message,
   a tool, a permission) keeps the session alive while Copilot still writes the file; a file silent for 2 h no
   longer does; a file that cannot be read decides nothing, and a file that decided nothing is read again 15 s

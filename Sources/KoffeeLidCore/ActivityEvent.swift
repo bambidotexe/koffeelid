@@ -85,9 +85,14 @@ public enum ActivityEventName: String, Codable, Equatable {
     }
 }
 
-/// What a `KoffeeLidVerdict` line says: the rescue that decided it found the turn over, or the dialog answered.
+/// What a `KoffeeLidVerdict` line says: the rescue that decided it found the turn finished, found it over some
+/// other way (aborted, failed, the session closed), or the dialog answered.
 public enum ActivityVerdict: String, Equatable, CaseIterable, Sendable {
-    case turnOver = "turn-over", dialogAnswered = "dialog-answered", waitAbandoned = "wait-abandoned"
+    /// Legacy: written before a rescue's outcome followed its source, when every rescue meant a finish. Still
+    /// decoded, so a line an older copy of the app wrote replays as one.
+    case turnOver = "turn-over"
+    case turnFinished = "turn-finished", turnAbandoned = "turn-abandoned"
+    case dialogAnswered = "dialog-answered", waitAbandoned = "wait-abandoned"
 }
 
 /// One trimmed journal line. Bodies (tool input/output, prompts, messages) never reach this type.

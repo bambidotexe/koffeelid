@@ -197,10 +197,19 @@ public struct ActivitySessionStore {
         guard let sid = e.sessionId, let s = sessions[sid], e.loggedAt >= s.lastMainEventAt,
               let verdict = e.verdict.flatMap(ActivityVerdict.init(rawValue:)) else { return }
         switch verdict {
-        case .turnOver: turnOver(sessionId: sid, now: e.loggedAt)
+        // Only a definitive outcome is ever journaled (`finishTurn`/`abandonTurn` return nil for a held one), so
+        // replay applies the outcome straight, at the line's own stamp, with no helper check of its own: a live
+        // check already made that call. `turnOver` is the legacy line an app from before the outcome followed
+        // the source wrote; it always meant a finish, so it replays as one.
+        case .turnOver, .turnFinished: closeTurnAt(sid, .done, at: e.loggedAt)
+        case .turnAbandoned: closeTurnAt(sid, .idle, at: e.loggedAt)
         case .dialogAnswered: dialogAnswered(sessionId: sid, now: e.loggedAt)
         case .waitAbandoned: abandonWait(sessionId: sid, now: e.loggedAt, endedAt: e.loggedAt)
         }
+    }
+    private mutating func closeTurnAt(_ sid: String, _ new: ActivitySessionState, at: Date) {
+        guard var s = sessions[sid], s.state == .working, !s.pendingDone else { return }
+        set(&s, new, at); closeTurn(&s, byInterrupt: false, now: at); sessions[sid] = s
     }
 
     /// How many closed turns a session remembers: a late line names the turn just closed, seldom an older one.
@@ -351,11 +360,33 @@ public struct ActivitySessionStore {
             return (s.id, s.transcriptPath)
         }
     }
-    /// The registry, a rollout, Codex's daemon or a Copilot `events.jsonl` says the turn ended after our last
-    /// event: the turn is over, however it ended, and closed. `now` is when it ended (`rescueStamp`).
-    public mutating func turnOver(sessionId: String, now: Date) {
-        guard var s = sessions[sessionId], s.state == .working, !s.pendingDone else { return }
-        set(&s, .done, now); closeTurn(&s, byInterrupt: false, now: now); sessions[sessionId] = s
+    /// The registry, a rollout, the daemon or a Copilot `events.jsonl` says the turn finished — a lost `Stop`:
+    /// done, or held behind a live helper or a background shell still out, exactly as `Stop` is (helper liveness
+    /// judged at `now`, the check's own time, not backdated to `endedAt`). Only a `done` outcome closes the turn
+    /// and is worth journaling — a held one is the hold rules' to end, and a relaunch decides it afresh, exactly
+    /// as a held `Stop` is never journaled. Returns `endedAt` when it went straight to `done`, nil otherwise
+    /// (held, or the session was not an eligible working turn).
+    @discardableResult
+    public mutating func finishTurn(sessionId: String, endedAt: Date, now: Date) -> Date? {
+        guard var s = sessions[sessionId], s.state == .working, !s.pendingDone else { return nil }
+        var stamp: Date?
+        if !s.hasLiveHelpers(at: now) && s.backgroundIds.isEmpty {
+            set(&s, .done, endedAt); closeTurn(&s, byInterrupt: false, now: endedAt); stamp = endedAt
+        } else {
+            applyStopVerdict(&s, now: now)
+        }
+        updateHoldRelease(&s, now: now); sessions[sessionId] = s
+        return stamp
+    }
+    /// A rollout or a Copilot `events.jsonl` says the turn ended some other way — aborted, failed, the session
+    /// closed: idle whatever helpers or background shells are still out, since it is not paused behind an
+    /// answer, it is over. `endedAt` dates the idle; the turn is closed. Returns `endedAt`, or nil when the
+    /// session was not an eligible working turn.
+    @discardableResult
+    public mutating func abandonTurn(sessionId: String, endedAt: Date) -> Date? {
+        guard var s = sessions[sessionId], s.state == .working, !s.pendingDone else { return nil }
+        set(&s, .idle, endedAt); closeTurn(&s, byInterrupt: false, now: endedAt); sessions[sessionId] = s
+        return endedAt
     }
     /// When a rescued turn ended: the source's own stamp (the registry's `statusUpdatedAt`, the end marker's of a
     /// rollout or an `events.jsonl`; now for an answer that carries none), never before the last main-agent event

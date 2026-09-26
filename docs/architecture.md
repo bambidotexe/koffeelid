@@ -281,8 +281,8 @@ app's own verdict lines among them) → the time rules (`tick`), so a stale sess
 the registry (`pruneDead`: dead or recycled pids, a Claude Code pid whose registry record names another
 session among them; a session on a shared Codex host kept) → the jobs' shell probe (`probeJobs`) →
 `checkRegistry(quietSeconds: 0)`, the registry rescue on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
-`thread/loaded/list` has ended each working session on the managed daemon whose thread the daemon does not
-hold (asked only when the managed daemon hosts one and its socket exists) → `checkCopilot(atLaunch: true)`, the
+`thread/loaded/list` has ended (`finishTurn`, a lost `Stop`) each working session on the managed daemon whose thread the
+daemon does not hold (asked only when the managed daemon hosts one and its socket exists) → `checkCopilot(atLaunch: true)`, the
 `events.jsonl` check of every working Copilot session whatever its quiet → the first `sync()`. All of it comes before the first
 publish (`launched` holds `sync` back until the daemon's answer, at most 1 s; a 2 s fallback,
 `launchAnswerFallbackSeconds`, runs `finishLaunch` once should the answer never arrive, and a later answer is
@@ -371,10 +371,12 @@ pid's path and arguments once and marks its sessions `hostedBySharedCodex` (`Pro
 | `SessionEnd`, process exit | session removed |
 
 Turns: every main-agent event that carries a turn id, a prompt included, records it as `lastMainTurnId`. An
-`Interrupt` and `turnOver` close that turn (`closeTurn`: the id joins `closedTurnIds`, the last 8, and an
-`Interrupt`'s id joins `interruptedTurnIds` too; `interruptedAt` records an `Interrupt`'s close). A main-agent
+`Interrupt`, `finishTurn`'s done outcome and `abandonTurn` close that turn (`closeTurn`: the id joins
+`closedTurnIds`, the last 8, and an `Interrupt`'s id joins `interruptedTurnIds` too; `interruptedAt` records an
+`Interrupt`'s close); `finishTurn`'s held outcome (a live helper or a background shell still out) does not close
+it, exactly as a held `Stop` does not. A main-agent
 `UserPromptSubmit` opens its turn whatever id it carries: it removes that id from `closedTurnIds` and
-`interruptedTurnIds` and clears `interruptedAt`. A main-agent `PreToolUse` of a turn `turnOver` closed opens it
+`interruptedTurnIds` and clears `interruptedAt`. A main-agent `PreToolUse` of a turn a rescue closed opens it
 the same way: a new tool call is never an aborted tool's straggler, and the registry can close a turn waiting on
 a dialog whose hook lines were lost. A `Stop` and the lost-`Stop`
 notification end the turn without closing it: a Stop hook that blocks the Stop keeps the same turn running.
@@ -384,20 +386,28 @@ of a turn not in `interruptedTurnIds` (`SessionEnd` removes the session before);
 (`abortQuarantineSeconds`), a main-agent tool or permission event with no turn id. A line without a turn id
 otherwise meets the table as it is.
 
-Verdict lines: each rescue that decides a session (`turnOver` from the registry, a rollout, the daemon or a
-Copilot `events.jsonl`,
-`dialogAnswered` from the registry or a Copilot `events.jsonl`) applies it live, then appends one `KoffeeLidVerdict` line through
-`ActivityJournalWriter.append`, carrying `session_id`, `verdict` (`ActivityVerdict`: `turn-over`,
-`dialog-answered`) and `logged_at`, nothing else. A rescued turn is ended at
-`ActivitySessionStore.rescueStamp(endedAt:lastMainEventAt:now:)`, the source's own stamp (the registry's
-`statusUpdatedAt`, the end marker's of a rollout or an `events.jsonl`; the rollout's own end marker or the
-record's `updatedAt` for the daemon) clamped between the
-last main-agent event and now,
-and the line carries that stamp, so the replay gives the same `stateSince`. `apply` hands the line to
-`applyVerdict`: a session it does not hold, a stamp before the session's `lastMainEventAt` or an unknown
-verdict changes nothing; otherwise `turnOver` or `dialogAnswered` runs at the line's stamp. A verdict never
-creates a session and never refreshes `lastEventAt`, and the tailer's redelivery of the app's own line meets
-a session already decided and changes nothing. A reader that does not know the name skips the line
+Verdict lines: each rescue that decides a session (the registry, a rollout, the daemon or a Copilot
+`events.jsonl`) applies its outcome live through `ActivityMonitor.endTurn(_:finished:endedAt:now:)`: `finished`
+(the registry's `idle`; a rollout's or the daemon's `task_complete`/not-loaded/idle; Copilot's own `agentStop`)
+calls `ActivitySessionStore.finishTurn(sessionId:endedAt:now:)`, a lost `Stop` — done, or held behind a live
+helper or a background shell still out (`applyStopVerdict`), exactly as `Stop` is; every other end (a rollout's
+or Copilot's `aborted`/`failed`/`ended`) calls `abandonTurn(sessionId:endedAt:)`, idle whatever is still out,
+since it is not paused behind an answer, it is over. Both close the turn (`closeTurn`) when they reach that
+outcome; `dialogAnswered` (from the registry or a Copilot `events.jsonl`) does not, and never closes one. Only a
+definitive outcome (done or idle; `finishTurn` returns the stamp, else nil) is worth journaling — a held finish
+is the hold rules' to end, and a relaunch decides it afresh, exactly as a held `Stop` is never journaled — so the
+app appends one `KoffeeLidVerdict` line through `ActivityJournalWriter.append`, carrying `session_id`, `verdict`
+(`ActivityVerdict`: `turn-finished`, `turn-abandoned`, `dialog-answered`; the legacy `turn-over`, from before the
+outcome followed the source, still decodes and replays as a finish) and `logged_at`, nothing else. A rescued
+turn is ended at `ActivitySessionStore.rescueStamp(endedAt:lastMainEventAt:now:)`, the source's own stamp (the
+registry's `statusUpdatedAt`, the end marker's of a rollout or an `events.jsonl`; the rollout's own end marker or
+this check's own time for the daemon) clamped between the last main-agent event and now, and the line carries
+that stamp, so the replay gives the same `stateSince`. `apply` hands the line to `applyVerdict`: a session it
+does not hold, a stamp before the session's `lastMainEventAt` or an unknown verdict changes nothing; otherwise
+the outcome (done or idle) is applied and the turn closed straight at the line's stamp, with no helper check of
+its own — a live check already made that call, which is why only a definitive outcome is ever journaled. A
+verdict never creates a session and never refreshes `lastEventAt`, and the tailer's redelivery of the app's own
+line meets a session already decided and changes nothing. A reader that does not know the name skips the line
 (`ActivityCodec.decodeLine` returns nil for an unknown event). The Health page's "last event seen" ignores it.
 
 Time rules (`tick`): a helper counts as live for 240 s after its last event; a held `Stop` becomes `done` 90 s
@@ -408,7 +418,7 @@ session's `transcriptPath`'s config directory (`ClaudeRegistryRecord.configDir(f
 pid's own `CLAUDE_CONFIG_DIR` (`ProcWalk.environmentValue("CLAUDE_CONFIG_DIR", forPid:)`, read from its
 `KERN_PROCARGS2` buffer the same way its argv is), else `~/.claude`: a `working` session quiet for 20 s with
 nothing out is checked every 15 s; registry
-`idle` stamped after the last main event → `turnOver`; registry `busy` → `noteBusy` (and one warning after
+`idle` stamped after the last main event → `finishTurn` (a lost `Stop`); registry `busy` → `noteBusy` (and one warning after
 5 min without a hook); a `waiting` session whose registry says `busy` stamped 2 s after the wait began →
 `dialogAnswered`. Codex checks (`ActivityMonitor.checkCodex`), for Codex sessions (`codexCandidates`, the
 same gate and cadence, no pid needed, and no gate at launch). A `hostedByManagedDaemon` session is asked about at the
@@ -416,8 +426,8 @@ daemon first while its socket exists (`CodexDaemonClient.readThread`, not at lau
 session): the answer arrives on main and applies only if the session is still `working` with the same
 `lastMainEventAt` as when it was asked; an answer whose `thread.id` is not the thread asked about is nil
 (`CodexThreadRecord.parse(_:expecting:)`); `CodexThreadRecord.verdict` maps `notLoaded` and `idle` to
-`turnOver` — dated to the rollout's own end marker when reading it (`rolloutEndDate`) finds one, else the
-record's own `updatedAt`, else this check's own time, through `rescueStamp` — `active` to `noteBusy` (dated to
+`finishTurn` (a lost `Stop`) — dated to the rollout's own end marker when reading it (`rolloutEndDate`) finds
+one, else the record's own `updatedAt`, else this check's own time, through `rescueStamp` — `active` to `noteBusy` (dated to
 this check's own time, the same 5 min warning), anything else to the rollout, as is a nil answer; after one of
 those two the daemon is not asked about that session again for 15 s, and the rollout decides meanwhile. The
 rollout check (every other session, and those): the session's `transcriptPath` when it sits
@@ -426,7 +436,8 @@ under `~/.codex/sessions/<y>/<m>/<d>/` and names the session's own rollout (`Cod
 `CodexRollout.read` hands the last 64 KB of that regular file, and its modification date, to `CodexRolloutTail.verdict`, which reads only
 the `event_msg` turn markers' type, stamp and turn id, and `CodexRolloutTail.decision` weighs it against the
 session: `task_complete` or `turn_aborted` stamped after the last main event, or naming `lastMainTurnId` →
-`turnOver`; `task_started` with no end, the file written less than 2 h before (`staleSeconds`) → `noteBusy`,
+`turnOver` (reason `finished` or `aborted`) — `finished` calls `finishTurn` (a lost `Stop`), `aborted` calls
+`abandonTurn` (idle whatever is still out); `task_started` with no end, the file written less than 2 h before (`staleSeconds`) → `noteBusy`,
 dated to the rollout's own last write (its modification date, clamped to never be later than this check's own
 time) rather than to `now`, so a session goes stale 2 h after Codex stopped writing to it, not 2 h after the
 last recheck (the same 5 min warning), written earlier → nothing, so staleness ends the session; an earlier
@@ -445,7 +456,8 @@ subagent's names the subagent and is skipped), or a step of a turn (`user.messag
 `assistant.message`, `tool.execution_start`, `tool.execution_complete`, `permission.requested`,
 `permission.completed`: running). `CopilotTranscriptTail.decision` weighs it against the session: an end
 stamped after the last main event → `turnOver` (reason `finished`, `aborted`, `failed` or `ended`; Copilot names
-no turn, so the stamp alone decides); running, the file written less than 2 h before → `noteBusy`, dated to the
+no turn, so the stamp alone decides) — `finished` calls `finishTurn` (a lost `Stop`), every other reason calls
+`abandonTurn` (idle whatever is still out); running, the file written less than 2 h before → `noteBusy`, dated to the
 file's own last write (its modification date, clamped to never be later than this check's own time) rather
 than to `now`, so a session goes stale 2 h after Copilot stopped writing to it, not 2 h after the last
 recheck, written earlier → nothing; an earlier end, or unreadable → nothing, unreadable logged once per session. Beside that quiet-turn

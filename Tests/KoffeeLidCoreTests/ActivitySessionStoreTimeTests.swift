@@ -55,8 +55,8 @@ final class ActivitySessionStoreTimeTests: XCTestCase {
         XCTAssertTrue(store.abandonCandidates(at: at(40)).isEmpty, "busy re-arms the quiet gate")
         XCTAssertEqual(store.sessions["s1"]?.lastMainEventAt, t0, "hook silence is still measured from the last real event")
         store.tick(now: at(30 + 7199)); XCTAssertNotNil(store.sessions["s1"], "busy keeps a session alive past the original staleness")
-        store.turnOver(sessionId: "s1", now: at(60)); XCTAssertEqual(state, .done)
-        store.turnOver(sessionId: "s1", now: at(61)); XCTAssertEqual(state, .done, "idempotent, only acts on working")
+        store.finishTurn(sessionId: "s1", endedAt: at(60), now: at(60)); XCTAssertEqual(state, .done)
+        store.finishTurn(sessionId: "s1", endedAt: at(61), now: at(61)); XCTAssertEqual(state, .done, "idempotent, only acts on working")
     }
     /// A busy verdict is dated to the source's own last write, never to the moment it was checked: a rollout or
     /// an `events.jsonl` that stopped changing goes stale from its own last line, not from every recheck.

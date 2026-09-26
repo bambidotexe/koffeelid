@@ -506,8 +506,10 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   `hostedByManagedDaemon`. `pruneDead` keeps every session on a shared host without asking about the pid. The session's rollout decides instead: the hook lines keep `transcript_path`
   (`SessionStart`, `UserPromptSubmit`, `Stop`, `Interrupt`), and `ActivityMonitor.checkCodex` reads its last
   64 KB (`CodexRollout`, `CodexRolloutTail`) for a working session quiet for 20 s, every 15 s, and for every
-  working Codex session once at launch before anything counts. A `task_complete` or `turn_aborted` stamped
-  after the last main-agent event, or naming that event's turn, is `turnOver` (`CodexRolloutTail.decision`);
+  working Codex session once at launch before anything counts. A `task_complete` stamped after the last
+  main-agent event, or naming that event's turn, is a lost `Stop`: done, or held behind a live helper or a
+  background shell still out, exactly as `Stop` is; a `turn_aborted` the same way is idle whatever is still
+  out, since it is not paused behind an answer, it is over (`CodexRolloutTail.decision`);
   a `task_started` with no end is `noteBusy` while the file was written within 2 h, and decides nothing once it
   was not, so staleness ends a session whose Codex went quiet; anything else decides nothing. The kqueue stays: a host's own
   death still drops every session it hosted.
@@ -556,10 +558,12 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   or not, is the session's `events.jsonl`: `abort`, `session.error`, `session.shutdown`.
 - **What the code does.** `ActivityMonitor.checkCopilot` reads the last 64 KB of the session's `events.jsonl`
   (`CopilotTranscript`, `CopilotTranscriptTail`) for a working session quiet for 20 s, every 15 s, and for
-  every working Copilot session once at launch before anything counts. An end marker stamped after the last
-  main-agent event is `turnOver`; a step of a turn with no end after it is `noteBusy` while the file was
-  written within 2 h; anything else decides nothing. A session waiting on a permission prompt when Ctrl+C
-  lands is not counted anyway, and its next prompt starts a new turn.
+  every working Copilot session once at launch before anything counts. The session's own `agentStop`, stamped
+  after the last main-agent event, is a lost `Stop`: done, or held behind a live helper or a background shell
+  still out, exactly as `Stop` is; an `abort`, a `session.error` or a `session.shutdown` the same way is idle
+  whatever is still out, since it is not paused behind an answer, it is over; a step of a turn with no end
+  after it is `noteBusy` while the file was written within 2 h; anything else decides nothing. A session
+  waiting on a permission prompt when Ctrl+C lands is not counted anyway, and its next prompt starts a new turn.
 - **Do not** subscribe `errorOccurred` as an end. **Do not** count `assistant.turn_end` as an end: Copilot
   writes one after every model call. **Do not** read the file's modification time as an end: a long tool
   writes nothing while it runs. **Do not** keep, log or return anything of a line but its type, its stamp,
