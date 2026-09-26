@@ -11,7 +11,6 @@ never edited there.**
 | `macOS.md` | The platform facts every app leans on. |
 | `pitfalls.md` | The traps every app has already fallen into, with the measurements. |
 | `manual-test-checklist.md` | The walks every app repeats: the wizard, the Settings window, updates, the uninstall, language. |
-| `activity-detection.md` | The contract koffeelid and my-sidepulse both implement to decide whether an agent or a terminal command is working, its constants, and the rule that keeps the two in sync. |
 
 ## The rule
 
