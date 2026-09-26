@@ -78,8 +78,8 @@ key counts: an external keyboard's Fn/Globe key never arms. Without the grant an
 
 ### Auto-arm on activity
 
-Off by default ("Arm while Claude Code, Codex or a terminal command is running", Settings › Auto-Arm). Setting
-up any of the three hooks from that page or from the onboarding turns it on.
+Off by default ("Arm while Claude Code, Codex, Copilot, OpenCode or a terminal command is running", Settings ›
+Auto-Arm). Setting up any of the five hooks from that page or from the onboarding turns it on.
 
 - **Claude Code**: 15 hook events in `~/.claude/settings.json` run the embedded `KoffeeLidHook hook`, which
   appends one trimmed line per event to `~/Library/Application Support/KoffeeLid/activity.jsonl`. A session
@@ -335,7 +335,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   |---|---|
   | General | the app icon; Startup (launch at login, show in menu bar, and a note naming the way back to this window once the icon is hidden); Updates; Quit ("Quit KoffeeLid" is the menu's Quit: disarms, clears the kernel flag, releases the sleep lock, then exits); Uninstall (see below) |
   | Arming | Lid gesture (the switch, the key to hold, the two travels); Menu bar and shortcuts (right-click, the two shortcuts); Low battery (the switch and its level) |
-  | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code, Codex and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
+  | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code, Codex, Copilot, OpenCode and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
   | Lid Effect | Effect (the switch, and the Screen Recording grant while it is on); Lid angle (the live angle, the angle in the menu bar); When it starts; Look; Preview (reset to defaults, simulate a fold) |
   | Sound | Lid-close sound (the switch, the charger and display switches of the closed-lid reminders, and the clip as a pop-up menu: picking one plays it); Volume (the forced volume and its level) |
   | System | Staying awake safely (sleep lock, Background App Activity, each with its button while missing); Permissions (Screen Recording, Input Monitoring, Notifications, each with its Allow button and a warning naming its switch in System Settings while denied); Diagnostics (the log's switch, open the log); Start over (show the onboarding again, reset everything). Only states with a control beside them: a bare verdict is on Health |
@@ -360,7 +360,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   the same on every page (`SettingsStatus`, `HealthRules`): **a grant that is missing is red when the onboarding
   marks it required and orange otherwise, never blue.** The sleep lock (Available / Missing) and Background App
   Activity (Enabled / Disabled) are required, so red while missing; Screen Recording, Input Monitoring and
-  Notifications (Granted / Denied) and the three hooks (Enabled / Disabled) are optional, so orange while missing,
+  Notifications (Granted / Denied) and the five hooks (Enabled / Disabled) are optional, so orange while missing,
   whatever the switches. Auto-arm switched on with no hook set up also puts a warning under its switch. A
   state the user can fix has a button under it only while it is wrong; once it is right the button goes and the
   row stays. A state with nothing to press beside it is on the Health page alone, unless it is the context of what
@@ -378,24 +378,32 @@ lid closes, only on the built-in display, and captures nothing while the lid res
     watchdog it runs, one line: Running green; Disabled red while Background App Activity is off; Stopped orange
     while it is on and the watchdog is not running), **Screen Recording permission**, **Input Monitoring
     permission** (also Failed orange while the lid gesture uses 🌐 Fn and this Mac's own keyboard cannot be read),
-    **Notifications permission** (Granted green, Denied orange), **Claude Code hooks**, **Codex hooks** and
-    **Terminal hook (zsh)** (Enabled green, Disabled orange; the first two's tooltips say how many of the 15, or
-    the 12, hook events point at this copy of KoffeeLid, Codex's counting only the trusted ones), **Lid angle
+    **Notifications permission** (Granted green, Denied orange), **Claude Code hooks** and **Codex hooks**
+    (Enabled green, Disabled orange; their tooltips say how many of the 15, or the 12, hook events point at
+    this copy of KoffeeLid, Codex's counting only the trusted ones), **Copilot hooks** and **OpenCode plugin**
+    (Enabled green, Disabled orange; shown only while their agent is on this Mac or already set up: Copilot
+    when `~/.copilot` exists, OpenCode when `~/.config/opencode`, `~/.opencode` or `/Applications/OpenCode.app`
+    does; Copilot's tooltip says how many of the 7 hook events point here, or that they are turned off by
+    `disableAllHooks`, or that the file could not be read; OpenCode's says when the plugin is ours but belongs
+    to another copy of KoffeeLid), **Terminal hook (zsh)** (Enabled green, Disabled orange), **Lid angle
     sensor** (Available green, Missing orange). Only while wrong: **Lid sleep**, second (Enabled red while armed,
     Disabled orange while a clear is being retried), and **Crashes in the last 7 days**, last (the count, orange,
-    the last one's date in the tooltip, from `~/Library/Logs/DiagnosticReports`). At most eleven lines, with
+    the last one's date in the tooltip, from `~/Library/Logs/DiagnosticReports`). At most thirteen lines, with
     everything wrong at once.
-  - **Information** (Informations): at most six readings, blue. **State** (Off, Armed, Armed + screen on,
+  - **Information** (Informations): at most eight readings, blue. **State** (Off, Armed, Armed + screen on,
     Auto-armed, Armed for one close; the tooltip is the command line's status line); **Lid angle now** (with the
-    sensor); **Last Claude Code event**, **Last Codex event** and **Last terminal command** (each while its hook
-    is set up: how long ago, or "None yet"; the tooltip names the event and its time); **Last turned itself off**
-    (the safety rail and how long ago, once one has ended an arm since launch).
+    sensor); **Last Claude Code event**, **Last Codex event**, **Last Copilot event** and **Last OpenCode
+    event** (each while its hook is set up: how long ago, or "None yet"; the tooltip names the event and its
+    time); **Last terminal command** (the same); **Last turned itself off** (the safety rail and how long ago,
+    once one has ended an arm since launch).
 
   Its own readings (whether the watchdog runs, the Claude Code settings file, Codex's hooks file and its trust
-  in `config.toml`, crash reports) are taken off the main thread when the page is shown and on Check Again,
-  never on a timer; the grants and the lid come from the window's poll, and KoffeeLid's own state from the
-  coordinator as the page draws. The version and updates are not health: they stay on General.
-- **Onboarding.** Four pages in an ordinary window: pitch, Permissions, "Arm while you work" (the three hooks), All set.
+  in `config.toml`, how many of Copilot's hooks point here and whether `disableAllHooks` is set, whether the
+  OpenCode plugin is current or stale, whether each of Copilot and OpenCode is on this Mac, crash reports) are
+  taken off the main thread when the page is shown and on Check Again, never on a timer; the grants and the lid
+  come from the window's poll, and KoffeeLid's own state from the coordinator as the page draws. The version
+  and updates are not health: they stay on General.
+- **Onboarding.** Four pages in an ordinary window: pitch, Permissions, "Arm while you work" (the five hooks), All set.
   Shown at first launch and from Settings › System › "Show Onboarding Again". It opens in front because it is
   the last window to open, and from then on it behaves like any other window: a permission dialog, the
   administrator dialog and System Settings all open over it and stay there until the user leaves them, and the
@@ -435,7 +443,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Arming › Menu bar and shortcuts | Right-click the menu bar icon to arm | `armWithRightClick` | on | |
 | Arming › Menu bar and shortcuts | Press ⌃⌥⌘L to arm, or to turn off / Press ⌃⌥⌘K to arm with the screen on, or to turn off | `armWithShortcut` / `armWithCaffeinateShortcut` | on / on | combos fixed: `hotKeyCode`, `hotKeyModifiers`, `caffeinateHotKeyCode`, `caffeinateHotKeyModifiers` have no UI |
 | Arming › Low battery | Turn off when the battery runs low, Battery level | `lowBatteryDisarm`, `lowBatteryDisarmPercent` | on, 10 % | 5–50 % |
-| Auto-Arm › While you work | Arm while Claude Code, Codex or a terminal command is running | `armOnActivity` | off | |
+| Auto-Arm › While you work | Arm while Claude Code, Codex, Copilot, OpenCode or a terminal command is running | `armOnActivity` | off | |
 | Auto-Arm › Claude Code / Codex / Copilot / OpenCode / Terminal | Stay armed after Claude Code finishes / Stay armed after Codex finishes / Stay armed after Copilot finishes / Stay armed after OpenCode finishes / Stay armed after a command finishes | `activityHoldOff.claude` / `activityHoldOff.codex` / `activityHoldOff.copilot` / `activityHoldOff.opencode` / `activityHoldOff.terminal` | 30 min / 30 min / 30 min / 30 min / 60 s | 1–120 min / 1–120 min / 1–120 min / 1–120 min / 10–600 s |
 | Auto-Arm › Terminal | Ignore commands shorter than | `activityJobArmAfterSeconds` | 5 s | 0–30 s |
 | Lid Effect | Show the desktop folding away as the lid closes, every slider of When it starts and Look, Show the lid angle in the menu bar | `effectParameters` (JSON) | enabled; start below 95° with the gesture / 75° otherwise; flatten again 0.5 s; zoom 80 %; perspective 40 %; blur 0.15×; soft edges 100 %; shading 100 %; responsiveness 70 %; angle in menu bar off | 30–120° / 30–90° (the second never above the first); 0.25–10 s; 0–200 %; 0–2×; 0–100 % |

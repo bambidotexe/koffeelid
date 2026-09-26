@@ -28,7 +28,7 @@ public enum FnKeyReaderState: Equatable {
     case failed
 }
 
-/// The last Claude Code or Codex hook event that reached the activity journal.
+/// The last hook event of one agent that reached the activity journal.
 public struct HookEventSeen: Equatable {
     /// The event's own name (`PostToolUse`): a detail for a bug report, never translated.
     public let name: String
@@ -74,6 +74,8 @@ public struct HealthFacts: Equatable {
     // The hooks' last word.
     public var lastClaudeEvent: HookEventSeen?
     public var lastCodexEvent: HookEventSeen?
+    public var lastCopilotEvent: HookEventSeen?
+    public var lastOpencodeEvent: HookEventSeen?
     public var lastTerminalEventAt: Date?
 
     // Read when the page is shown.
@@ -88,6 +90,22 @@ public struct HealthFacts: Equatable {
     /// read or when either of Codex's two files could not be read.
     public var codexHookEvents: Int?
     public var codexHooksUnreadable: Bool
+    /// How many of the 7 Copilot hook events point at this copy of KoffeeLid; nil until read or when
+    /// `~/.copilot/hooks/koffeelid.json` could not be read.
+    public var copilotHookEvents: Int?
+    public var copilotHooksUnreadable: Bool
+    /// `disableAllHooks` in either of Copilot's own settings files: turns every one of its hooks off, whatever
+    /// `copilotHookEvents` says.
+    public var copilotHooksDisabled: Bool
+    /// Whether Copilot is on this Mac (`~/.copilot` exists) or its hooks are set up: the Copilot line is a
+    /// check only then.
+    public var copilotOnThisMac: Bool
+    /// The plugin at `~/.config/opencode/plugins/koffeelid.js` is ours but not what this bundle would write
+    /// today: a stale copy left by an older or another bundle.
+    public var opencodeStale: Bool
+    /// Whether OpenCode is on this Mac (`~/.config/opencode`, `~/.opencode` or `/Applications/OpenCode.app`
+    /// exists) or its plugin is set up: the OpenCode line is a check only then.
+    public var opencodeOnThisMac: Bool
     /// When each crash report of KoffeeLid in the last `HealthConstants.crashWindow` was written, newest first.
     public var recentCrashes: [Date]
 
@@ -95,9 +113,12 @@ public struct HealthFacts: Equatable {
                 armed: Bool, oneCloseArm: Bool, statusLine: String, lidSleepFlagSet: Bool,
                 lidSleepRestorePending: Bool, sleepLockEngaged: Bool, lastSafetyStop: SafetyStop?,
                 gestureEnabled: Bool, gestureUsesFn: Bool, fnReader: FnKeyReaderState,
-                lastClaudeEvent: HookEventSeen?, lastCodexEvent: HookEventSeen?, lastTerminalEventAt: Date?,
-                watchdogRunning: Bool?, agentPlistName: String, claudeHookEvents: Int?,
-                claudeSettingsUnreadable: Bool, codexHookEvents: Int?, codexHooksUnreadable: Bool,
+                lastClaudeEvent: HookEventSeen?, lastCodexEvent: HookEventSeen?,
+                lastCopilotEvent: HookEventSeen?, lastOpencodeEvent: HookEventSeen?,
+                lastTerminalEventAt: Date?, watchdogRunning: Bool?, agentPlistName: String,
+                claudeHookEvents: Int?, claudeSettingsUnreadable: Bool, codexHookEvents: Int?,
+                codexHooksUnreadable: Bool, copilotHookEvents: Int?, copilotHooksUnreadable: Bool,
+                copilotHooksDisabled: Bool, copilotOnThisMac: Bool, opencodeStale: Bool, opencodeOnThisMac: Bool,
                 recentCrashes: [Date]) {
         self.now = now
         self.held = held
@@ -116,6 +137,8 @@ public struct HealthFacts: Equatable {
         self.fnReader = fnReader
         self.lastClaudeEvent = lastClaudeEvent
         self.lastCodexEvent = lastCodexEvent
+        self.lastCopilotEvent = lastCopilotEvent
+        self.lastOpencodeEvent = lastOpencodeEvent
         self.lastTerminalEventAt = lastTerminalEventAt
         self.watchdogRunning = watchdogRunning
         self.agentPlistName = agentPlistName
@@ -123,6 +146,12 @@ public struct HealthFacts: Equatable {
         self.claudeSettingsUnreadable = claudeSettingsUnreadable
         self.codexHookEvents = codexHookEvents
         self.codexHooksUnreadable = codexHooksUnreadable
+        self.copilotHookEvents = copilotHookEvents
+        self.copilotHooksUnreadable = copilotHooksUnreadable
+        self.copilotHooksDisabled = copilotHooksDisabled
+        self.copilotOnThisMac = copilotOnThisMac
+        self.opencodeStale = opencodeStale
+        self.opencodeOnThisMac = opencodeOnThisMac
         self.recentCrashes = recentCrashes
     }
 }
@@ -132,12 +161,13 @@ public struct HealthFacts: Equatable {
 /// Which line of the Health table, whatever its words say. The raw value is the line's stable identity.
 public enum HealthItemID: String, CaseIterable {
     case sleepLock, lidSleep, crashWatchdog, screenRecording, inputMonitoring, notifications
-    case claudeHooks, codexHooks, zshHook, lidSensor, crashes
+    case claudeHooks, codexHooks, copilotHooks, opencodeHooks, zshHook, lidSensor, crashes
 }
 
 /// Which line of the Information table. The raw value is the line's stable identity.
 public enum HealthReadingID: String, CaseIterable {
-    case state, lidAngle, lastClaudeEvent, lastCodexEvent, lastTerminalCommand, lastSafetyStop
+    case state, lidAngle, lastClaudeEvent, lastCodexEvent, lastCopilotEvent, lastOpencodeEvent
+    case lastTerminalCommand, lastSafetyStop
 }
 
 /// A span of time, to the minute, in the two largest units that mean anything. The app words it.
@@ -198,6 +228,12 @@ public enum HealthDetail: Equatable {
     case settingsUnreadable
     /// `~/.codex/hooks.json` or `~/.codex/config.toml` exists and could not be read.
     case codexFilesUnreadable
+    /// `~/.copilot/hooks/koffeelid.json` exists and could not be read.
+    case copilotFileUnreadable
+    /// `disableAllHooks` is set in one of Copilot's own settings files.
+    case copilotDisabled
+    /// The OpenCode plugin file is ours, but from a different bundle path than this one.
+    case opencodePluginStale
 }
 
 /// How to put a line right, before it is put in a language. Each names the page or the pane it is done in.
@@ -207,7 +243,7 @@ public enum HealthFix: Equatable {
     case lidSleepOnWhileArmed, lidSleepRestorePending
     case backgroundActivity, crashWatchStopped
     case noBuiltInKeyboard, fnKeyUnreadable
-    case setUpClaudeCode, setUpCodex, setUpTerminal
+    case setUpClaudeCode, setUpCodex, setUpCopilot, setUpOpencode, setUpTerminal
     case noLidSensor, crashes
 }
 
@@ -248,10 +284,11 @@ public struct HealthReading: Equatable {
 /// The Health page's two tables: the checks, green, orange or red, and the readings, blue.
 ///
 /// **A check is something that has to be in place or running for KoffeeLid to work**: the sleep lock, the
-/// kernel's lid-sleep flag while armed, the crash watchdog, the three permissions, the three hooks, the lid
-/// angle sensor. Red is what stops KoffeeLid from keeping a closed Mac awake, or from doing it safely: a
-/// grant the onboarding marks required (the sleep lock, Background App Activity), the lid-sleep flag not
-/// held while armed, a sleep lock that did not engage. Everything that degrades a feature is orange. A
+/// kernel's lid-sleep flag while armed, the crash watchdog, the three permissions, the five hooks (Copilot's
+/// and OpenCode's only while their agent is on the Mac), the lid angle sensor. Red is what stops KoffeeLid
+/// from keeping a closed Mac awake, or from doing it safely: a grant the onboarding marks required (the
+/// sleep lock, Background App Activity), the lid-sleep flag not held while armed, a sleep lock that did not
+/// engage. Everything that degrades a feature is orange. A
 /// preference is never a check, whichever way it is set, and neither is a reading: the battery, the heat,
 /// the displays, the version, the memory are on no table.
 public enum HealthReport {
@@ -274,6 +311,8 @@ public enum HealthReport {
             : facts.codexHookEvents.map { .hookEvents(installed: $0, of: HookConfig.codex.events.count) }
         items.append(grant(.codexHooks, .codexHooks, facts: facts, yes: .enabled, no: .disabled,
                            detail: codexDetail, fix: .setUpCodex))
+        if let copilot = copilotHooks(facts) { items.append(copilot) }
+        if let opencode = opencodePlugin(facts) { items.append(opencode) }
         items.append(grant(.zshHook, .zshHook, facts: facts, yes: .enabled, no: .disabled, fix: .setUpTerminal))
         items.append(HealthItem(.lidSensor, HealthRules.lidSensor(present: facts.sensorPresent),
                                 facts.sensorPresent ? .available : .missing, fix: .noLidSensor))
@@ -310,6 +349,16 @@ public enum HealthReport {
                 HealthReading(.lastCodexEvent, .ago(since($0.at, facts)), detail: .event($0.name, at: $0.at))
             } ?? HealthReading(.lastCodexEvent, .noneYet))
         }
+        if facts.held.contains(.copilotHooks) {
+            readings.append(facts.lastCopilotEvent.map {
+                HealthReading(.lastCopilotEvent, .ago(since($0.at, facts)), detail: .event($0.name, at: $0.at))
+            } ?? HealthReading(.lastCopilotEvent, .noneYet))
+        }
+        if facts.held.contains(.opencodeHooks) {
+            readings.append(facts.lastOpencodeEvent.map {
+                HealthReading(.lastOpencodeEvent, .ago(since($0.at, facts)), detail: .event($0.name, at: $0.at))
+            } ?? HealthReading(.lastOpencodeEvent, .noneYet))
+        }
         if facts.held.contains(.zshHook) {
             readings.append(facts.lastTerminalEventAt.map {
                 HealthReading(.lastTerminalCommand, .ago(since($0, facts)), detail: .at($0))
@@ -332,6 +381,27 @@ public enum HealthReport {
         let held = facts.held.contains(grant)
         return HealthItem(id, HealthRules.grant(held: held, required: grant.isRequired), held ? yes : no,
                           detail: detail, fix: fix)
+    }
+
+    /// Copilot's hooks file, a line only while Copilot is on this Mac or its hooks are set up: unlike Claude
+    /// Code's and Codex's, which are there for every KoffeeLid install. `disableAllHooks` is its own detail,
+    /// distinct from a count that has not reached 7.
+    static func copilotHooks(_ facts: HealthFacts) -> HealthItem? {
+        guard facts.copilotOnThisMac else { return nil }
+        let detail: HealthDetail? = facts.copilotHooksUnreadable ? .copilotFileUnreadable
+            : facts.copilotHooksDisabled ? .copilotDisabled
+            : facts.copilotHookEvents.map { .hookEvents(installed: $0, of: CopilotHookFile.events.count) }
+        return grant(.copilotHooks, .copilotHooks, facts: facts, yes: .enabled, no: .disabled, detail: detail,
+                    fix: .setUpCopilot)
+    }
+
+    /// OpenCode's plugin, a line only while OpenCode is on this Mac or its plugin is set up. A plugin that is
+    /// ours but not what this bundle would write today is stale, not merely missing.
+    static func opencodePlugin(_ facts: HealthFacts) -> HealthItem? {
+        guard facts.opencodeOnThisMac else { return nil }
+        let detail: HealthDetail? = facts.opencodeStale ? .opencodePluginStale : nil
+        return grant(.opencodeHooks, .opencodeHooks, facts: facts, yes: .enabled, no: .disabled, detail: detail,
+                    fix: .setUpOpencode)
     }
 
     /// The sleep lock is a grant (a sudoers rule) that must also do its job: engaged for as long as an arm

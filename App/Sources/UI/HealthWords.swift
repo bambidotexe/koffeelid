@@ -30,6 +30,8 @@ enum HealthWords {
         case .notifications: L("Notifications permission")
         case .claudeHooks: L("Claude Code hooks")
         case .codexHooks: L("Codex hooks")
+        case .copilotHooks: L("Copilot hooks")
+        case .opencodeHooks: L("OpenCode plugin")
         case .zshHook: L("Terminal hook (zsh)")
         case .lidSensor: L("Lid angle sensor")
         case .crashes: String(format: L("Crashes in the last %d days"), Int(HealthConstants.crashWindow / 86_400))
@@ -42,6 +44,8 @@ enum HealthWords {
         case .lidAngle: L("Lid angle now")
         case .lastClaudeEvent: L("Last Claude Code event")
         case .lastCodexEvent: L("Last Codex event")
+        case .lastCopilotEvent: L("Last Copilot event")
+        case .lastOpencodeEvent: L("Last OpenCode event")
         case .lastTerminalCommand: L("Last terminal command")
         case .lastSafetyStop: L("Last turned itself off")
         }
@@ -88,6 +92,9 @@ enum HealthWords {
             String(format: L("%d of %d hook events point at this copy of KoffeeLid"), installed, total)
         case .settingsUnreadable: L("~/.claude/settings.json could not be read")
         case .codexFilesUnreadable: L("~/.codex/hooks.json or ~/.codex/config.toml could not be read")
+        case .copilotFileUnreadable: L("~/.copilot/hooks/koffeelid.json could not be read")
+        case .copilotDisabled: L("Copilot hooks are turned off (disableAllHooks)")
+        case .opencodePluginStale: L("the OpenCode plugin belongs to another copy of KoffeeLid")
         }
     }
 
@@ -121,6 +128,10 @@ enum HealthWords {
             L("Set up Claude Code on the Auto-Arm page.")
         case .setUpCodex:
             L("Set up Codex on the Auto-Arm page.")
+        case .setUpCopilot:
+            L("Set up Copilot on the Auto-Arm page.")
+        case .setUpOpencode:
+            L("Set up OpenCode on the Auto-Arm page.")
         case .setUpTerminal:
             L("Set up the terminal on the Auto-Arm page, then open a new terminal window.")
         case .noLidSensor:

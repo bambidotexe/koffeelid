@@ -1,12 +1,13 @@
 import Foundation
 import KoffeeLidCore
 
-/// The readings only the Health page takes: whether the crash watchdog runs, how many Claude Code and Codex
-/// hook events point at this copy, and KoffeeLid's crash reports. What the rest of the window also shows (a grant, the
-/// lid) is `SettingsModel`'s poll, and KoffeeLid's own state (the mode, the kernel flag, the sleep lock, the
-/// hooks' last events) is read from the coordinator each time the page draws; these are read when the page
-/// is shown and when Check Again is pressed, and never on a timer, so a page nobody is looking at costs
-/// nothing.
+/// The readings only the Health page takes: whether the crash watchdog runs, how many Claude Code, Codex and
+/// Copilot hook events point at this copy, whether the OpenCode plugin is current, whether each of Copilot
+/// and OpenCode is on this Mac, and KoffeeLid's crash reports. What the rest of the window also shows (a
+/// grant, the lid) is `SettingsModel`'s poll, and KoffeeLid's own state (the mode, the kernel flag, the sleep
+/// lock, the hooks' last events) is read from the coordinator each time the page draws; these are read when
+/// the page is shown and when Check Again is pressed, and never on a timer, so a page nobody is looking at
+/// costs nothing.
 ///
 /// **The window drives this, not a view**, like the model's poll: `SettingsWindow` reads it when it opens on
 /// the Health page and when the page is picked. Every one of these waits on something (every process's path,
@@ -21,6 +22,12 @@ final class HealthCheck: ObservableObject {
         var claudeSettingsUnreadable = false
         var codexHookEvents: Int?
         var codexHooksUnreadable = false
+        var copilotHookEvents: Int?
+        var copilotHooksUnreadable = false
+        var copilotHooksDisabled = false
+        var copilotOnThisMac = false
+        var opencodeStale = false
+        var opencodeOnThisMac = false
     }
 
     @Published private(set) var readings = Readings()
@@ -44,12 +51,27 @@ final class HealthCheck: ObservableObject {
         let command = HookInstaller.command
         let codexHooksURL = HookInstaller.codexHooksURL, codexConfigURL = HookInstaller.codexConfigURL
         let codexCommand = HookInstaller.codexCommand
+        // `hookPath` reads the bundle on the main actor: taken here, once, for every off-main file read below.
+        let hookPath = HookInstaller.hookPath
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             var fresh = Self.readSlowly(process: process, watchdog: watchdog, settingsURL: settingsURL,
                                         command: command, now: started)
             let codex = HookInstaller.codexInstalledCount(hooksURL: codexHooksURL, configURL: codexConfigURL, command: codexCommand)
             fresh.codexHookEvents = codex
             fresh.codexHooksUnreadable = codex == nil
+            let copilot = HookInstaller.copilotInstalledCount(hooksURL: HookInstaller.copilotHooksURL, hookPath: hookPath)
+            fresh.copilotHookEvents = copilot
+            fresh.copilotHooksUnreadable = copilot == nil
+            fresh.copilotHooksDisabled = HookInstaller.copilotHooksDisabled()
+            fresh.copilotOnThisMac = FileManager.default.fileExists(atPath: HookInstaller.copilotHome.path)
+                || HookInstaller.copilotHooksPresent()
+            let opencodeText = try? String(contentsOf: HookInstaller.opencodePluginURL, encoding: .utf8)
+            fresh.opencodeStale = opencodeText.map { OpencodePlugin.isOurs($0) && !OpencodePlugin.isCurrent($0, hookPath: hookPath) } ?? false
+            let opencodeHome = FileManager.default.homeDirectoryForCurrentUser
+            fresh.opencodeOnThisMac = FileManager.default.fileExists(atPath: HookInstaller.opencodeConfigDir.path)
+                || FileManager.default.fileExists(atPath: opencodeHome.appendingPathComponent(".opencode").path)
+                || FileManager.default.fileExists(atPath: "/Applications/OpenCode.app")
+                || HookInstaller.opencodePluginPresent()
             let wait = max(0, minimumBusy - Date().timeIntervalSince(started))
             DispatchQueue.main.asyncAfter(deadline: .now() + wait) {
                 MainActor.assumeIsolated {
@@ -97,10 +119,15 @@ final class HealthCheck: ObservableObject {
             gestureEnabled: prefs.armWithOption, gestureUsesFn: prefs.gestureModifier == .fn,
             fnReader: Self.fnReader(controller.builtInFnReaderState),
             lastClaudeEvent: controller.activity.lastClaudeEvent, lastCodexEvent: controller.activity.lastCodexEvent,
+            lastCopilotEvent: controller.activity.lastEvent(for: .copilot),
+            lastOpencodeEvent: controller.activity.lastEvent(for: .opencode),
             lastTerminalEventAt: controller.activity.lastTerminalEventAt,
             watchdogRunning: readings.watchdogRunning, agentPlistName: RelaunchAgentController.plistName,
             claudeHookEvents: readings.claudeHookEvents, claudeSettingsUnreadable: readings.claudeSettingsUnreadable,
             codexHookEvents: readings.codexHookEvents, codexHooksUnreadable: readings.codexHooksUnreadable,
+            copilotHookEvents: readings.copilotHookEvents, copilotHooksUnreadable: readings.copilotHooksUnreadable,
+            copilotHooksDisabled: readings.copilotHooksDisabled, copilotOnThisMac: readings.copilotOnThisMac,
+            opencodeStale: readings.opencodeStale, opencodeOnThisMac: readings.opencodeOnThisMac,
             recentCrashes: readings.recentCrashes)
     }
 

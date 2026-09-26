@@ -16,9 +16,10 @@ public enum StatusSeverity: Equatable {
 }
 
 /// Everything the Settings window reports as granted or not: the two things a closed Mac needs to stay
-/// awake safely, the three macOS permissions, the three hooks that feed auto-arm.
+/// awake safely, the three macOS permissions, the five hooks that feed auto-arm.
 public enum SettingsGrant: String, CaseIterable {
-    case sleepLock, loginItems, screenRecording, inputMonitoring, notifications, claudeHooks, codexHooks, zshHook
+    case sleepLock, loginItems, screenRecording, inputMonitoring, notifications
+    case claudeHooks, codexHooks, copilotHooks, opencodeHooks, zshHook
 
     /// Whether KoffeeLid cannot keep a closed Mac awake safely without it: the sleep lock, which stops macOS
     /// from sleeping it behind the arm, and Background App Activity, which brings KoffeeLid back after a
@@ -27,7 +28,8 @@ public enum SettingsGrant: String, CaseIterable {
     public var isRequired: Bool {
         switch self {
         case .sleepLock, .loginItems: true
-        case .screenRecording, .inputMonitoring, .notifications, .claudeHooks, .codexHooks, .zshHook: false
+        case .screenRecording, .inputMonitoring, .notifications, .claudeHooks, .codexHooks, .copilotHooks,
+             .opencodeHooks, .zshHook: false
         }
     }
 }
@@ -42,6 +44,7 @@ public enum SettingsStatus {
 
     /// Auto-arm is on and no hook is set up: nothing can tell the app that work is running.
     public static func autoArmIsDeaf(held: Set<SettingsGrant>, autoArmEnabled: Bool) -> Bool {
-        autoArmEnabled && !held.contains(.claudeHooks) && !held.contains(.codexHooks) && !held.contains(.zshHook)
+        autoArmEnabled && !held.contains(.claudeHooks) && !held.contains(.codexHooks)
+            && !held.contains(.copilotHooks) && !held.contains(.opencodeHooks) && !held.contains(.zshHook)
     }
 }

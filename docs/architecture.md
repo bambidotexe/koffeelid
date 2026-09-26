@@ -38,17 +38,20 @@ rules the pages apply are Core's: `SettingsStatus` colours a state (a missing gr
 onboarding's mark, is the same property) and `UpdatePanel` is the Updates group, whose state is the app's
 (`UpdateController.shared`) and not the page's. The Health page (`SettingsHealthPage`) is built the same way:
 two tables and nothing else. `HealthReport.checks(for:)` and `HealthReport.readings(for:)` (Core, tested in
-`HealthTests`, which holds them to `HealthLimits`: eleven checks, six readings) turn a `HealthFacts` of plain
+`HealthTests`, which holds them to `HealthLimits`: thirteen checks, eight readings) turn a `HealthFacts` of plain
 values into `HealthItem`s (a level, a `HealthWord`, a `HealthDetail`, a `HealthFix`) and `HealthReading`s (a
 `HealthValue`, a `HealthDetail`), still out of any language; `HealthWords` (`HealthWords.swift`) puts them in the
 catalog's words as `HealthRow`s and `InfoRow`s. The facts come from three places: the model's poll (the grants,
 the sensor, the lid angle), the coordinator's read-only state as the page draws (`mode`, `isArmed`, `armSource`,
 `statusLine()`, `lidSleepFlagSet`, `lidSleepRestorePending`, `sleepLockEngaged`, `builtInFnReaderState`,
-`lastSafetyStop`, and `ActivityMonitor.lastClaudeEvent` / `lastCodexEvent` / `lastTerminalEventAt`), and
-`HealthCheck`, which the window asks to read when it opens on Health, when Health is picked and on Check Again,
-never on a timer, all off the main thread: the crash reports (`CrashReports`), whether the watchdog runs
-(`ProcWalk.isRunning`, by file identity), `~/.claude/settings.json`'s hook count and Codex's trusted hook count
-(`HookInstaller.codexInstalledCount`). Check Again shows a spinner until they land, and at least
+`lastSafetyStop`, and `ActivityMonitor.lastClaudeEvent` / `lastCodexEvent` / `lastEvent(for: .copilot)` /
+`lastEvent(for: .opencode)` / `lastTerminalEventAt`), and `HealthCheck`, which the window asks to read when it
+opens on Health, when Health is picked and on Check Again, never on a timer, all off the main thread: the crash
+reports (`CrashReports`), whether the watchdog runs (`ProcWalk.isRunning`, by file identity),
+`~/.claude/settings.json`'s hook count, Codex's trusted hook count (`HookInstaller.codexInstalledCount`), how
+many of Copilot's hooks point at this copy and whether `disableAllHooks` is set, whether the OpenCode plugin is
+current or stale, and whether each of Copilot and OpenCode is on this Mac at all (their two checks show only
+then). Check Again shows a spinner until they land, and at least
 `HealthConstants.minimumBusy`. The
 onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. It is a normal window
 too, at the normal level and with the default collection behaviour, like the other two: `AppDelegate` activates

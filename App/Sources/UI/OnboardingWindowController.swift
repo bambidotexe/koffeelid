@@ -3,7 +3,8 @@ import ServiceManagement
 import KoffeeLidCore
 
 /// Four pages: the pitch, one permissions page (every macOS grant the app needs, required ones
-/// flagged), one hooks page (auto-arm on activity: Claude Code, Codex and terminal), and "All set".
+/// flagged), one hooks page (auto-arm on activity: Claude Code, Codex, Copilot, OpenCode and terminal), and
+/// "All set".
 ///
 /// An ordinary window: the normal level and the default collection behaviour, the same as `SettingsWindow`
 /// and `UpdateWindow`. It comes up in front because it is the last window to open, and from then on it takes
@@ -90,7 +91,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         switch step {
         case 0: page = introPage(); height = 440
         case 1: page = permissionsPage(); height = 560
-        case 2: page = hooksPage(); height = 480
+        case 2: page = hooksPage(); height = 560
         default: page = finalPage(); height = 400
         }
         var frame = window.frame
@@ -112,7 +113,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         }
         highlights.widthAnchor.constraint(lessThanOrEqualToConstant: 460).isActive = true
         return hero(title: L("Your agents keep working. Lid closed."),
-                    body: L("Close the MacBook and walk away: Claude Code, Codex, builds, servers and downloads keep running on a dark, silent display. Open the lid and your Mac locks."),
+                    body: L("Close the MacBook and walk away: Claude Code, Codex, Copilot, OpenCode, builds, servers and downloads keep running on a dark, silent display. Open the lid and your Mac locks."),
                     extra: highlights, button: L("Continue"))
     }
 
@@ -150,7 +151,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
 
     private func hooksPage() -> NSView {
         listPage(header: L("Arm while you work"),
-                 intro: L("Optional. Let KoffeeLid arm itself while Claude Code, Codex or a terminal command is running, and disarm a minute after nothing is. Setting up any of them turns auto-arm on; all three can be changed later in Settings."),
+                 intro: L("Optional. Let KoffeeLid arm itself while Claude Code, Codex, Copilot, OpenCode or a terminal command is running, and disarm a minute after nothing is. Setting up any of them turns auto-arm on; all five can be changed later in Settings."),
                  items: HookCatalog.items)
     }
 
@@ -210,7 +211,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     }
 
     /// "Continue" once the page's own condition is met, "Skip" until then: every required grant on the
-    /// Permissions page, either hook on the hooks page. Set in place, so the page is not rebuilt for a word.
+    /// Permissions page, any hook on the hooks page. Set in place, so the page is not rebuilt for a word.
     private func updatePrimaryButton() {
         guard let primaryButton else { return }
         let title: String

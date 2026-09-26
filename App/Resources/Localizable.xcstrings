@@ -3440,6 +3440,286 @@
           }
         }
       }
+    },
+    "Copilot": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copilot"
+          }
+        }
+      }
+    },
+    "OpenCode": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenCode"
+          }
+        }
+      }
+    },
+    "Tells KoffeeLid when a Copilot session is working, so it arms while you close the lid and disarms once the turn is over. Adds ~/.copilot/hooks/koffeelid.json.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indique à KoffeeLid quand une session Copilot travaille : il s’active pendant que vous fermez l’écran et se désactive une fois le tour terminé. Ajoute ~/.copilot/hooks/koffeelid.json."
+          }
+        }
+      }
+    },
+    "Tells KoffeeLid when an OpenCode session is working, so it arms while you close the lid and disarms once the turn is over. Adds the plugin ~/.config/opencode/plugins/koffeelid.js.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indique à KoffeeLid quand une session OpenCode travaille : il s’active pendant que vous fermez l’écran et se désactive une fois le tour terminé. Ajoute le plugin ~/.config/opencode/plugins/koffeelid.js."
+          }
+        }
+      }
+    },
+    "Set Up Copilot": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurer Copilot"
+          }
+        }
+      }
+    },
+    "Remove from Copilot": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer de Copilot"
+          }
+        }
+      }
+    },
+    "Set Up OpenCode": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurer OpenCode"
+          }
+        }
+      }
+    },
+    "Remove from OpenCode": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer d’OpenCode"
+          }
+        }
+      }
+    },
+    "Stay armed after Copilot finishes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rester activé après la fin de Copilot"
+          }
+        }
+      }
+    },
+    "Stay armed after OpenCode finishes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rester activé après la fin d’OpenCode"
+          }
+        }
+      }
+    },
+    "KoffeeLid adds ~/.copilot/hooks/koffeelid.json. The wait leaves you time to pick a session up from another device: touching this Mac's keyboard or trackpad ends it at once.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ajoute ~/.copilot/hooks/koffeelid.json. L’attente vous laisse le temps de reprendre une session depuis un autre appareil : toucher au clavier ou au trackpad de ce Mac y met fin aussitôt."
+          }
+        }
+      }
+    },
+    "KoffeeLid adds the plugin ~/.config/opencode/plugins/koffeelid.js. The wait leaves you time to pick a session up from another device: touching this Mac's keyboard or trackpad ends it at once.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid ajoute le plugin ~/.config/opencode/plugins/koffeelid.js. L’attente vous laisse le temps de reprendre une session depuis un autre appareil : toucher au clavier ou au trackpad de ce Mac y met fin aussitôt."
+          }
+        }
+      }
+    },
+    "Copilot hooks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivi de Copilot"
+          }
+        }
+      }
+    },
+    "OpenCode plugin": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivi d’OpenCode"
+          }
+        }
+      }
+    },
+    "Set up Claude Code, Codex, Copilot, OpenCode or the terminal below. Until then, KoffeeLid cannot tell when work is running.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurez Claude Code, Codex, Copilot, OpenCode ou le terminal ci-dessous. D’ici là, KoffeeLid ne peut pas savoir quand du travail tourne."
+          }
+        }
+      }
+    },
+    "Arm while Claude Code, Codex, Copilot, OpenCode or a terminal command is running": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer tant que Claude Code, Codex, Copilot, OpenCode ou une commande du terminal tourne"
+          }
+        }
+      }
+    },
+    "Claude Code: %d, Codex: %d, Copilot: %d, OpenCode: %d, commands: %d": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code : %d, Codex : %d, Copilot : %d, OpenCode : %d, commandes : %d"
+          }
+        }
+      }
+    },
+    "Removes everything KoffeeLid set up outside its own folder: what starts it at login, what lets it hold the Mac awake, what it added to Claude Code, to Codex, to Copilot, to OpenCode and to the shell, and its settings and logs. KoffeeLid then moves itself to the Trash and quits.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retire tout ce que KoffeeLid a installé hors de son propre dossier : ce qui le lance à l’ouverture de session, ce qui lui permet de garder le Mac allumé, ce qu’il a ajouté à Claude Code, à Codex, à Copilot, à OpenCode et au shell, ainsi que ses réglages et ses journaux. KoffeeLid se met ensuite à la corbeille et quitte."
+          }
+        }
+      }
+    },
+    "KoffeeLid stops holding the Mac awake, gives back the permissions it was granted, removes what starts it at login, what it added to Claude Code, to Codex, to Copilot, to OpenCode and to the shell, and its settings and logs. It then moves itself to the Trash and quits. Removing the sleep lock asks for an administrator password.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KoffeeLid cesse de garder le Mac allumé, rend les autorisations qui lui ont été accordées, retire ce qui le lance à l’ouverture de session, ce qu’il a ajouté à Claude Code, à Codex, à Copilot, à OpenCode et au shell, ainsi que ses réglages et ses journaux. Il se met ensuite à la corbeille et quitte. Le retrait du verrou de veille demande un mot de passe administrateur."
+          }
+        }
+      }
+    },
+    "Last Copilot event": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernier événement de Copilot"
+          }
+        }
+      }
+    },
+    "Last OpenCode event": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernier événement d’OpenCode"
+          }
+        }
+      }
+    },
+    "~/.copilot/hooks/koffeelid.json could not be read": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~/.copilot/hooks/koffeelid.json n’a pas pu être lu"
+          }
+        }
+      }
+    },
+    "Copilot hooks are turned off (disableAllHooks)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les hooks Copilot sont désactivés (disableAllHooks)"
+          }
+        }
+      }
+    },
+    "the OpenCode plugin belongs to another copy of KoffeeLid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "le plugin OpenCode appartient à une autre copie de KoffeeLid"
+          }
+        }
+      }
+    },
+    "Set up Copilot on the Auto-Arm page.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurez Copilot dans la page Activation auto."
+          }
+        }
+      }
+    },
+    "Set up OpenCode on the Auto-Arm page.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurez OpenCode dans la page Activation auto."
+          }
+        }
+      }
+    },
+    "Close the MacBook and walk away: Claude Code, Codex, Copilot, OpenCode, builds, servers and downloads keep running on a dark, silent display. Open the lid and your Mac locks.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rabattez l’écran et partez : Claude Code, Codex, Copilot, OpenCode, vos builds, serveurs et téléchargements continuent sur un écran noir et silencieux. Rouvrez-le et votre Mac se verrouille."
+          }
+        }
+      }
+    },
+    "Optional. Let KoffeeLid arm itself while Claude Code, Codex, Copilot, OpenCode or a terminal command is running, and disarm a minute after nothing is. Setting up any of them turns auto-arm on; all five can be changed later in Settings.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Facultatif. Laissez KoffeeLid s’activer tout seul quand Claude Code, Codex, Copilot, OpenCode ou une commande du terminal tourne, et se désactiver une minute après que plus rien ne tourne. Configurer l’un d’eux active cette option ; les cinq se modifient ensuite dans Réglages."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

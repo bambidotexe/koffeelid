@@ -65,12 +65,13 @@ public struct InfoRow: Equatable, Identifiable {
 /// not act on, a preference, a reading nobody asked for, each costs the ones that matter a look.
 /// `HealthTests` builds the worst case KoffeeLid can report and holds it to these.
 public enum HealthLimits {
-    /// Lines of the Health table with everything that can go wrong gone wrong at once: nine that are always
-    /// there, the lid-sleep flag and the crashes.
-    public static let checks = 11
+    /// Lines of the Health table with everything that can go wrong gone wrong at once: the nine that are
+    /// always there, Copilot's and OpenCode's hooks while their agent is on the Mac, the lid-sleep flag and
+    /// the crashes.
+    public static let checks = 13
     /// Lines of the Information table with every reading there: the state, the lid angle, one line per hook
     /// and the last safety stop.
-    public static let readings = 6
+    public static let readings = 8
 }
 
 extension Array where Element == HealthRow {
