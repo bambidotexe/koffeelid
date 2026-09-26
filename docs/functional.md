@@ -205,8 +205,17 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   `$COPILOT_HOME/session-state` when the app's own environment sets `COPILOT_HOME`, else
   `~/.copilot/session-state`: a `COPILOT_HOME` set only in the shell that runs `copilot` is not seen by the
   app, which reads its own environment's `~/.copilot`, so such a Ctrl+C'd or failed turn is invisible to the
-  check and ends only at Copilot's own exit or the 2 h staleness. The launch checks only end turns, but for a
-  Claude Code dialog the registry says was answered, which counts again as it would at the first check. A
+  check and ends only at Copilot's own exit or the 2 h staleness. Answering a Copilot permission prompt fires no
+  hook either, nor does a second prompt that opens right after the first closes, before any hook runs at all:
+  `events.jsonl` writes `permission.completed` and nothing else. A session waiting since `waitSince` is checked
+  the same way, at the same cadence, with no quiet gate: with the turn still at work, a latest permission line
+  that is `permission.completed`, stamped after the wait began, is the prompt answered, approved or denied, and
+  the session counts as working again within about 15 s of the answer. A latest `permission.requested` is a
+  prompt still open, a tool called beside it finishing included; an end is for the checks above, this one only
+  ever returns a session to working. A question needs none of this: its answer ends the `ask_user` tool, and
+  `postToolUse` fires. The launch checks only end turns, or answer a wait: a
+  Claude Code dialog the registry says was answered, or a Copilot prompt its `events.jsonl` says was answered,
+  counts again as it would at the first check. A
   session silent for 2 h is dropped; a command is asked of its shell instead (Terminal, above).
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.

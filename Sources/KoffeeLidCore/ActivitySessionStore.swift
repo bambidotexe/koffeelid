@@ -297,6 +297,8 @@ public struct ActivitySessionStore {
                 deadlines.append(eligibleAt > now ? eligibleAt : now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds))
             }
             if s.agent == .claude, s.state == .waiting, s.agentPid != nil { deadlines.append(now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds)) }
+            // A waiting Copilot session is asked about too: answering its prompt fires no hook either.
+            if s.agent == .copilot, s.state == .waiting { deadlines.append(now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds)) }
             deadlines.append(s.lastEventAt.addingTimeInterval(ActivityConstants.staleSeconds))
         }
         return deadlines.filter { $0 > now }.min()
@@ -354,7 +356,17 @@ public struct ActivitySessionStore {
             return (s.id, pid, s.stateSince)
         }
     }
-    /// The dialog was answered without a hook (registry busy, stamped after the dialog opened).
+    /// Waiting Copilot sessions (a permission prompt, most often), each with the transcript path its hooks named
+    /// and when the wait began (`stateSince`): Copilot fires no hook when the prompt is answered, so the read
+    /// lives in the app, against `events.jsonl` (`CopilotTranscriptTail.waitAnswered`).
+    public func copilotWaitCandidates() -> [(sessionId: String, transcriptPath: String?, waitSince: Date)] {
+        sessions.values.compactMap { s in
+            guard s.agent == .copilot, s.state == .waiting else { return nil }
+            return (s.id, s.transcriptPath, s.stateSince)
+        }
+    }
+    /// The dialog or prompt was answered without a hook: Claude Code's registry busy, stamped after the dialog
+    /// opened, or Copilot's `events.jsonl` holding the prompt's `permission.completed` after the wait began.
     public mutating func dialogAnswered(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .waiting else { return }
         set(&s, .working, now); sessions[sessionId] = s

@@ -75,26 +75,62 @@ public enum CopilotTranscriptTail {
         }
     }
 
+    /// When a Copilot session waiting on a permission prompt since `waitSince` had it answered, or nil: approving
+    /// or denying fires no hook (`events.jsonl` writes `permission.completed`), and a second prompt can open right
+    /// after the first closes, before any hook runs at all. With the turn still at work, the latest permission
+    /// line decides: a `permission.completed` stamped after `waitSince` is the answer, at its own stamp; a
+    /// `permission.requested` is a prompt still open, and a tool called beside it finishing is no answer. An end
+    /// after it (the session's own `agentStop`, `abort`, `session.error`, `session.shutdown`) answers nothing: this
+    /// check only returns a session to working, ends are for the other checks and staleness. An unreadable tail
+    /// or no permission line answers nothing either. A question's answer needs none of this: it ends its
+    /// `ask_user` tool, and `postToolUse` fires.
+    public static func waitAnswered(tail: Data, waitSince: Date, sessionId: String) -> Date? {
+        for line in tail.split(separator: 0x0A).reversed() {
+            guard let raw = rawMarker(in: Data(line), sessionId: sessionId) else { continue }
+            switch raw {
+            case .end, .permissionRequested: return nil
+            case .permissionCompleted(let at): return at > waitSince ? at : nil
+            case .workStep: continue
+            }
+        }
+        return nil
+    }
+
     /// The steps of a turn: a prompt taken, a model call, a message, a tool, a permission.
     private static let runningTypes: Set<String> = ["user.message", "assistant.turn_start", "assistant.message", "tool.execution_start",
                                                     "tool.execution_complete", "permission.requested", "permission.completed"]
 
-    private static func marker(in line: Data, sessionId: String) -> Verdict? {
+    /// What a line's own type says, before it becomes a `Verdict` (for `verdict`) or an answer (for
+    /// `waitAnswered`): an end, the two permission steps told apart from every other step of the turn (so
+    /// `waitAnswered` can tell an open prompt from its answer), or nothing.
+    private enum RawMarker { case end(Verdict), permissionRequested(Date), permissionCompleted(Date), workStep(Date) }
+
+    private static func rawMarker(in line: Data, sessionId: String) -> RawMarker? {
         guard let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
               let type = object["type"] as? String,
               let stamp = object["timestamp"] as? String,
               let at = ActivityCodec.isoMs.date(from: stamp) ?? ActivityCodec.iso.date(from: stamp)
         else { return nil }
         switch type {
-        case "abort": return .aborted(at: at)
-        case "session.error": return .failed(at: at)
-        case "session.shutdown": return .ended(at: at)
+        case "abort": return .end(.aborted(at: at))
+        case "session.error": return .end(.failed(at: at))
+        case "session.shutdown": return .end(.ended(at: at))
         case "hook.start":
             guard !sessionId.isEmpty, let data = object["data"] as? [String: Any], data["hookType"] as? String == "agentStop",
                   let input = data["input"] as? [String: Any], (input["sessionId"] ?? input["session_id"]) as? String == sessionId
             else { return nil }
-            return .complete(at: at)
-        default: return runningTypes.contains(type) ? .running : nil
+            return .end(.complete(at: at))
+        case "permission.requested": return .permissionRequested(at)
+        case "permission.completed": return .permissionCompleted(at)
+        default: return runningTypes.contains(type) ? .workStep(at) : nil
+        }
+    }
+
+    private static func marker(in line: Data, sessionId: String) -> Verdict? {
+        switch rawMarker(in: line, sessionId: sessionId) {
+        case .end(let v): return v
+        case .permissionRequested, .permissionCompleted, .workStep: return .running
+        case nil: return nil
         }
     }
 }

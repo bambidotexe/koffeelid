@@ -160,6 +160,71 @@ final class CopilotTranscriptTailTests: XCTestCase {
         XCTAssertEqual(CopilotTranscriptTail.tailBytes, 65_536)
     }
 
+    // MARK: Whether a wait was answered
+
+    func waitAnswered(_ lines: [String], since: Date) -> Date? {
+        CopilotTranscriptTail.waitAnswered(tail: tail(lines), waitSince: since, sessionId: sid)
+    }
+    func testAnOpenPermissionPromptAnswersNothing() {
+        let since = date("2026-09-25T23:45:14.837Z")
+        XCTAssertNil(waitAnswered([
+            line("tool.execution_start", at: "2026-09-25T23:45:14.833Z", "\"toolName\":\"bash\""),
+            line("permission.requested", at: "2026-09-25T23:45:14.837Z"),
+        ], since: since), "the prompt is still open")
+    }
+    func testAPermissionCompletedAfterWaitSinceAnswersAtItsOwnStamp() {
+        // The sequence from the bug: a bash permission prompt approved, then the command runs for minutes.
+        let since = date("2026-09-25T23:45:14.837Z")
+        let completedAt = date("2026-09-25T23:45:35.124Z")
+        XCTAssertEqual(waitAnswered([
+            line("permission.requested", at: "2026-09-25T23:45:14.837Z"),
+            line("permission.completed", at: "2026-09-25T23:45:35.124Z", "\"result\":{\"kind\":\"approved\"}"),
+        ], since: since), completedAt, "the owner approved; back to working at the completion's own stamp")
+    }
+    func testASecondPromptRightAfterTheFirstIsStillOpen() {
+        // Two prompts in a row, the second opening before any hook: the store's wait began at the first.
+        let since = date("2026-09-25T23:44:49.430Z")
+        XCTAssertNil(waitAnswered([
+            line("permission.requested", at: "2026-09-25T23:44:49.430Z"),
+            line("permission.completed", at: "2026-09-25T23:44:54.152Z"),
+            line("permission.requested", at: "2026-09-25T23:44:54.154Z"),
+        ], since: since), "a prompt is open again")
+    }
+    func testACompletionAtOrBeforeWaitSinceAnswersNothing() {
+        let since = date("2026-09-25T23:50:34.360Z")
+        XCTAssertNil(waitAnswered([line("permission.completed", at: "2026-09-25T23:50:34.360Z")], since: since), "at waitSince, not after")
+        XCTAssertNil(waitAnswered([line("permission.completed", at: "2026-09-25T23:50:30.000Z")], since: since), "before waitSince: an earlier prompt's own answer")
+    }
+    func testAnEndAfterWaitSinceAnswersNothing() {
+        // Ends are for the other checks and staleness; this check only ever returns a session to working.
+        let since = date("2026-09-25T23:50:28.573Z")
+        let at = "2026-09-25T23:50:34.361Z"
+        for endLine in [line("abort", at: at, "\"reason\":\"user_initiated\""), line("session.error", at: at),
+                        line("session.shutdown", at: at), hookStart("agentStop", session: sid, at: at)] {
+            XCTAssertNil(waitAnswered([endLine], since: since))
+        }
+    }
+    /// Only the prompt's own `permission.completed` answers it: a tool called beside the prompt (Copilot runs several
+    /// at once) can finish, and the model write, while the prompt is still open.
+    func testOnlyTheCompletedPermissionAnswersAWait() {
+        let since = date("2026-09-25T23:50:28.573Z")
+        let open = line("permission.requested", at: "2026-09-25T23:50:28.500Z")
+        for type in ["user.message", "assistant.turn_start", "assistant.message", "tool.execution_start", "tool.execution_complete"] {
+            XCTAssertNil(waitAnswered([open, line(type, at: "2026-09-25T23:50:34.360Z")], since: since), "\(type) beside an open prompt")
+        }
+        XCTAssertEqual(waitAnswered([open, line("permission.completed", at: "2026-09-25T23:50:34.000Z"),
+                                     line("tool.execution_complete", at: "2026-09-25T23:50:34.360Z")], since: since),
+                       date("2026-09-25T23:50:34.000Z"), "the answer is the permission's own stamp, whatever work follows")
+    }
+    func testUnreadableOrMarkerlessTailAnswersNothing() {
+        let since = date("2026-09-25T23:50:28.573Z")
+        XCTAssertNil(CopilotTranscriptTail.waitAnswered(tail: Data(), waitSince: since, sessionId: sid))
+        XCTAssertNil(waitAnswered([line("session.usage_checkpoint", at: "2026-09-25T23:50:34.360Z")], since: since), "no turn marker at all")
+        // The last line still being written is cut: the marker before it stands.
+        let writing = tail([line("permission.completed", at: "2026-09-25T23:50:34.360Z")]) + Data("{\"type\":\"permission.".utf8)
+        XCTAssertEqual(CopilotTranscriptTail.waitAnswered(tail: writing, waitSince: since, sessionId: sid), date("2026-09-25T23:50:34.360Z"))
+    }
+
     // MARK: The file
 
     func testOnlyTheSessionsOwnEventsFileIsRead() {

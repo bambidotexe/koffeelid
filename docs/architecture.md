@@ -286,8 +286,8 @@ hold (asked only when the managed daemon hosts one and its socket exists) → `c
 `events.jsonl` check of every working Copilot session whatever its quiet → the first `sync()`. All of it comes before the first
 publish (`launched` holds `sync` back until the daemon's answer, at most 1 s; a 2 s fallback,
 `launchAnswerFallbackSeconds`, runs `finishLaunch` once should the answer never arrive, and a later answer is
-dropped) and only ends turns, but for a
-dialog the registry says was answered; the tailer starts at the byte offset the replay consumed. A separate
+dropped) and only ends turns, except for a dialog the registry says was answered or a Copilot prompt its
+`events.jsonl` says was answered; the tailer starts at the byte offset the replay consumed. A separate
 tiny binary, not the app: it runs inside every Claude Code, Codex and Copilot turn, for every OpenCode event
 a plugin forwards to it (OpenCode has no command hooks) and around every shell command, so it must start fast, never launch the app and
 never block. The hook's arguments say which agent sent the payload (`HookCall`: `hook` is Claude Code, `hook
@@ -386,7 +386,7 @@ otherwise meets the table as it is.
 
 Verdict lines: each rescue that decides a session (`turnOver` from the registry, a rollout, the daemon or a
 Copilot `events.jsonl`,
-`dialogAnswered` from the registry) applies it live, then appends one `KoffeeLidVerdict` line through
+`dialogAnswered` from the registry or a Copilot `events.jsonl`) applies it live, then appends one `KoffeeLidVerdict` line through
 `ActivityJournalWriter.append`, carrying `session_id`, `verdict` (`ActivityVerdict`: `turn-over`,
 `dialog-answered`) and `logged_at`, nothing else. A rescued turn is ended at
 `ActivitySessionStore.rescueStamp(endedAt:lastMainEventAt:now:)`, the source's own stamp (the registry's
@@ -439,9 +439,16 @@ subagent's names the subagent and is skipped), or a step of a turn (`user.messag
 `permission.completed`: running). `CopilotTranscriptTail.decision` weighs it against the session: an end
 stamped after the last main event → `turnOver` (reason `finished`, `aborted`, `failed` or `ended`; Copilot names
 no turn, so the stamp alone decides); running, the file written less than 2 h before → `noteBusy`, written
-earlier → nothing; an earlier end, or unreadable → nothing, unreadable logged once per session. A file read with
-no event since is read again 15 s later at the earliest (`transcriptCheckedAt`). `nextDeadline` schedules all
-three; an OpenCode session is not asked about when quiet (its hooks, its server's exit and staleness end it),
+earlier → nothing; an earlier end, or unreadable → nothing, unreadable logged once per session. Beside that quiet-turn
+check, a waiting Copilot session (`copilotWaitCandidates`, no quiet gate, the same recheck cadence) is read the
+same way: `CopilotTranscriptTail.waitAnswered` reads the latest permission line — a `permission.completed`
+stamped after the wait began (`stateSince`) → `dialogAnswered` as of the check, journaled like Claude Code's
+answered dialog; a `permission.requested` (a prompt still open, a tool called beside it finishing or not), an end
+after it (this check only returns a session to working, never ends one), an earlier stamp or an unreadable tail
+answer nothing. A file read with
+no event since is read again 15 s later at the earliest (`transcriptCheckedAt`, shared between the two checks: a
+session is never both working and waiting). `nextDeadline` schedules all three, a waiting Copilot session's own
+recheck among them; an OpenCode session is not asked about when quiet (its hooks, its server's exit and staleness end it),
 so it adds only its staleness deadline. `pruneDead` keeps a
 `hostedBySharedCodex` session without asking about its pid; the kqueue on the host still drops them all when
 it exits. For a Claude Code session with a live pid, `pruneDead` asks `registrySession` for the session the pid's

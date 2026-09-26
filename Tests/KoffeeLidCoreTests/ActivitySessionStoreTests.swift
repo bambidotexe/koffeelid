@@ -596,8 +596,42 @@ final class ActivitySessionStoreTests: XCTestCase {
         var waiting = ActivitySessionStore()
         waiting.apply(ev(.notification, "cp", at: 1, notif: "permission_prompt", pid: 19860, by: .copilot))
         XCTAssertEqual(waiting.sessions["cp"]?.state, .waiting)
-        XCTAssertEqual(waiting.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(1 + ActivityConstants.staleSeconds),
-                       "a Copilot session waiting on the user has nothing to recheck")
+        XCTAssertEqual(waiting.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(1 + ActivityConstants.abandonRecheckSeconds),
+                       "a Copilot session waiting on the user asks for a recheck too: answering a prompt fires no hook")
+    }
+    func testCopilotWaitCandidatesListsAWaitingSessionAndExcludesOthers() {
+        store.apply(copilot("userPromptSubmitted", at: 0)); store.apply(copilot("sessionStart", at: 0.2, ["source": "new"]))
+        store.apply(copilot("notification", at: 2, ["notification_type": "permission_prompt", "hook_event_name": "Notification"]))
+        XCTAssertEqual(state(copilotSid), .waiting)
+        let path = "\(copilotRoot)/\(copilotSid)/events.jsonl"
+        let candidates = store.copilotWaitCandidates()
+        XCTAssertEqual(candidates.map(\.sessionId), [copilotSid])
+        XCTAssertEqual(candidates.first?.transcriptPath, path)
+        XCTAssertEqual(candidates.first?.waitSince, t0.addingTimeInterval(2), "stateSince is when the wait began")
+
+        store.apply(ev(.userPromptSubmit, "cp2", pid: 19860, by: .copilot)) // working, not a candidate
+        store.apply(ev(.permissionRequest, at: 3)) // a waiting Claude Code session, not a candidate either
+        XCTAssertEqual(state(), .waiting)
+        XCTAssertEqual(store.copilotWaitCandidates().map(\.sessionId), [copilotSid], "a working Copilot session and a waiting Claude one are not candidates")
+    }
+    func testCopilotDialogAnsweredReturnsToWorkingAndCounts() {
+        store.apply(copilot("userPromptSubmitted", at: 0)); store.apply(copilot("sessionStart", at: 0.2, ["source": "new"]))
+        store.apply(copilot("notification", at: 2, ["notification_type": "permission_prompt", "hook_event_name": "Notification"]))
+        XCTAssertEqual(state(copilotSid), .waiting); XCTAssertEqual(store.workingCount(of: .copilot), 0)
+        store.dialogAnswered(sessionId: copilotSid, now: t0.addingTimeInterval(22))
+        XCTAssertEqual(state(copilotSid), .working); XCTAssertEqual(store.workingCount(of: .copilot), 1)
+        XCTAssertEqual(store.sessions[copilotSid]?.stateSince, t0.addingTimeInterval(22))
+    }
+    func testACopilotDialogAnsweredJournalReplaysAsAnswered() {
+        let wait = [copilot("userPromptSubmitted", at: 0), copilot("sessionStart", at: 0.2, ["source": "new"]),
+                    copilot("notification", at: 2, ["notification_type": "permission_prompt", "hook_event_name": "Notification"])]
+        var live = ActivitySessionStore()
+        wait.forEach { live.apply($0) }
+        live.dialogAnswered(sessionId: copilotSid, now: t0.addingTimeInterval(22))
+        var replay = ActivitySessionStore()
+        (wait + [verdict("dialog-answered", copilotSid, at: 22)]).forEach { replay.apply($0) }
+        XCTAssertEqual(replay.sessions[copilotSid], live.sessions[copilotSid])
+        XCTAssertEqual(replay.sessions[copilotSid]?.state, .working)
     }
     func testAnOpencodeRunWithAPermissionApprovedThreeMillisecondsLater() {
         replay(opencode("session.created", at: 0)); XCTAssertEqual(state(ocParent), .idle)

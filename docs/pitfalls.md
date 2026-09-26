@@ -537,6 +537,25 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   writes nothing while it runs. **Do not** keep, log or return anything of a line but its type, its stamp,
   `data.hookType` and the session id in `data.input`: the file is the conversation.
 
+### A permission prompt answered fires no hook either
+- **Symptom.** The owner approves a long `bash` command at a permission prompt; `koffeelid status` keeps
+  counting the session **waiting**, not working, for the whole run of the command — no arm from it, no badge —
+  until it finishes.
+- **Why.** Copilot fires no hook when a permission prompt is answered, and none either when a second prompt
+  opens right after the first closes, before any hook runs at all. `events.jsonl` writes `permission.completed`
+  at that instant, but the approved tool call itself then often runs for minutes with no line or hook after it
+  until it ends: `postToolUse`, the next hook to actually fire, is that far away.
+- **What the code does.** `ActivityMonitor.checkCopilot` also reads a waiting Copilot session's `events.jsonl`
+  (`copilotWaitCandidates`, no quiet gate, the same 15 s cadence as the quiet-turn check above,
+  `transcriptCheckedAt` shared with it): with the turn at work, a latest permission line that is
+  `permission.completed`, stamped after the wait began, returns the session to working as of the check,
+  journaled like Claude Code's answered dialog (`CopilotTranscriptTail.waitAnswered`). A latest
+  `permission.requested` is a prompt still open: Copilot runs several tools at once, and one called beside the
+  prompt can finish while it waits, so no other step of the turn is read as the answer.
+- **Do not** subscribe `preToolUse` or `permissionRequest` to learn the answer directly: for Copilot a failing
+  hook denies the tool (fail-closed), so a hook file outliving the app, or one that crashes, would block every
+  Copilot tool call.
+
 ### A `preToolUse` hook that fails denies the tool
 - **Symptom.** Every Copilot tool call is refused once KoffeeLid is deleted without its uninstall, or while its
   hook binary is missing or crashing.

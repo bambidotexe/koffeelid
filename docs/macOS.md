@@ -418,8 +418,11 @@ offline runs against a local model; the rest from its bundled schemas, SDK typin
   `subagentStop` carry the parent's. The session folder is what tells them apart (`CopilotSessionState`).
 - **What no hook reports.** Ctrl+C or a double Esc fires nothing; a failed model call fires only
   `errorOccurred` (also fired for a retried error that then succeeds) and no `agentStop`; answering a permission
-  prompt or a question fires nothing, and the next `postToolUse` is the answer; a killed Copilot fires no
-  `sessionEnd`. There is no `postCompact` and no interrupt event.
+  prompt or a question fires no hook either — `events.jsonl` writes `permission.completed` at that instant, and
+  a second prompt can open (`permission.requested` again) right after, before any hook runs at all — but the
+  next hook to actually fire is whatever event follows, `postToolUse` once the approved tool call itself
+  finishes, which for a long-running command is minutes later; a killed Copilot fires no `sessionEnd`. There is
+  no `postCompact` and no interrupt event.
 - **The session folder.** `~/.copilot/session-state/<session id>/` (`$COPILOT_HOME/session-state/`), created
   when Copilot opens the session, before any prompt (a start refused before its first model call leaves an
   empty one), holds `events.jsonl`, `workspace.yaml` and, while a process holds the session,
