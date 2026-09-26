@@ -388,11 +388,11 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
 
 ## Status
 
-- Version 1.1.3 committed and published (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), and the
+- Version 1.2.0 committed and published (`App/Info.plist`, `KoffeeLidCore.version`, `SmokeTests`), and the
   tree sits at exactly that: a local install always builds exactly the tree's own version, never one ahead of
   production, and nothing bumps the tree again until the next `script/publish.sh <patch|minor|major>`.
-  1.1.3 was published without installing it: `/Applications/KoffeeLid.app` is still at **1.1.2**, so this Mac
-  can walk KoffeeLid updating itself to 1.1.3 (notification, update window, Install and Relaunch). The tree carries the manual update
+  1.2.0 was published without installing it: `/Applications/KoffeeLid.app` is still at **1.1.3**, so this Mac
+  can walk KoffeeLid updating itself to 1.2.0 (notification, update window, Install and Relaunch). The tree carries the manual update
   check (Settings › Updates), the built-in-keyboard Fn rule with its Input Monitoring row and the physical-key
   requirement, the arrow-key fix, the "Show in menu bar" switch, "Quit KoffeeLid", the Uninstall group, the
   Icon Composer icon, the eight-page Settings window (its Health page second to last) with its macOS 15 target, and the automatic update (weekly
