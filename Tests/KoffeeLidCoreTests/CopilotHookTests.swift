@@ -122,4 +122,14 @@ final class CopilotHookTests: XCTestCase {
         let parseError = trim("preToolUse", #"{"sessionId":"\#(sid)"}"#)
         XCTAssertEqual(CopilotSessionState.line(parseError, root: root, directoryExists: exists), parseError, "a ParseError line is written as it is")
     }
+    func testWithoutTheRootNoTranscriptPathIsFilledIn() {
+        // `COPILOT_HOME` elsewhere, or no Copilot folder yet: the path would name a file that is not there.
+        let none: (String) -> Bool = { _ in false }
+        for name in ["sessionStart", "userPromptSubmitted", "agentStop"] {
+            let line = CopilotSessionState.line(trim(name, #"{"sessionId":"\#(sid)"}"#), root: root, directoryExists: none)
+            XCTAssertNotNil(line, name); XCTAssertNil(line?.transcriptPath, name)
+        }
+        let named = CopilotSessionState.line(trim("agentStop", #"{"sessionId":"\#(sid)","transcriptPath":"/elsewhere/events.jsonl"}"#), root: root, directoryExists: none)
+        XCTAssertEqual(named?.transcriptPath, "/elsewhere/events.jsonl", "the payload's own path stands")
+    }
 }

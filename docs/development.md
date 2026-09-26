@@ -137,10 +137,11 @@ gesture: started|armed via tilt|modifier + close while armed|cancelled (…)|lid
 one-close session held on lid open · one-close arm held · one-close session ended on unlock|lid open
 effect: capture started|capture stopped|stopped|retracting from N°|following the lid from N°
 effect: gesture fold ended; waiting below N° again
-activity: running (…)|idle|quiet turn …|quiet Codex turn …|no registry record for pid …
+activity: running (…)|idle|quiet turn …|quiet Codex turn …|quiet Copilot turn …|no registry record for pid …
 activity: hooks look dead for … — registry busy|daemon says active|rollout says running, no hook for 5 min
 activity: job … ended without a hook (…)|could not journal the … verdict (…); a relaunch replays the session as it was
 activity: no rollout for Codex session …; the daemon or staleness ends it
+activity: no transcript for Copilot session …; staleness ends it
 activity: Codex daemon says thread … has nothing running, turn over
 activity: Codex daemon has not loaded thread …, turn over|Codex daemon not answering; using the rollout
 activity: Codex daemon reports an unknown thread status …

@@ -33,8 +33,8 @@ struct ActivitySnapshot: Equatable {
 }
 
 /// Owns the two stores; tails the activity journal; watches agent and shell pids; runs the time rules, the
-/// registry rescues, the Codex checks (its daemon, its rollouts) and the jobs' shell probes; reports the
-/// aggregate "running" level to the coordinator. Main thread only.
+/// registry rescues, the Codex checks (its daemon, its rollouts), the Copilot check (its `events.jsonl`) and the
+/// jobs' shell probes; reports the aggregate "running" level to the coordinator. Main thread only.
 @MainActor
 final class ActivityMonitor {
     var onChange: ((ActivitySnapshot) -> Void)?
@@ -66,6 +66,9 @@ final class ActivityMonitor {
     /// When each Codex session's rollout was last read: with no event since, it is read again
     /// `abandonRecheckSeconds` later at the earliest, however often the journal delivers other lines.
     private var rolloutCheckedAt: [String: Date] = [:]
+    /// The same for each Copilot session's `events.jsonl`.
+    private var transcriptCheckedAt: [String: Date] = [:]
+    private var warnedNoTranscript: Set<String> = []
     private var warnedDaemonSilent = false
     private var warnedDaemonStatuses: Set<String> = []
     /// False until the launch checks have answered: nothing is counted or published before them.
@@ -88,9 +91,10 @@ final class ActivityMonitor {
         // Claude Code pid whose registry record names another session among them; each job's shell is asked
         // whether it still runs a command; the registry ends each replayed Claude Code turn that ended
         // meanwhile, whatever its quiet; then (`finishLaunch`) each replayed Codex turn: first a thread Codex's
-        // managed daemon no longer holds, when it hosts a working session, then the rollouts. These checks
-        // only end turns, but for a dialog the registry says was answered, which works again as it would at
-        // the first check. Nothing is counted before they have run.
+        // managed daemon no longer holds, when it hosts a working session, then the rollouts; then each
+        // replayed Copilot turn, from its `events.jsonl`. These checks only end turns, but for a dialog the
+        // registry says was answered, which works again as it would at the first check. Nothing is counted
+        // before they have run.
         let boot = Self.bootDate() ?? .distantPast
         let currentData = (try? Data(contentsOf: AppSupport.activityJournalURL)) ?? Data()
         let currentEvents = currentData.split(separator: 0x0A).compactMap { ActivityCodec.decodeLine(Data($0)) }
@@ -135,10 +139,13 @@ final class ActivityMonitor {
         }
     }
 
-    /// The rollout check of every working Codex session, then the first count. Runs once per launch.
+    /// The rollout check of every working Codex session, the `events.jsonl` check of every working Copilot
+    /// session, then the first count. Runs once per launch.
     private func finishLaunch() {
         guard !launched else { return }
-        checkCodex(now: Date(), atLaunch: true)
+        let now = Date()
+        checkCodex(now: now, atLaunch: true)
+        checkCopilot(now: now, atLaunch: true)
         launched = true
         sync()
     }
@@ -151,7 +158,7 @@ final class ActivityMonitor {
         timer?.invalidate(); timer = nil
         if let o = wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(o) }
         // A question still out is answered into a stopped monitor and dropped; the next start asks afresh.
-        askingDaemon.removeAll(); daemonAskAgainAt.removeAll(); rolloutCheckedAt.removeAll()
+        askingDaemon.removeAll(); daemonAskAgainAt.removeAll(); rolloutCheckedAt.removeAll(); transcriptCheckedAt.removeAll()
     }
 
     /// Re-run every time rule against the wall clock (wake, preference change).
@@ -226,6 +233,7 @@ final class ActivityMonitor {
         probeJobs(now: now)
         checkRegistry(now: now)
         checkCodex(now: now, atLaunch: false)
+        checkCopilot(now: now, atLaunch: false)
         watcher.unwatchAll(except: sessions.trackedPids.union(jobs.trackedPids))
         for pid in sessions.trackedPids.union(jobs.trackedPids) { watcher.watch(pid: pid) }
         rotateIfNeeded()
@@ -434,6 +442,33 @@ final class ActivityMonitor {
         case .nothing:
             if verdict == .unreadable, warnedNoRollout.insert(sid).inserted {
                 onLog?("activity: no rollout for Codex session \(sid.prefix(8)); the daemon or staleness ends it")
+            }
+        }
+    }
+
+    /// Ctrl+C and a double Esc fire no hook in Copilot, and a failed turn fires no `agentStop`: a quiet working
+    /// Copilot session is read from its `events.jsonl`. At launch every working Copilot session is read, without
+    /// the quiet gate. Live, a file read with no event since is read again `abandonRecheckSeconds` later at the
+    /// earliest. Only ends turns.
+    private func checkCopilot(now: Date, atLaunch: Bool) {
+        transcriptCheckedAt = transcriptCheckedAt.filter { sessions.sessions[$0.key] != nil }
+        for (sid, recorded) in sessions.copilotCandidates(at: now, quietSeconds: atLaunch ? 0 : ActivityConstants.abandonQuietSeconds) {
+            guard let session = sessions.sessions[sid] else { continue }
+            if !atLaunch, let checked = transcriptCheckedAt[sid], session.lastEventAt <= checked,
+               now.timeIntervalSince(checked) < ActivityConstants.abandonRecheckSeconds { continue }
+            transcriptCheckedAt[sid] = now
+            let read = CopilotTranscript.path(sessionId: sid, recorded: recorded).flatMap(CopilotTranscript.read(path:))
+            let verdict = read.map { CopilotTranscriptTail.verdict(tail: $0.tail, sessionId: sid) } ?? .unreadable
+            switch CopilotTranscriptTail.decision(verdict: verdict, lastMainEventAt: session.lastMainEventAt, writtenAt: read?.writtenAt, now: now) {
+            case .turnOver(let reason, let endedAt):
+                onLog?("activity: quiet Copilot turn \(sid.prefix(8)) — transcript says \(reason), turn over")
+                endTurn(sid, endedAt: endedAt, now: now)
+            case .busy:
+                sessions.noteBusy(sessionId: sid, now: now)
+            case .nothing:
+                if verdict == .unreadable, warnedNoTranscript.insert(sid).inserted {
+                    onLog?("activity: no transcript for Copilot session \(sid.prefix(8)); staleness ends it")
+                }
             }
         }
     }

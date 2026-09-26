@@ -287,9 +287,9 @@ public struct ActivitySessionStore {
             }
             if s.state == .done { deadlines.append(s.stateSince.addingTimeInterval(ActivityConstants.doneVisibleSeconds)) }
             // A quiet working session is asked about at its source: Claude Code's registry, found by the pid,
-            // or Codex's rollout, found by the session. A Copilot or OpenCode session is not asked: its hooks,
-            // its process's exit and staleness end it.
-            if s.state == .working, !s.pendingDone, s.agent == .codex || (s.agent == .claude && s.agentPid != nil) {
+            // Codex's rollout or Copilot's `events.jsonl`, found by the session. An OpenCode session is not
+            // asked: its hooks, its server's exit and staleness end it.
+            if s.state == .working, !s.pendingDone, [.codex, .copilot].contains(s.agent) || (s.agent == .claude && s.agentPid != nil) {
                 let eligibleAt = s.lastEventAt.addingTimeInterval(ActivityConstants.abandonQuietSeconds)
                 deadlines.append(eligibleAt > now ? eligibleAt : now.addingTimeInterval(ActivityConstants.abandonRecheckSeconds))
             }
@@ -300,8 +300,8 @@ public struct ActivitySessionStore {
     }
 
     /// Working Claude Code sessions quiet for `quietSeconds` with nothing out, to be asked about at the source
-    /// (Claude Code's registry file). The read lives in the app; at launch the gate is 0. Codex has no
-    /// registry: its sessions are `codexCandidates`.
+    /// (Claude Code's registry file). The read lives in the app; at launch the gate is 0. Codex and Copilot have
+    /// no registry: their sessions are `codexCandidates` and `copilotCandidates`.
     public func abandonCandidates(at now: Date, quietSeconds: TimeInterval = ActivityConstants.abandonQuietSeconds) -> [(sessionId: String, pid: Int32)] {
         sessions.values.compactMap { s in
             guard s.agent == .claude, s.state == .working, !s.pendingDone, let pid = s.agentPid, !s.hasLiveHelpers(at: now), s.backgroundIds.isEmpty,
@@ -312,26 +312,35 @@ public struct ActivitySessionStore {
     /// Working Codex sessions quiet for `quietSeconds` with nothing out, to be checked against their rollout
     /// (the path their hooks named, when one did). The read lives in the app; at launch the gate is 0.
     public func codexCandidates(at now: Date, quietSeconds: TimeInterval = ActivityConstants.abandonQuietSeconds) -> [(sessionId: String, transcriptPath: String?)] {
+        quietWorkingSessions(of: .codex, at: now, quietSeconds: quietSeconds)
+    }
+    /// Working Copilot sessions quiet for `quietSeconds` with nothing out, to be checked against their
+    /// `events.jsonl` (the path their hooks named, when one did). The read lives in the app; at launch the gate is 0.
+    public func copilotCandidates(at now: Date, quietSeconds: TimeInterval = ActivityConstants.abandonQuietSeconds) -> [(sessionId: String, transcriptPath: String?)] {
+        quietWorkingSessions(of: .copilot, at: now, quietSeconds: quietSeconds)
+    }
+    private func quietWorkingSessions(of agent: ActivityAgent, at now: Date, quietSeconds: TimeInterval) -> [(sessionId: String, transcriptPath: String?)] {
         sessions.values.compactMap { s in
-            guard s.agent == .codex, s.state == .working, !s.pendingDone, !s.hasLiveHelpers(at: now), s.backgroundIds.isEmpty,
+            guard s.agent == agent, s.state == .working, !s.pendingDone, !s.hasLiveHelpers(at: now), s.backgroundIds.isEmpty,
                   now.timeIntervalSince(s.lastEventAt) >= quietSeconds else { return nil }
             return (s.id, s.transcriptPath)
         }
     }
-    /// The registry, the rollout or Codex's daemon says the turn ended after our last event: the turn is over,
-    /// however it ended, and closed. `now` is when it ended (`rescueStamp`).
+    /// The registry, a rollout, Codex's daemon or a Copilot `events.jsonl` says the turn ended after our last
+    /// event: the turn is over, however it ended, and closed. `now` is when it ended (`rescueStamp`).
     public mutating func turnOver(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .working, !s.pendingDone else { return }
         set(&s, .done, now); closeTurn(&s, byInterrupt: false, now: now); sessions[sessionId] = s
     }
-    /// When a rescued turn ended: the source's own stamp (the registry's `statusUpdatedAt`, the rollout marker's;
-    /// now for an answer that carries none), never before the last main-agent event and never after now. The turn
-    /// is ended at it and the verdict journaled with it, so a replay gives the same `stateSince`.
+    /// When a rescued turn ended: the source's own stamp (the registry's `statusUpdatedAt`, the end marker's of a
+    /// rollout or an `events.jsonl`; now for an answer that carries none), never before the last main-agent event
+    /// and never after now. The turn is ended at it and the verdict journaled with it, so a replay gives the same
+    /// `stateSince`.
     public static func rescueStamp(endedAt: Date, lastMainEventAt: Date, now: Date) -> Date {
         min(max(endedAt, lastMainEventAt), now)
     }
-    /// The registry says busy, or the rollout's turn has no end: the agent is running even though no hook
-    /// arrived. Liveness only — `lastMainEventAt` keeps measuring true hook silence.
+    /// The registry says busy, or the rollout's or the `events.jsonl`'s turn has no end: the agent is running
+    /// even though no hook arrived. Liveness only — `lastMainEventAt` keeps measuring true hook silence.
     public mutating func noteBusy(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .working else { return }
         s.lastEventAt = now; sessions[sessionId] = s

@@ -8,14 +8,16 @@ import KoffeeLidCore
 /// arguments (Copilot denies a tool whose hook fails). `job begin|end` are the zsh snippet's primitives.
 enum HookMain {
     static func run(_ args: [String]) -> Int32 {
-        if ProcessInfo.processInfo.environment["KOFFEELID_DISABLE"] == "1" { return 0 }
+        let disabled = ProcessInfo.processInfo.environment["KOFFEELID_DISABLE"] == "1"
         switch args.first {
         case "hook":
-            // Arguments no agent's hook sends write nothing.
-            guard let call = HookCall(arguments: Array(args.dropFirst())) else { return 0 }
-            return hook(call)
-        case "job": return job(Array(args.dropFirst()))
-        default: return usage()
+            // Every form reads its payload to the end first, the ones that write nothing included, so the agent
+            // writing it never meets a closed pipe. Arguments no agent's hook sends write nothing.
+            let input = readInput()
+            guard !disabled, let call = HookCall(arguments: Array(args.dropFirst())) else { return 0 }
+            return hook(call, input: input)
+        case "job": return disabled ? 0 : job(Array(args.dropFirst()))
+        default: return disabled ? 0 : usage()
         }
     }
 
@@ -24,10 +26,10 @@ enum HookMain {
         return 2
     }
 
-    static func hook(_ call: HookCall) -> Int32 {
+    /// The hook's stdin, read to its end so the writer is never broken by a closed pipe; at most the cap is kept.
+    static func readInput() -> Data {
         var input = Data()
         let stdin = FileHandle.standardInput
-        // Read everything so the writer is never broken by a closed pipe, but retain at most the cap.
         while true {
             let chunk = stdin.availableData
             if chunk.isEmpty { break }
@@ -35,6 +37,10 @@ enum HookMain {
                 input.append(chunk.prefix(ActivityConstants.hookStdinMaxBytes - input.count))
             }
         }
+        return input
+    }
+
+    static func hook(_ call: HookCall, input: Data) -> Int32 {
         let now = Date()
         let trimmed: ActivityEvent?
         switch call {

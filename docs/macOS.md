@@ -424,13 +424,25 @@ offline runs against a local model; the rest from its bundled schemas, SDK typin
   when Copilot opens the session, before any prompt (a start refused before its first model call leaves an
   empty one), holds `events.jsonl`, `workspace.yaml` and, while a process holds the session,
   `inuse.<pid>.lock` (removed on a clean exit, left behind by a killed one). `events.jsonl` is one JSON object
-  per line, `{"type", "data", "id", "timestamp" (ISO 8601), "parentId"}`. Its turn markers: `abort` (`data.reason`
-  `user_initiated`, `user_abort`, `remote_command`, …) for an aborted turn, `session.error` for a failed one,
-  `session.shutdown` for a closed session, and `hook.start` with `data.hookType` `agentStop` for a natural end
-  (written only while hooks are configured); `user.message`, `assistant.turn_start`, `assistant.message`,
-  `tool.execution_start`, `tool.execution_complete`, `permission.requested`, `permission.completed` mean
-  running. `assistant.turn_start`/`turn_end` are per model call, not per user turn; `session.idle` is never
-  written.
+  per line, `{"type", "data", "id", "timestamp" (ISO 8601, UTC, milliseconds), "parentId"}`. Its turn markers:
+  `abort` (`data.reason` `user_initiated` for Ctrl+C, `user_abort`, `remote_command`, `autopilot_credit_limit`)
+  for an aborted turn, `session.error` for a failed one, `session.shutdown` for a closed session, and
+  `hook.start` with `data.hookType` `agentStop` for a natural end (written only while hooks are configured);
+  `user.message`, `assistant.turn_start`, `assistant.message`, `tool.execution_start`, `tool.execution_complete`,
+  `permission.requested`, `permission.completed` mean running. `assistant.turn_start`/`turn_end` are per model
+  call, not per user turn; `session.idle` is never written.
+- **The file, as KoffeeLid reads it.** Every hook Copilot runs is mirrored as a `hook.start` line (`hookType`,
+  and `input`, the payload the hook is handed) written before the hook runs, so its stamp is a little earlier
+  than the line the hook journals, and a `hook.end` after it. A subagent's `agentStop` is mirrored into its
+  **parent's** file with the **subagent's** id in `data.input.sessionId` (no `parentToolCallId` on that line,
+  though the schema has one); the parent's own `agentStop` follows once the subagent's tool call returns.
+  Ctrl+C at a permission prompt wrote `permission.completed` (`cancelled`), `assistant.turn_end`, then
+  `abort`; a model call that gave up wrote `assistant.turn_end`, then `session.error`; a `-p` run ends with the
+  `agentStop` and `sessionEnd` hooks' lines, then `session.shutdown`. KoffeeLid reads the last 64 KB of
+  `<session-state>/<session id>/events.jsonl` for its turn markers only (`CopilotTranscriptTail`), where
+  `<session-state>` follows `COPILOT_HOME` in the app's own environment, not the shell's: a `COPILOT_HOME` set
+  only in a shell moves the file out of the app's sight, and only Copilot's exit or staleness ends such a
+  turn when its end fired no hook.
 - **Process shapes.** The hook's parent is the `copilot` process itself (`p_comm` and executable name
   `copilot`), which can hold several sessions (`/resume`, background sessions); there is no daemon.
   GitHub Copilot.app (`com.github.githubapp`, executable `Contents/MacOS/github`) runs its sessions in a pooled

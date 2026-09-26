@@ -263,6 +263,7 @@ zsh preexec/precmd ┴▶ KoffeeLidHook ─▶ activity.jsonl ─▶ ActivityJou
                                                            ClaudeProcessRegistry (sessions/<pid>.json)
                                                            CodexDaemonClient (control socket: thread/read, thread/loaded/list)
                                                            CodexRollout (rollout-…-<session>.jsonl, last 64 KB)
+                                                           CopilotTranscript (session-state/<session>/events.jsonl, last 64 KB)
    ActivitySnapshot ─▶ KoffeeLidController.handleActivity ─▶ ActivityArmPolicy ─▶ applyAuto
 ```
 
@@ -273,7 +274,8 @@ the registry (`pruneDead`: dead or recycled pids, a Claude Code pid whose regist
 session among them; a session on a shared Codex host kept) → the jobs' shell probe (`probeJobs`) →
 `checkRegistry(quietSeconds: 0)`, the registry rescue on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
 `thread/loaded/list` has ended each working session on the managed daemon whose thread the daemon does not
-hold (asked only when the managed daemon hosts one and its socket exists) → the first `sync()`. All of it comes before the first
+hold (asked only when the managed daemon hosts one and its socket exists) → `checkCopilot(atLaunch: true)`, the
+`events.jsonl` check of every working Copilot session whatever its quiet → the first `sync()`. All of it comes before the first
 publish (`launched` holds `sync` back until the daemon's answer, at most 1 s; a 2 s fallback,
 `launchAnswerFallbackSeconds`, runs `finishLaunch` once should the answer never arrive, and a later answer is
 dropped) and only ends turns, but for a
@@ -282,16 +284,18 @@ tiny binary, not the app: it runs inside every Claude Code, Codex and Copilot tu
 a plugin forwards to it (OpenCode has no command hooks) and around every shell command, so it must start fast, never launch the app and
 never block. The hook's arguments say which agent sent the payload (`HookCall`: `hook` is Claude Code, `hook
 codex` Codex, `hook copilot <event>` Copilot, `hook opencode` OpenCode), never the payload: Claude Code and
-Codex send the same event names, Copilot's camelCase payloads name none, and OpenCode's are its own. Any other
-arguments after `hook` write nothing, and every `hook …` form exits 0 (Copilot denies a tool whose hook fails);
-only a malformed `job` line, or no known verb, exits 2.
+Codex send the same event names, Copilot's camelCase payloads name none, and OpenCode's are its own. Every
+`hook …` form reads its stdin to the end before anything else, so the agent writing the payload never meets a
+closed pipe; any other arguments after `hook`, or `KOFFEELID_DISABLE=1`, then write nothing, and every `hook …`
+form exits 0 (Copilot denies a tool whose hook fails); only a malformed `job` line, or no known verb, exits 2.
 
 `ActivityTrim` reduces a hook payload to event name, session id, agent id, tool name, turn id (Codex's
 `turn_id`, else Claude Code's `prompt_id`), notification type, source, background task ids and, on
 `SessionStart`, `UserPromptSubmit`, `Stop` and `Interrupt` only, the transcript path (up to 1024 characters),
 stamps it with the agent, caps every field and the line (4 KB), and turns
 anything unparseable, or any name outside that agent's events (`ActivityEventName.hookEvents(for:)`), into a
-`ParseError` line. Each agent's payload is read its own way:
+`ParseError` line; an OpenCode event the mapping below leaves out, or one of no session, writes no line at all.
+Each agent's payload is read its own way:
 
 - **Claude Code and Codex** (`event(fromHookPayload:agent:loggedAt:)`): `hook_event_name` names the event,
   which must be one of `claudeCodeEvents` or `codexEvents`.
@@ -303,7 +307,7 @@ anything unparseable, or any name outside that agent's events (`ActivityEventNam
   names no turn. The hook then passes the line through `CopilotSessionState.line`: a line whose session id has
   no folder under the session-state root (`$COPILOT_HOME/session-state`, else `~/.copilot/session-state`), when
   that root exists, is a subagent's and is dropped; a `SessionStart`, `UserPromptSubmit` or `Stop` that names
-  no transcript gets `<root>/<session id>/events.jsonl`.
+  no transcript gets `<root>/<session id>/events.jsonl` when the root exists.
 - **OpenCode** (`opencodeEvent(fromHookPayload:loggedAt:)`): `hook_event_name` is OpenCode's own event type,
   mapped below; nil writes nothing. A session with a `parent_id` is a subagent, whose events become helper
   events of the parent (`sessionId` the parent, `agentId` the child). An event of no session (`session_id`
@@ -372,12 +376,14 @@ of a turn not in `interruptedTurnIds` (`SessionEnd` removes the session before);
 (`abortQuarantineSeconds`), a main-agent tool or permission event with no turn id. A line without a turn id
 otherwise meets the table as it is.
 
-Verdict lines: each rescue that decides a session (`turnOver` from the registry, a rollout or the daemon,
+Verdict lines: each rescue that decides a session (`turnOver` from the registry, a rollout, the daemon or a
+Copilot `events.jsonl`,
 `dialogAnswered` from the registry) applies it live, then appends one `KoffeeLidVerdict` line through
 `ActivityJournalWriter.append`, carrying `session_id`, `verdict` (`ActivityVerdict`: `turn-over`,
 `dialog-answered`) and `logged_at`, nothing else. A rescued turn is ended at
 `ActivitySessionStore.rescueStamp(endedAt:lastMainEventAt:now:)`, the source's own stamp (the registry's
-`statusUpdatedAt`, the rollout marker's; now for the daemon) clamped between the last main-agent event and now,
+`statusUpdatedAt`, the end marker's of a rollout or an `events.jsonl`; now for the daemon) clamped between the
+last main-agent event and now,
 and the line carries that stamp, so the replay gives the same `stateSince`. `apply` hands the line to
 `applyVerdict`: a session it does not hold, a stamp before the session's `lastMainEventAt` or an unknown
 verdict changes nothing; otherwise `turnOver` or `dialogAnswered` runs at the line's stamp. A verdict never
@@ -410,9 +416,25 @@ session: `task_complete` or `turn_aborted` stamped after the last main event, or
 `turnOver`; `task_started` with no end, the file written less than 2 h before (`staleSeconds`) → `noteBusy`
 (the same 5 min warning), written earlier → nothing, so staleness ends the session; an earlier turn's end, or
 unreadable → nothing, unreadable logged once per session. A rollout read with no event since is read again 15 s
-later at the earliest (`rolloutCheckedAt`), however often `sync()` runs. `nextDeadline` schedules both; a
-Copilot or OpenCode session is not asked about when quiet (its hooks, its process's exit and staleness end
-it), so it adds only its staleness deadline. `pruneDead` keeps a
+later at the earliest (`rolloutCheckedAt`), however often `sync()` runs. Copilot checks
+(`ActivityMonitor.checkCopilot`), for Copilot sessions (`copilotCandidates`, the same gate and cadence, no pid
+needed, and no gate at launch), read the session's `events.jsonl`: its `transcriptPath` when it is exactly
+`<session-state>/<session id>/events.jsonl` (`CopilotTranscriptTail.isTranscript`, the root being
+`CopilotTranscript.sessionStateDirectory`: `$COPILOT_HOME/session-state` from the app's own environment, else
+`~/.copilot/session-state`), else that path built from the session id under the same rule.
+`CopilotTranscript.read` hands the last 64 KB of that regular file, and its modification date, to
+`CopilotTranscriptTail.verdict`, which reads only each line's type, stamp, `data.hookType` and the session id
+inside `data.input`, and returns the last turn marker: `abort` (aborted), `session.error` (failed),
+`session.shutdown` (ended), a `hook.start` of an `agentStop` whose input names this session (complete; a
+subagent's names the subagent and is skipped), or a step of a turn (`user.message`, `assistant.turn_start`,
+`assistant.message`, `tool.execution_start`, `tool.execution_complete`, `permission.requested`,
+`permission.completed`: running). `CopilotTranscriptTail.decision` weighs it against the session: an end
+stamped after the last main event → `turnOver` (reason `finished`, `aborted`, `failed` or `ended`; Copilot names
+no turn, so the stamp alone decides); running, the file written less than 2 h before → `noteBusy`, written
+earlier → nothing; an earlier end, or unreadable → nothing, unreadable logged once per session. A file read with
+no event since is read again 15 s later at the earliest (`transcriptCheckedAt`). `nextDeadline` schedules all
+three; an OpenCode session is not asked about when quiet (its hooks, its server's exit and staleness end it),
+so it adds only its staleness deadline. `pruneDead` keeps a
 `hostedBySharedCodex` session without asking about its pid; the kqueue on the host still drops them all when
 it exits. For a Claude Code session with a live pid, `pruneDead` asks `registrySession` for the session the pid's
 record names (read from the same directory as the rescues) and drops the session when it is another. Only `working` counts as running, and the snapshot counts Claude Code's and Codex's per agent (`claudeSessions`,

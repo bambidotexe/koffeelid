@@ -136,13 +136,14 @@ up any of the three hooks from that page or from the onboarding turns it on.
   `agent_needs_input` notification after 50 s of main-agent quiet ends it too. The registry's verdict closes
   the turn; the notification, a timer rather than proof, does not. The registry is found from the session's
   transcript path (`<config>/projects/…`), so a relocated `CLAUDE_CONFIG_DIR` is found; `~/.claude` is the
-  fallback. The app records its own verdicts (a turn over, from the registry, a rollout or Codex's daemon, and
-  a dialog answered) in the journal, stamped when the turn ended or the answer was seen, so a relaunch replays
+  fallback. The app records its own verdicts (a turn over, from the registry, a rollout, Codex's daemon or a
+  Copilot `events.jsonl`, and a dialog answered) in the journal, stamped when the turn ended or the answer was seen, so a relaunch replays
   them; a verdict older than the session's last main-agent event changes nothing, and a verdict about a
   session the journal does not hold is ignored. At launch,
   after the 2 h rule below, a replayed session is kept only while its pid is alive, runs its agent and, when a
-  Claude Code registry record exists for the pid, names the same session; then the registry and the rollouts
-  are read before the first arm, whatever the turn's quiet, and a session already over is never counted.
+  Claude Code registry record exists for the pid, names the same session; then the registry, the rollouts and
+  Copilot's `events.jsonl` files are read before the first arm, whatever the turn's quiet, and a session
+  already over is never counted.
   A Codex session of the TUI is hosted by Codex's managed daemon, one per user, alive across every TUI: the
   pid its hooks record is the daemon's, so only the daemon's death drops its sessions. The desktop app's own
   `codex` is a shared host too, alive across its threads: its pid proves nothing either, and only its death
@@ -163,7 +164,19 @@ up any of the three hooks from that page or from the onboarding turns it on.
   nothing either, and every question has 1 s to be answered. At launch the managed daemon is asked which
   threads it holds (`thread/loaded/list`): a working session it hosts whose thread is not among them has
   nothing running, and nothing counts before that answer, or before 2 s without one (an answer later than
-  that is dropped). An answer about a thread other than the one asked about decides nothing. The launch checks only end turns, but for a Claude Code dialog the
+  that is dropped). An answer about a thread other than the one asked about decides nothing. A Copilot turn ended with Ctrl+C
+  or a double Esc fires no hook, and a failed turn fires no `agentStop`: a working Copilot session quiet for
+  20 s with nothing out is checked against its `events.jsonl` every 15 s, and once at launch before anything
+  counts. An `abort` (the turn was aborted), a `session.error` (it failed), a `session.shutdown` (the session
+  closed) or the start of the session's own `agentStop` hook (it finished), stamped after the last main-agent
+  event, ends the turn and closes it; Copilot names no turn, so an end stamped before that event is an earlier
+  turn's and decides nothing. A subagent's `agentStop`, written into its parent's file under the subagent's
+  id, is not the parent's end. A step of a turn with no end after it (a prompt taken, a model call, a message,
+  a tool, a permission) keeps the session alive while Copilot still writes the file; a file silent for 2 h no
+  longer does; a file that cannot be read decides nothing, and a file that decided nothing is read again 15 s
+  later at the earliest. Only `<session-state>/<session id>/events.jsonl` is read, where `<session-state>` is
+  `$COPILOT_HOME/session-state` when the app's own environment sets `COPILOT_HOME`, else
+  `~/.copilot/session-state`. The launch checks only end turns, but for a Claude Code dialog the
   registry says was answered, which counts again as it would at the first check. A session silent for 2 h is
   dropped; a command is asked of its shell instead (Terminal, above).
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source

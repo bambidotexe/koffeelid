@@ -550,6 +550,51 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.apply(copilot("sessionEnd", at: 90, ["reason": "user_exit"])); XCTAssertNil(store.sessions[copilotSid])
         store.apply(copilot("sessionEnd", at: 91, ["reason": "user_exit"])); XCTAssertTrue(store.sessions.isEmpty, "an end for a session never seen is nothing")
     }
+    func testAQuietCopilotSessionIsCheckedAgainstItsTranscript() {
+        // Ctrl+C fires no hook in Copilot, and a failed turn no agentStop: a quiet working session is read from its file.
+        let path = "\(copilotRoot)/\(copilotSid)/events.jsonl"
+        store.apply(copilot("userPromptSubmitted", at: 0)); store.apply(copilot("sessionStart", at: 0.2, ["source": "new"]))
+        store.apply(copilot("postToolUse", at: 2, ["toolName": "bash"]))
+        store.apply(ev(.userPromptSubmit, "cp2", pid: 19860, by: .copilot))
+        store.apply(ev(.userPromptSubmit, "cp3", pid: 19860, by: .copilot)); store.apply(ev(.stop, "cp3", at: 1, pid: 19860, by: .copilot))
+        store.apply(ev(.userPromptSubmit, "cp4", pid: 19860, by: .copilot))
+        store.apply(ev(.notification, "cp4", at: 1, notif: "permission_prompt", pid: 19860, by: .copilot))
+        store.apply(ev(.userPromptSubmit, "codex", pid: 300, by: .codex))
+        store.apply(ev(.userPromptSubmit))
+        func candidates(_ dt: TimeInterval, quiet: TimeInterval = ActivityConstants.abandonQuietSeconds) -> [String: String?] {
+            Dictionary(uniqueKeysWithValues: store.copilotCandidates(at: t0.addingTimeInterval(dt), quietSeconds: quiet).map { ($0.sessionId, $0.transcriptPath) })
+        }
+        XCTAssertTrue(candidates(19).isEmpty, "not quiet yet")
+        XCTAssertEqual(candidates(20), ["cp2": nil], "quiet since its prompt")
+        XCTAssertEqual(candidates(22), [copilotSid: path, "cp2": nil],
+                       "the path the hook named stands; a finished turn, a session waiting on the user, Codex and Claude Code are not read")
+        XCTAssertEqual(Set(candidates(2, quiet: 0).keys), [copilotSid, "cp2"], "at launch there is no quiet gate")
+        XCTAssertEqual(store.codexCandidates(at: t0.addingTimeInterval(100)).map(\.sessionId), ["codex"], "a Copilot session is never read as a rollout")
+        XCTAssertTrue(store.abandonCandidates(at: t0.addingTimeInterval(100)).allSatisfy { $0.sessionId == "s1" })
+        store.noteBusy(sessionId: copilotSid, now: t0.addingTimeInterval(22))
+        XCTAssertFalse(candidates(30).keys.contains(copilotSid), "busy re-arms the quiet gate")
+        XCTAssertEqual(store.sessions[copilotSid]?.lastMainEventAt, t0.addingTimeInterval(2), "busy is liveness only")
+        // The file's abort, stamped at 25, ends the turn at that stamp.
+        let at = ActivitySessionStore.rescueStamp(endedAt: t0.addingTimeInterval(25), lastMainEventAt: t0.addingTimeInterval(2), now: t0.addingTimeInterval(45))
+        store.turnOver(sessionId: copilotSid, now: at)
+        XCTAssertEqual(state(copilotSid), .done); XCTAssertEqual(store.sessions[copilotSid]?.stateSince, t0.addingTimeInterval(25))
+        XCTAssertEqual(store.workingCount(of: .copilot), 1)
+        store.apply(copilot("userPromptSubmitted", at: 60)); XCTAssertEqual(state(copilotSid), .working, "the next prompt is a new turn")
+    }
+    func testNextDeadlineCoversTheCopilotRecheck() {
+        store.apply(ev(.userPromptSubmit, "cp", at: 1, pid: 19860, by: .copilot))
+        XCTAssertEqual(store.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(1 + ActivityConstants.abandonQuietSeconds),
+                       "first transcript check when the quiet gate opens")
+        XCTAssertEqual(store.nextDeadline(after: t0.addingTimeInterval(25)), t0.addingTimeInterval(25 + ActivityConstants.abandonRecheckSeconds), "then on the recheck cadence")
+        var noPid = ActivitySessionStore()
+        noPid.apply(ev(.userPromptSubmit, "cp", at: 1, pid: nil, by: .copilot))
+        XCTAssertEqual(noPid.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(21), "the transcript needs no pid")
+        var waiting = ActivitySessionStore()
+        waiting.apply(ev(.notification, "cp", at: 1, notif: "permission_prompt", pid: 19860, by: .copilot))
+        XCTAssertEqual(waiting.sessions["cp"]?.state, .waiting)
+        XCTAssertEqual(waiting.nextDeadline(after: t0.addingTimeInterval(1)), t0.addingTimeInterval(1 + ActivityConstants.staleSeconds),
+                       "a Copilot session waiting on the user has nothing to recheck")
+    }
     func testAnOpencodeRunWithAPermissionApprovedThreeMillisecondsLater() {
         replay(opencode("session.created", at: 0)); XCTAssertEqual(state(ocParent), .idle)
         replay(opencode("session.inbox.enqueued", at: 0.006, ["delivery": "steer"])); XCTAssertEqual(state(ocParent), .working)
@@ -614,6 +659,7 @@ final class ActivitySessionStoreTests: XCTestCase {
                        "every busy period ends in a terminal event; a lost one is the server's death or staleness")
         XCTAssertTrue(store.abandonCandidates(at: t0.addingTimeInterval(100)).isEmpty)
         XCTAssertTrue(store.codexCandidates(at: t0.addingTimeInterval(100)).isEmpty)
+        XCTAssertTrue(store.copilotCandidates(at: t0.addingTimeInterval(100)).isEmpty)
     }
     func testEachAgentCountsItsOwnWorkingSessionsAndIsPrunedByItsOwnProcess() {
         store.apply(ev(.userPromptSubmit, "claude", pid: 100))

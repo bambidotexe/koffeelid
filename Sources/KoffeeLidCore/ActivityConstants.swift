@@ -33,7 +33,8 @@ public enum ActivityConstants {
     /// activity is a glitch. 50 s leaves headroom below 60, not above.
     public static let idleSignalMinQuietSeconds: TimeInterval = 50
     /// Quiet before a working session is checked at its source: Claude Code's registry (Esc/Ctrl-C fire no
-    /// hook there) or Codex's rollout (a lost `Stop` or `Interrupt` leaves nothing else to end the turn).
+    /// hook there), Codex's rollout (a lost `Stop` or `Interrupt` leaves nothing else to end the turn) or
+    /// Copilot's `events.jsonl` (Ctrl+C fires no hook there, and a failed turn no `agentStop`).
     public static let abandonQuietSeconds: TimeInterval = 20
     public static let abandonRecheckSeconds: TimeInterval = 15
     /// After an `Interrupt`, a tool or permission line without a turn id changes nothing for this long. Codex

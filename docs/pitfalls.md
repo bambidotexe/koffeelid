@@ -353,7 +353,9 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   caps stdin at 8 MB, identifiers at 200 characters, the transcript path at 1024, labels at 60, the raw prefix
   of an unparseable payload at 300, and the line at 4 KB. The path is read only once validated: a Codex
   rollout only under `~/.codex/sessions/<y>/<m>/<d>/` and named after the session
-  (`CodexRolloutTail.isInSessions`, `isRollout`), a Claude Code config directory only from an absolute path
+  (`CodexRolloutTail.isInSessions`, `isRollout`), a Copilot `events.jsonl` only at exactly
+  `<session-state>/<session id>/events.jsonl` (`CopilotTranscriptTail.isTranscript`), a Claude Code config
+  directory only from an absolute path
   with no `.` or `..` component and a `projects` folder above the file's own
   (`ClaudeRegistryRecord.configDir(fromTranscriptPath:)`).
 
@@ -514,6 +516,60 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   not** block the main thread on it, or wait longer than 1 s. **Do not** read a partial loaded list, or a
   thread outside the daemon's, as proof that a thread is not running: the turn would be ended under a live
   session.
+
+## Copilot hooks
+
+### Ctrl+C fires no hook, and a failed turn no `agentStop`
+- **Symptom.** A Copilot session stays working after Ctrl+C, a double Esc or a model call that gave up:
+  `koffeelid status` counts it, and the Mac stays armed until Copilot quits or for 2 h.
+- **Why.** Copilot has no interrupt event, and runs `agentStop` only at a natural end, never after an abort or
+  a failed call. A failed call fires only `errorOccurred`, which also fires for a retried error in the middle
+  of a turn that goes on, so it cannot tell a failed turn from a slow one. What Copilot always writes, hooks
+  or not, is the session's `events.jsonl`: `abort`, `session.error`, `session.shutdown`.
+- **What the code does.** `ActivityMonitor.checkCopilot` reads the last 64 KB of the session's `events.jsonl`
+  (`CopilotTranscript`, `CopilotTranscriptTail`) for a working session quiet for 20 s, every 15 s, and for
+  every working Copilot session once at launch before anything counts. An end marker stamped after the last
+  main-agent event is `turnOver`; a step of a turn with no end after it is `noteBusy` while the file was
+  written within 2 h; anything else decides nothing. A session waiting on a permission prompt when Ctrl+C
+  lands is not counted anyway, and its next prompt starts a new turn.
+- **Do not** subscribe `errorOccurred` as an end. **Do not** count `assistant.turn_end` as an end: Copilot
+  writes one after every model call. **Do not** read the file's modification time as an end: a long tool
+  writes nothing while it runs. **Do not** keep, log or return anything of a line but its type, its stamp,
+  `data.hookType` and the session id in `data.input`: the file is the conversation.
+
+### A `preToolUse` hook that fails denies the tool
+- **Symptom.** Every Copilot tool call is refused once KoffeeLid is deleted without its uninstall, or while its
+  hook binary is missing or crashing.
+- **Why.** For `preToolUse`, any non-zero exit, a crash or a missing binary denies the tool (fail-closed), and
+  exit 2 denies for `permissionRequest` too; a timeout is fail-open. A hook file of ours outlives the app it
+  points at.
+- **What the code does.** KoffeeLid subscribes neither event (`ActivityEventName.copilotHookEvents`: seven
+  events, none of which can deny), and every `hook …` form of the hook binary reads its stdin to the end and
+  exits 0, unrecognised arguments included. The tool-start signal those events would give is replaced by the
+  `events.jsonl` check above.
+- **Do not** add `preToolUse` or `permissionRequest` to Copilot's list, and do not let any `hook …` path exit
+  non-zero or print to stdout: Copilot parses a hook's stdout as its answer.
+
+### `sessionStart` comes after the first prompt
+- **Symptom.** A Copilot session reads idle while its first turn runs.
+- **Why.** Copilot starts a session lazily, with its first prompt, and fires `sessionStart` after
+  `userPromptSubmitted`; an interactive exit fires `sessionEnd` even for a session that never started.
+- **What the code does.** A Copilot `SessionStart` records its pid and transcript path and changes no state
+  (`ActivitySessionStore.apply`); a `SessionEnd` for a session never seen removes nothing.
+- **Do not** let a Copilot `SessionStart` set the session idle, as Claude Code's does.
+
+### A subagent's prompt and stop carry the subagent's id
+- **Symptom.** A stand-in session keyed by a subagent's id appears beside its parent's; and a transcript check
+  that took every `agentStop` line for its session's would end the parent's turn while it still works.
+- **Why.** A subagent's own `userPromptSubmitted` and `agentStop` carry the **subagent's** session id, which has
+  no folder under the session-state root. Its `agentStop`'s `transcriptPath` names the parent's file, and the
+  `hook.start` Copilot mirrors for it is written into the parent's `events.jsonl` with the subagent's id in
+  `data.input`.
+- **What the code does.** The hook drops a Copilot line whose session has no folder under the session-state
+  root, when that root exists (`CopilotSessionState.keeps`), and `CopilotTranscriptTail` counts an `agentStop`
+  as an end only when its `data.input` names the session being read.
+- **Do not** trust a `transcriptPath` to name its line's session, and do not count every `agentStop` of a file
+  as its session's end.
 
 ## Working on this Mac
 

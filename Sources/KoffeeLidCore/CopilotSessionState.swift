@@ -28,11 +28,11 @@ public enum CopilotSessionState {
 
     /// The line the hook writes for a trimmed Copilot event: nil for a subagent's (`keeps`), else the event,
     /// with the session's `events.jsonl` as its transcript path on `SessionStart`, `UserPromptSubmit` and `Stop`
-    /// when the payload named none, so the session knows its file before its first `Stop`.
+    /// when the payload named none and the root exists, so the session knows its file before its first `Stop`.
     public static func line(_ event: ActivityEvent, root: String, directoryExists: (String) -> Bool) -> ActivityEvent? {
         guard keeps(sessionId: event.sessionId, root: root, directoryExists: directoryExists) else { return nil }
         var e = event
-        if ActivityTrim.pathEvents.contains(e.event), e.transcriptPath == nil, let sid = e.sessionId, isFolderName(sid) {
+        if ActivityTrim.pathEvents.contains(e.event), e.transcriptPath == nil, let sid = e.sessionId, isFolderName(sid), directoryExists(root) {
             e.transcriptPath = ActivityTrim.clampPath(transcriptPath(root: root, sessionId: sid))
         }
         return e
