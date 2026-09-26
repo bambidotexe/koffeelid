@@ -315,8 +315,12 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   item or moving the cup, the icon of each app at work:
   the Claude desktop app for Claude Code, the OpenAI desktop app for Codex, GitHub Copilot.app for Copilot,
   OpenCode.app for OpenCode, and for a command the terminal app hosting its shell (Terminal, iTerm, an editor's
-  terminal…; Terminal's icon when no app hosts it, as over ssh). Several stack up and to the right, front to
-  back Claude Code, Codex, Copilot, OpenCode, then the terminals, three at most. The icons are the installed apps' own, nothing is bundled: an app that is not installed gives no
+  terminal…; Terminal's icon when no app hosts it, as over ssh). One icon per app, however many sessions or
+  commands run in it and however it was found: Terminal hosting one command and standing for another that no
+  app hosts is one Terminal icon, and an app that hosts a command while it stands for an agent wears only the
+  agent's badge. Several stack up and to the right, front to back Claude Code, Codex, Copilot, OpenCode, then
+  the terminals, three at most, a second badge of the same app never taking one of the three places. The
+  icons are the installed apps' own, nothing is bundled: an app that is not installed gives no
   badge. An app that stops while another still works loses its badge at once; once nothing runs, the apps
   that last ran stay through the hold-off, so the cup still says why the Mac is armed, and go when the level
   drops. A manual mode always wins over the auto cup. Orange = the

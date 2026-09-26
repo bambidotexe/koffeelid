@@ -12,14 +12,27 @@ public enum ActivityApp: Hashable, Sendable {
     var sortKey: String {
         switch self { case .bundleIdentifier(let id): return id; case .bundlePath(let path): return path }
     }
+
+    /// One app, one name: a path becomes the identifier of the app bundle there, when `identifier` knows it (the
+    /// app layer asks the bundle and LaunchServices). Terminal found on a shell's chain and Terminal standing
+    /// for a shell no app hosts are then one app, and one badge.
+    public func named(by identifier: (String) -> String?) -> ActivityApp {
+        guard case .bundlePath(let path) = self, let id = identifier(path) else { return self }
+        return .bundleIdentifier(id)
+    }
 }
 
 /// One badge: a kind of work and the app that stands for it. Sorted front to back: Claude Code, Codex,
-/// Copilot, OpenCode, then the terminals by path.
+/// Copilot, OpenCode, then the terminals by identifier or path.
 public struct ActivityBadge: Hashable, Comparable, Sendable {
     public let kind: ActivityKind
     public let app: ActivityApp
     public init(kind: ActivityKind, app: ActivityApp) { self.kind = kind; self.app = app }
+
+    /// The same badge with its app named once (`ActivityApp.named(by:)`).
+    public func named(by identifier: (String) -> String?) -> ActivityBadge {
+        ActivityBadge(kind: kind, app: app.named(by: identifier))
+    }
 
     public static func < (a: ActivityBadge, b: ActivityBadge) -> Bool {
         a.kind != b.kind ? a.kind < b.kind : a.app.sortKey < b.app.sortKey
@@ -57,9 +70,10 @@ extension ProcWalk {
     }
 }
 
-/// The badges the auto-armed cup wears: one per app at work right now; once nothing runs, the apps that
-/// last ran stay through the hold-off (the cup still says why the Mac is armed); the level dropping
-/// clears them. The coordinator feeds it the running badges on every activity change.
+/// The badges the auto-armed cup wears: one per app at work right now, however many sessions or commands run
+/// in it and whatever kind of work they are; once nothing runs, the apps that last ran stay through the
+/// hold-off (the cup still says why the Mac is armed); the level dropping clears them. The coordinator feeds
+/// it the running badges, their apps named once (`ActivityBadge.named(by:)`), on every activity change.
 public struct AutoArmBadges: Equatable {
     /// Front to back.
     public private(set) var badges: [ActivityBadge] = []
@@ -69,7 +83,14 @@ public struct AutoArmBadges: Equatable {
 
     public mutating func update(running: Set<ActivityBadge>, levelOn: Bool) {
         guard levelOn else { badges = []; return }
-        if !running.isEmpty { badges = running.sorted() }
+        if !running.isEmpty { badges = Self.oneEach(running.sorted()) }
+    }
+
+    /// The first badge of each app, front to back: an app hosting a command and standing for an agent too
+    /// wears the agent's, and a second badge of the same app never takes a place among the ones drawn.
+    static func oneEach(_ sorted: [ActivityBadge]) -> [ActivityBadge] {
+        var seen = Set<ActivityApp>()
+        return sorted.filter { seen.insert($0.app).inserted }
     }
 
     /// The badges the cup draws.

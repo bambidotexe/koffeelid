@@ -901,9 +901,11 @@ final class KoffeeLidController {
         refreshStatusItem()                                 // the apps at work changed, even if the level did not
     }
 
-    /// The badges of the current auto stretch, brought up to date with the apps at work and the level.
+    /// The badges of the current auto stretch, brought up to date with the apps at work and the level. Each
+    /// app is named once first, so the same app found two ways is one badge.
     private func currentAutoBadges() -> [ActivityBadge] {
-        autoBadges.update(running: activity.snapshot.badges, levelOn: activityPolicy.isOn)
+        let running = Set(activity.snapshot.badges.map { $0.named(by: ActivityIcons.bundleIdentifier(at:)) })
+        autoBadges.update(running: running, levelOn: activityPolicy.isOn)
         return autoBadges.shown
     }
 

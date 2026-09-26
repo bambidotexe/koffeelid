@@ -96,4 +96,34 @@ final class ActivityBadgesTests: XCTestCase {
         XCTAssertEqual(b.shown, [.claude, .codex, code])
         XCTAssertEqual(AutoArmBadges.maxShown, 3)
     }
+
+    // MARK: one icon per app
+
+    /// What the app layer answers: the identifier of the app bundle at a path, for the apps LaunchServices knows.
+    let identifiers = ["/System/Applications/Utilities/Terminal.app": "com.apple.Terminal",
+                       "/Applications/Claude.app": "com.anthropic.claudefordesktop"]
+    func identify(_ path: String) -> String? { identifiers[path] }
+
+    func testAnAppFoundOnAChainIsNamedByItsIdentifier() {
+        XCTAssertEqual(ActivityApp.bundlePath(terminalPath).named(by: identify), .bundleIdentifier("com.apple.Terminal"))
+        XCTAssertEqual(ActivityApp.bundlePath(codePath).named(by: identify), .bundlePath(codePath), "no identifier known: the path stays")
+        XCTAssertEqual(ActivityBadge.terminal.named(by: identify), .terminal)
+    }
+    /// A command in Terminal and one whose shell no app hosts (an agent's tool shell, ssh) both wear Terminal's
+    /// icon: one badge.
+    func testTerminalNamedByPathAndByIdentifierIsOneBadge() {
+        var b = AutoArmBadges()
+        let inTerminal = ActivityBadge(kind: .terminal, app: .bundlePath(terminalPath)).named(by: identify)
+        b.update(running: [inTerminal, .terminal, .claude], levelOn: true)
+        XCTAssertEqual(b.badges, [.claude, .terminal])
+    }
+    /// An app that hosts a command and stands for an agent too wears one badge, the agent's, and the copy takes
+    /// no place among the three the cup draws.
+    func testAnAppIsOneBadgeWhateverWorksInIt() {
+        var b = AutoArmBadges()
+        let inClaude = ActivityBadge(kind: .terminal, app: .bundlePath("/Applications/Claude.app")).named(by: identify)
+        b.update(running: [.claude, .codex, inClaude, .terminal], levelOn: true)
+        XCTAssertEqual(b.badges, [.claude, .codex, .terminal])
+        XCTAssertEqual(b.shown, [.claude, .codex, .terminal])
+    }
 }

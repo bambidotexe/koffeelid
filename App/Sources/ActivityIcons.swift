@@ -6,6 +6,7 @@ import KoffeeLidCore
 @MainActor
 enum ActivityIcons {
     private static var cache: [ActivityApp: NSImage?] = [:]
+    private static var identifiers: [String: String?] = [:]
 
     /// The icons of `badges`, in their order, skipping every app that has none.
     static func icons(for badges: [ActivityBadge]) -> [NSImage] { badges.compactMap { icon(for: $0.app) } }
@@ -15,6 +16,16 @@ enum ActivityIcons {
         let icon = lookUp(app)
         cache[app] = icon
         return icon
+    }
+
+    /// The identifier of the app bundle at `path`, when LaunchServices finds an app by it (so its icon can still
+    /// be looked up by the identifier): the one name every badge of that app goes by (`ActivityApp.named(by:)`).
+    /// Read once per path and kept.
+    static func bundleIdentifier(at path: String) -> String? {
+        if let known = identifiers[path] { return known }
+        let id = Bundle(path: path)?.bundleIdentifier.flatMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) == nil ? nil : $0 }
+        identifiers[path] = id
+        return id
     }
 
     /// A badge is the icon's own rounded square filling its frame: an app icon draws that square on about

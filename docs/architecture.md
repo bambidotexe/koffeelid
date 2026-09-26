@@ -473,10 +473,13 @@ Claude Code's and Codex's are fixed bundle identifiers, as are `ActivityBadge.co
 `com.github.githubapp`) and `ActivityBadge.opencode` (OpenCode.app, `ai.opencode.desktop`), which sort after
 them in `ActivityKind`'s order (Claude Code, Codex, Copilot, OpenCode, terminal); a command's is the app hosting its shell, read from
 the shell pid's process chain (`ProcWalk.hostApplicationPath`) at every publish, Terminal when none.
-`AutoArmBadges` in the coordinator shows the running ones, keeps the last running set through the hold-off
-and clears them when the level drops
-(`currentAutoBadges`, refreshed with the status item and read again when the menu is built); `ActivityIcons`
-turns each app into its icon once and keeps it.
+`currentAutoBadges` first names each app once (`ActivityBadge.named(by:)` with
+`ActivityIcons.bundleIdentifier(at:)`: a path becomes the identifier of the app bundle there, when
+LaunchServices finds an app by it), so Terminal found on a chain and Terminal standing for a shell no app
+hosts are one app. `AutoArmBadges` in the coordinator keeps one badge per app, the frontmost kind's
+(`oneEach`, before the three-badge cut), shows the running ones, keeps the last running set through the
+hold-off and clears them when the level drops (`currentAutoBadges`, refreshed with the status item and read
+again when the menu is built); `ActivityIcons` turns each app into its icon once and keeps it.
 
 `ActivityArmPolicy` is a level. `update(running:enabled:now:)` turns it on with the first running kind and
 accumulates the kinds seen (`involved`); when nothing runs, `offAt = idleSince + currentHoldOff` (the longest
