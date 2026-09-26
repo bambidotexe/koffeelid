@@ -54,6 +54,8 @@ final class CopilotHookFileTests: XCTestCase {
         XCTAssertFalse(CopilotHookFile.isOurs(wrongArgs), "args must start [\"hook\",\"copilot\"]")
         let notExec: [String: Any] = ["hooks": ["agentStop": [["type": "command", "exec": "/usr/bin/env", "args": ["hook", "copilot", "agentStop"]]]]]
         XCTAssertFalse(CopilotHookFile.isOurs(notExec), "exec must end in our binary's path")
+        let nonObjectElement: [String: Any] = ["hooks": ["agentStop": ["x"]]]
+        XCTAssertFalse(CopilotHookFile.isOurs(nonObjectElement), "an element that is not one of our entries is not skipped over")
     }
     func testDisabledIsTrueWhenEitherFileSaysSo() {
         XCTAssertFalse(CopilotHookFile.disabled(settingsText: "", configText: ""), "absent files")

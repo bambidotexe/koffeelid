@@ -51,7 +51,8 @@ final class ActivityMonitor {
     private(set) var lastEventByAgent: [ActivityAgent: HookEventSeen] = [:]
     private(set) var lastTerminalEventAt: Date?
     func lastEvent(for agent: ActivityAgent) -> HookEventSeen? { lastEventByAgent[agent] }
-    /// Convenience for the Health page today; Task 4 adds Copilot's and OpenCode's own readings.
+    /// The Health page's own readings for Claude Code and Codex; Copilot's and OpenCode's come from
+    /// `lastEvent(for:)` directly.
     var lastClaudeEvent: HookEventSeen? { lastEvent(for: .claude) }
     var lastCodexEvent: HookEventSeen? { lastEvent(for: .codex) }
 
@@ -247,8 +248,15 @@ final class ActivityMonitor {
     }
 
     private func publish(now: Date) {
+        // Only non-zero counts, so an idle snapshot's dictionary is empty like the default one: a fully idle
+        // snapshot must equal `ActivitySnapshot()` exactly, or every launch into idle would fire one spurious
+        // onChange before anything has actually happened.
+        let working = ActivityAgent.allCases.reduce(into: [ActivityAgent: Int]()) { result, agent in
+            let count = sessions.workingCount(of: agent)
+            if count > 0 { result[agent] = count }
+        }
         let new = ActivitySnapshot(running: sessions.isRunning || jobs.isRunning(at: now),
-                                   workingByAgent: Dictionary(uniqueKeysWithValues: ActivityAgent.allCases.map { ($0, sessions.workingCount(of: $0)) }),
+                                   workingByAgent: working,
                                    runningJobs: jobs.runningCount(at: now),
                                    terminalBadges: Set(jobs.runningOwnerPids(at: now).map { ActivityBadge.terminal(hosting: ProcWalk.chain(from: $0)) }))
         guard new != snapshot else { return }

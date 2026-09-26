@@ -76,6 +76,9 @@ public struct ActivitySessionStore {
         guard ActivityEventName.hookEvents(for: agent).contains(e.event), let sid = e.sessionId else { return }
         let now = e.loggedAt
         if e.event == .sessionEnd { sessions.removeValue(forKey: sid); return }
+        // A helper's own end naming a session the store never heard of tells nothing about it: it must not
+        // conjure one into existence.
+        if sessions[sid] == nil, e.agentId != nil, e.event == .subagentStop { return }
         var s = sessions[sid] ?? ActivitySession(id: sid, at: now)
         s.agent = agent
         s.lastEventAt = now

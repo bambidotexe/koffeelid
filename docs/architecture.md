@@ -441,7 +441,7 @@ record names (read from the same directory as the rescues) and drops the session
 `ActivityAgent` (`ActivitySnapshot.workingByAgent`, built from `ActivitySessionStore.workingCount(of:)` over
 `ActivityAgent.allCases`); `kinds`, `badges` and `summary` read it per agent, so a new agent needs no new
 stored property. `ActivityMonitor.lastEventByAgent` is the same shape for the last hook event of each agent;
-`lastClaudeEvent` and `lastCodexEvent` are read-only conveniences over it for today's Health page.
+`lastClaudeEvent` and `lastCodexEvent` are read-only conveniences over it for the Health page.
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
 `job end`, on the owner shell's exit (kqueue), when its shell answers that it runs nothing, or, for a job
@@ -501,9 +501,13 @@ forwarded events and every `directory` field removed, no path leaving OpenCode; 
 the top-level session by walking the plugin's own `state.parents` map to its root, capped at 16 hops against a
 cycle); `isOurs` looks for the hook binary's marker and the plugin's id, `isCurrent` compares byte for byte.
 `HookInstaller.installCopilot`/`installOpencode` write these whole files to `~/.copilot/hooks/koffeelid.json`
-and `~/.config/opencode/plugins/koffeelid.js` (creating the `hooks/`/`plugins/` directory); `copilotInstalledCount`
-and `opencodeInstalled` (each with an off-main variant told its paths, for the Health page) read them back the
-same way.
+and `~/.config/opencode/plugins/koffeelid.js` (creating the `hooks/`/`plugins/` directory); `uninstallCopilot`/
+`uninstallOpencode` refuse the same way install does, reporting a file that cannot even be parsed as a failure
+rather than skipping it. `copilotInstalledCount` and `opencodeInstalled` (each with an off-main variant told
+its paths, for the Health page and the menu's "Disarm once finished" gate) read them back byte-exact to this
+bundle's own path; `copilotHooksPresent`/`opencodePluginPresent` (plain existence) are what Reset and Uninstall
+gate their removal on instead, so a file from an older or another copy of KoffeeLid — ours, but not
+byte-identical — is still taken off rather than silently left behind.
 
 ## Updates
 

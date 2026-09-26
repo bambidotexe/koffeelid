@@ -267,9 +267,13 @@ UserDefaults and the activity journal with the installed app. Fake one Claude Co
 `echo '{"hook_event_name":"UserPromptSubmit","session_id":"fake"}' | /Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook`
 (arms if the activity switch is on; the fake event carries no pid, so only a matching `Stop` or staleness ends
 it), or one Codex turn with `… KoffeeLidHook hook codex` (ended by a `Stop`, an `Interrupt` or staleness), or
-one Copilot turn with `… KoffeeLidHook hook copilot userPromptSubmitted` then `… hook copilot agentStop` (the
-event name is Copilot's own, in `args`, not the payload), or one OpenCode turn with `… KoffeeLidHook hook
-opencode` and a body shaped like the plugin's (`hook_event_name`, `session_id`, `opencode_pid`).
+one Copilot turn with
+`echo '{"sessionId":"fake"}' | COPILOT_HOME=/tmp/kl-nowhere /Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook copilot userPromptSubmitted`
+then `… hook copilot agentStop` (the event name is Copilot's own, in `args`, not the payload; `COPILOT_HOME`
+points at a directory with no `session-state` so the fake session is kept rather than dropped as a
+subagent's — `docs/manual-test-checklist.md` § Auto-arm on activity), or one OpenCode turn with `echo
+'{"hook_event_name":"session.execution.started","session_id":"fake","opencode_pid":1}' | …
+KoffeeLidHook hook opencode`.
 Run `koffeelid install-hooks` and `install-hooks codex|copilot|opencode` only from `/Applications/KoffeeLid.app`:
 they write the absolute path of the binary that ran them, and Codex's trust hash covers that path. To see what Codex
 makes of the hooks without a turn: `codex app-server` on stdio, send `initialize` then `hooks/list`, and read

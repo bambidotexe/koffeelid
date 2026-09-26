@@ -15,13 +15,16 @@ public enum OpencodePlugin {
     /// The whole plugin file's text for `hookPath`. OpenCode loads it by itself, no registration, no trust
     /// step, hot-reloaded within a second of the file changing.
     public static func source(hookPath: String) -> String {
-        """
+        // JSON-encoded, not pasted in raw: a `"` or a `\` in the path must not break the plugin's own syntax.
+        // A JSON string literal is a valid JS one too.
+        let command = jsonStringLiteral(hookPath)
+        return """
         // KoffeeLid: forwards opencode session lifecycle events to KoffeeLidHook.
         // Installed at ~/.config/opencode/plugins/koffeelid.js by KoffeeLid; opencode 2.x loads it by itself.
         // One small JSON object on the hook's stdin per lifecycle event. It never blocks opencode and never throws.
         import { spawn } from "node:child_process"
 
-        const COMMAND = ["\(hookPath)", "hook", "opencode"]
+        const COMMAND = [\(command), "hook", "opencode"]
         const ID = "\(id)"
 
         // Every instance of this plugin in one opencode server shares this state. opencode loads a global
@@ -87,7 +90,9 @@ public enum OpencodePlugin {
             const root = rootOf(state, sessionID)
             if (root !== sessionID) out.parent_id = root
           }
-          if (type === "session.deleted" && sessionID) state.parents.delete(sessionID)
+          // A deleted session's own link stays: dropping it here would resolve a still-live grandchild's
+          // parent_id to the deleted session instead of walking through it to the true root. LIMIT bounds
+          // the map, so a link outlives its session only until 2048 newer ones evict it.
 
           switch (type) {
             case "session.inbox.enqueued":
@@ -199,6 +204,19 @@ public enum OpencodePlugin {
         }
 
         """
+    }
+
+    /// `value` as a JSON string literal, valid JS syntax too: quotes, backslashes and control characters
+    /// escaped, so a hook path holding any of them cannot break the plugin it is spliced into. Slashes are
+    /// left unescaped, so `isOurs`'s marker still matches and the path stays readable.
+    private static let stringEncoder: JSONEncoder = {
+        let e = JSONEncoder(); e.outputFormatting = [.withoutEscapingSlashes]; return e
+    }()
+    private static func jsonStringLiteral(_ value: String) -> String {
+        guard let data = try? stringEncoder.encode(value), let literal = String(data: data, encoding: .utf8) else {
+            return "\"\(value)\""   // JSONEncoder cannot fail encoding a String; never reached.
+        }
+        return literal
     }
 
     /// A file is ours when it carries the hook binary's marker and this plugin's id, whatever bundle path

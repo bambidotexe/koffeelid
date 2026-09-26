@@ -185,12 +185,26 @@ enum HookInstaller {
         } catch { return (false, "install-hooks copilot failed: \(error)\nYour Copilot hooks file was not modified.") }
     }
 
-    /// Absent is success: there is nothing of ours left to remove.
+    /// Absent is success: there is nothing of ours left to remove. Refuses, unchanged, a file that is not
+    /// ours or cannot even be parsed: never delete what might be a stranger's.
     static func uninstallCopilot() -> (ok: Bool, message: String) {
-        guard FileManager.default.fileExists(atPath: copilotHooksURL.path) else { return (true, "No Copilot hooks file found — nothing to remove.") }
-        do { try FileManager.default.removeItem(at: copilotHooksURL); return (true, "Removed the Copilot hooks file.") }
+        let path = copilotHooksURL
+        guard FileManager.default.fileExists(atPath: path.path) else { return (true, "No Copilot hooks file found — nothing to remove.") }
+        guard let root = try? HookSettingsFile.load(at: path) else {
+            return (false, "~/.copilot/hooks/koffeelid.json could not be read as JSON; left it untouched.")
+        }
+        guard CopilotHookFile.isOurs(root) else {
+            return (false, "~/.copilot/hooks/koffeelid.json does not look like a file KoffeeLid wrote; left it untouched.")
+        }
+        do { try FileManager.default.removeItem(at: path); return (true, "Removed the Copilot hooks file.") }
         catch { return (false, "uninstall-hooks copilot failed: \(error)\nYour Copilot hooks file was not modified.") }
     }
+
+    /// A file sits at `~/.copilot/hooks/koffeelid.json`, whether or not it matches this bundle's own path:
+    /// the gate Reset and Uninstall use to decide whether to attempt a removal at all (which then reports its
+    /// own success or refusal). `copilotInstalledCount() == events.count` is the stricter, byte-exact "is this
+    /// copy's own set-up still there" the menu gate and the Settings/Health rows ask instead.
+    static func copilotHooksPresent() -> Bool { FileManager.default.fileExists(atPath: copilotHooksURL.path) }
 
     /// How many of the 7 events point at THIS bundle's hook binary; nil if the file is unreadable/invalid.
     /// An absent file counts as empty.
@@ -234,12 +248,26 @@ enum HookInstaller {
         } catch { return (false, "install-hooks opencode failed: \(error)\nYour OpenCode plugin was not modified.") }
     }
 
-    /// Absent is success: there is nothing of ours left to remove.
+    /// Absent is success: there is nothing of ours left to remove. Refuses, unchanged, a file that is not
+    /// ours or cannot even be read as text: never delete what might be a stranger's.
     static func uninstallOpencode() -> (ok: Bool, message: String) {
-        guard FileManager.default.fileExists(atPath: opencodePluginURL.path) else { return (true, "No OpenCode plugin found — nothing to remove.") }
-        do { try FileManager.default.removeItem(at: opencodePluginURL); return (true, "Removed the OpenCode plugin.") }
+        let path = opencodePluginURL
+        guard FileManager.default.fileExists(atPath: path.path) else { return (true, "No OpenCode plugin found — nothing to remove.") }
+        guard let text = try? String(contentsOf: path, encoding: .utf8) else {
+            return (false, "~/.config/opencode/plugins/koffeelid.js could not be read as UTF-8; left it untouched.")
+        }
+        guard OpencodePlugin.isOurs(text) else {
+            return (false, "~/.config/opencode/plugins/koffeelid.js does not look like a file KoffeeLid wrote; left it untouched.")
+        }
+        do { try FileManager.default.removeItem(at: path); return (true, "Removed the OpenCode plugin.") }
         catch { return (false, "uninstall-hooks opencode failed: \(error)\nYour OpenCode plugin was not modified.") }
     }
+
+    /// A file sits at `~/.config/opencode/plugins/koffeelid.js`, whether or not it matches this bundle's own
+    /// path: the gate Reset and Uninstall use to decide whether to attempt a removal at all (which then
+    /// reports its own success or refusal). `opencodeInstalled()` (byte-exact) is what the menu gate and the
+    /// Settings/Health rows ask instead.
+    static func opencodePluginPresent() -> Bool { FileManager.default.fileExists(atPath: opencodePluginURL.path) }
 
     /// Whether the plugin at `~/.config/opencode/plugins/koffeelid.js` matches, byte for byte, what this
     /// bundle would write today.

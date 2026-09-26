@@ -702,8 +702,8 @@ final class KoffeeLidController {
         }
         if (HookInstaller.installedCount() ?? 0) > 0 { done.append(HookInstaller.uninstall().ok ? "claude code hooks removed" : "claude code hooks removal failed") }
         if (HookInstaller.codexInstalledCount() ?? 0) > 0 { done.append(HookInstaller.uninstallCodex().ok ? "codex hooks removed" : "codex hooks removal failed") }
-        if (HookInstaller.copilotInstalledCount() ?? 0) > 0 { done.append(HookInstaller.uninstallCopilot().ok ? "copilot hooks removed" : "copilot hooks removal failed") }
-        if HookInstaller.opencodeInstalled() { done.append(HookInstaller.uninstallOpencode().ok ? "opencode plugin removed" : "opencode plugin removal failed") }
+        if HookInstaller.copilotHooksPresent() { done.append(HookInstaller.uninstallCopilot().ok ? "copilot hooks removed" : "copilot hooks removal failed") }
+        if HookInstaller.opencodePluginPresent() { done.append(HookInstaller.uninstallOpencode().ok ? "opencode plugin removed" : "opencode plugin removal failed") }
         if HookInstaller.zshrcHasSnippet() { done.append(HookInstaller.removeFromZshrc().ok ? "zsh snippet removed" : "zsh snippet removal failed") }
         if let id = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: id); done.append("preferences cleared") }
         hotKey.register(); refreshGestureSampling(); effect.parameters = prefs.effect; builtInFn.start(); refreshStatusItem()
@@ -764,11 +764,11 @@ final class KoffeeLidController {
             let r = HookInstaller.uninstallCodex()
             if r.ok { done.append("codex hooks removed") } else { failed.append(String(format: L("The Codex hooks could not be removed: %@"), r.message)) }
         }
-        if (HookInstaller.copilotInstalledCount() ?? 0) > 0 {
+        if HookInstaller.copilotHooksPresent() {
             let r = HookInstaller.uninstallCopilot()
             if r.ok { done.append("copilot hooks removed") } else { failed.append(String(format: L("The Copilot hooks could not be removed: %@"), r.message)) }
         }
-        if HookInstaller.opencodeInstalled() {
+        if HookInstaller.opencodePluginPresent() {
             let r = HookInstaller.uninstallOpencode()
             if r.ok { done.append("opencode plugin removed") } else { failed.append(String(format: L("The OpenCode plugin could not be removed: %@"), r.message)) }
         }
@@ -1033,7 +1033,7 @@ final class KoffeeLidController {
         // ahead of its long hold-off). Pending until it fires; clicking again cancels.
         if (HookInstaller.installedCount() ?? 0) == HookConfig.claude.events.count
             || (HookInstaller.codexInstalledCount() ?? 0) == HookConfig.codex.events.count
-            || (HookInstaller.copilotInstalledCount() ?? 0) == CopilotHookFile.events.count
+            || ((HookInstaller.copilotInstalledCount() ?? 0) == CopilotHookFile.events.count && !HookInstaller.copilotHooksDisabled())
             || HookInstaller.opencodeInstalled() || HookInstaller.zshrcHasSnippet() {
             let once = NSMenuItem(title: L("Disarm once finished"), action: #selector(menuToggleDisarmOnce(_:)), keyEquivalent: "")
             once.target = self; once.state = activityDisarmOncePending ? .on : .off
@@ -1065,7 +1065,8 @@ final class KoffeeLidController {
             let template = ordered.count == 1
                 ? (hasCommand ? L("Auto-armed while %@ runs") : L("Auto-armed while %@ works"))
                 : (hasCommand ? L("Auto-armed while %@ run") : L("Auto-armed while %@ work"))
-            return String(format: template, list)
+            let built = String(format: template, list)
+            return Self.isFrenchPreferred ? FrenchElision.elideQue(in: built) : built
         }
         let left = activityPolicy.nextDeadline(after: Date()).map { $0.timeIntervalSinceNow } ?? 0
         let text = left >= 60 ? String(format: L("%d min"), Int((left / 60).rounded(.up))) : String(format: L("%d s"), Int(left.rounded(.up)))
@@ -1086,6 +1087,10 @@ final class KoffeeLidController {
         guard names.count > 1 else { return last }
         return names.dropLast().joined(separator: ", ") + L(" and ") + last
     }
+    /// Whether the app's own French translation is the one showing: the four templates all read "que %@",
+    /// which needs `FrenchElision` when `%@` starts with a vowel ("qu’une commande", "qu’OpenCode"), but only
+    /// in French — the English templates have no "que" to elide.
+    private static var isFrenchPreferred: Bool { Bundle.main.preferredLocalizations.first == "fr" }
     @objc private func menuSettings() { onOpenSettings?() }
     @objc private func menuQuit() { NSApp.terminate(nil) }
 }

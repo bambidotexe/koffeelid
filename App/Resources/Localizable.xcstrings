@@ -3361,6 +3361,26 @@
         }
       }
     },
+    "The Copilot hooks could not be removed: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les hooks Copilot n’ont pas pu être retirés : %@"
+          }
+        }
+      }
+    },
+    "The OpenCode plugin could not be removed: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le plugin OpenCode n’a pas pu être retiré : %@"
+          }
+        }
+      }
+    },
     "The line in .zshrc could not be removed: %@": {
       "localizations": {
         "fr": {

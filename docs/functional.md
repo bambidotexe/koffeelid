@@ -101,8 +101,9 @@ up any of the three hooks from that page or from the onboarding turns it on.
   does not count. Helpers hold a `Stop` as they do for Claude Code.
 - **Copilot**: 7 hook events in `~/.copilot/hooks/koffeelid.json` run `KoffeeLidHook hook copilot <event>`;
   camelCase keys, `exec` (no shell), the event name riding in `args` since a camelCase payload carries none.
-  The file is wholly KoffeeLid's own, so there is no backup and no merge: set-up only refuses, unchanged, when
-  a file already sits there that does not look like one of ours. Never `preToolUse` or `permissionRequest`:
+  The file is wholly KoffeeLid's own, so there is no backup and no merge: setting it up or removing it refuses,
+  unchanged, a file already at that path that does not look like one of ours (removal also refuses one it
+  cannot even parse, rather than guessing). Never `preToolUse` or `permissionRequest`:
   either denies the tool on a failing hook, so a hook file outliving the app would block every Copilot tool
   call. The hook counts as set up only while all 7 events point at this copy **and** neither
   `~/.copilot/settings.json` nor `~/.copilot/config.json` sets `disableAllHooks`. A session counts as working
@@ -112,12 +113,14 @@ up any of the three hooks from that page or from the onboarding turns it on.
 - **OpenCode** has no command hooks; KoffeeLid installs a plugin instead,
   `~/.config/opencode/plugins/koffeelid.js`, which a running server loads, reloads and unloads by itself
   within a second, no registration, no trust step. The file is wholly KoffeeLid's own, so there is no backup
-  and no merge: set-up only refuses, unchanged, when a file already sits there that does not look like one of
-  ours. The plugin maps OpenCode's own events onto this vocabulary (`SessionStart`, `UserPromptSubmit`, tool
-  events, `Stop`, `Interrupt`, …) before calling `KoffeeLidHook hook opencode`; a subagent's session (one with
-  a `parent_id`) becomes helper events of its top-level ancestor, walking every link in between, not of its
-  immediate parent. The hook counts as set up only while the installed file matches, byte for byte, what this
-  copy of KoffeeLid would write today. A session counts as working from a prompt or tool event until its
+  and no merge: setting it up or removing it refuses, unchanged, a file already at that path that does not
+  look like one of ours (removal also refuses one it cannot even read as text, rather than guessing). The
+  plugin forwards OpenCode's own events verbatim to `KoffeeLidHook hook opencode`; `ActivityTrim`
+  maps them onto this vocabulary (`SessionStart`, `UserPromptSubmit`, tool events, `Stop`, `Interrupt`, …) on
+  the way into the journal. A subagent's session (one with a `parent_id`) becomes helper events of its
+  top-level ancestor, walking every link in between, not of its immediate parent. The hook counts as set up
+  only while the installed file matches, byte for byte, what this copy of KoffeeLid would write today. A
+  session counts as working from a prompt or tool event until its
   `Stop`; every busy period ends in exactly one terminal event (succeeded, failed or interrupted), so OpenCode
   needs no rescue for a quiet turn the way Claude Code, Codex and Copilot do.
 - **A closed turn stays closed.** Every event of a turn carries the turn's id: Claude Code's `prompt_id`,
@@ -310,10 +313,13 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 - **Menu.** Header with the mode; a greyed line while the auto level holds, built from the kinds at work
   rather than one string per combination: "Auto-armed while %@ works/work" (one/several agents), "…
   runs/run" when a command is among them, the names in `ActivityKind`'s order (Claude Code, Codex, Copilot,
-  OpenCode, a command) joined ", " and a final " and " — "Auto-armed while Claude Code works", "Auto-armed
+  OpenCode, a command) joined ", " and a final " and "/" et " — "Auto-armed while Claude Code works", "Auto-armed
   while Claude Code, Copilot and a command run" — or "Auto-armed, off in N min" while nothing runs but the
-  hold-off has not ended; followed by the same app icons the cup wears; the three modes, each followed by its
-  cup in grey; "Disarm once finished" (present while any of the five hooks is set up); Settings…; Quit.
+  hold-off has not ended; in French, "que" before a name starting with a vowel elides to "qu'" ("tant
+  qu'OpenCode travaille", "tant qu'une commande tourne"). Followed by the same app icons the cup wears; the
+  three modes, each followed by its cup in grey; "Disarm once finished" (present while any of the five hooks
+  is set up and, for Copilot, not disabled in `~/.copilot/settings.json` or `~/.copilot/config.json`);
+  Settings…; Quit.
 - **Opening the app.** KoffeeLid has no Dock icon. Opening it again from Finder, Spotlight, the Applications
   folder or `open -b dev.rubens.koffeelid` while it runs opens Settings — the way back in when the menu-bar
   cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,

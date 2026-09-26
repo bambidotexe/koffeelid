@@ -124,6 +124,10 @@ final class ActivitySessionStoreTests: XCTestCase {
         store.apply(ev(.postToolUse, at: 1, tool: "Bash", agent: "a1", bg: ["from-helper"]))
         XCTAssertTrue(store.sessions["s1"]!.backgroundIds.isEmpty)
     }
+    func testAStraySubagentStopForAnUnknownSessionCreatesNothing() {
+        store.apply(ev(.subagentStop, "unknown", at: 0, agent: "a1"))
+        XCTAssertTrue(store.sessions.isEmpty, "a helper's stop naming a session the store never heard of tells nothing about it")
+    }
     func testParseErrorAndMissingSessionAreIgnored() {
         store.apply(ev(.parseError)); var e = ev(.stop); e.sessionId = nil; store.apply(e)
         XCTAssertTrue(store.sessions.isEmpty)

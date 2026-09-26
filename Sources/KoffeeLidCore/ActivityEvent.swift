@@ -2,7 +2,7 @@ import Foundation
 
 /// The four agents whose hooks feed the journal, in the order every list of them follows. A journal line
 /// without an agent is Claude Code's: lines written before Codex was supported carry none.
-public enum ActivityAgent: String, Codable, Equatable, Hashable, CaseIterable, Sendable {
+public enum ActivityAgent: String, Codable, Equatable, CaseIterable, Sendable {
     case claude, codex, copilot, opencode
     /// The name the log uses; the command line uses the raw value, the windows have their own words.
     public var name: String {

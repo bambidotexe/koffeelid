@@ -44,4 +44,23 @@ final class OpencodePluginTests: XCTestCase {
                        "a file installed from a different bundle path is ours but not current")
         XCTAssertFalse(OpencodePlugin.isCurrent(source + "\n// tampered", hookPath: hookPath))
     }
+    func testHookPathIsJSONEncodedAgainstQuotesAndBackslashes() throws {
+        let tricky = #"/Applications/Weird "App"\Name.app/Contents/MacOS/KoffeeLidHook"#
+        let source = OpencodePlugin.source(hookPath: tricky)
+        let line = try XCTUnwrap(source.split(separator: "\n").first { $0.hasPrefix("const COMMAND = ") })
+        let jsonPart = String(line).replacingOccurrences(of: "const COMMAND = ", with: "")
+        let array = try JSONSerialization.jsonObject(with: Data(jsonPart.utf8)) as? [String]
+        XCTAssertEqual(array, [tricky, "hook", "opencode"], "the path must round-trip through the JSON the JS parses")
+    }
+    func testHookPathsSlashesStayUnescapedSoIsOursStillMatches() {
+        let source = OpencodePlugin.source(hookPath: hookPath)
+        XCTAssertTrue(source.contains(#"["/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook", "hook", "opencode"]"#))
+        XCTAssertTrue(OpencodePlugin.isOurs(source))
+    }
+    func testASessionsDeletedLinkIsKeptForAGrandchildStillToCome() {
+        // Dropping a child→parent link on session.deleted would resolve a still-live grandchild's parent_id
+        // to the deleted (middle) session instead of walking through it to the true root.
+        let source = OpencodePlugin.source(hookPath: hookPath)
+        XCTAssertFalse(source.contains("state.parents.delete"))
+    }
 }

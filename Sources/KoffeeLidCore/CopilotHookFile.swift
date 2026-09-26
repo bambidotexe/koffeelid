@@ -2,7 +2,7 @@ import Foundation
 
 /// The whole `~/.copilot/hooks/koffeelid.json` file: one `command` entry per subscribed event, camelCase
 /// keys, `exec` (no shell), the event name riding in `args` since a camelCase payload carries none
-/// (`ActivityEventName.copilotHookEvents`, Task 1's mapping). Pure dictionary building; file IO lives in
+/// (`ActivityEventName.copilotHookEvents` names them). Pure dictionary building; file IO lives in
 /// `HookInstaller`.
 public enum CopilotHookFile {
     /// The 7 events Copilot's hooks subscribe to, in the order the file lists them.
@@ -36,7 +36,9 @@ public enum CopilotHookFile {
         guard let hooks = root["hooks"] as? [String: Any] else { return false }
         for value in hooks.values {
             guard let array = value as? [Any] else { return false }
-            for case let entry as [String: Any] in array where !isOurEntry(entry) { return false }
+            for element in array {
+                guard let entry = element as? [String: Any], isOurEntry(entry) else { return false }
+            }
         }
         return true
     }

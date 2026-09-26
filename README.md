@@ -162,9 +162,9 @@ Gatekeeper warning.
   into `~/.codex/hooks.json` and their trust into `~/.codex/config.toml`, both backed up first), Copilot (a
   hooks file KoffeeLid owns whole, `~/.copilot/hooks/koffeelid.json`), OpenCode (a plugin KoffeeLid owns
   whole, `~/.config/opencode/plugins/koffeelid.js`) and zsh (the snippet goes into `~/.zshrc`, between two
-  `# ---------- KoffeeLid ----------` lines it owns). Every one of them is removable with `koffeelid
-  uninstall-hooks <agent>`, from Reset or Uninstall, or — for Claude Code, Codex and zsh today — a Settings
-  button.
+  `# ---------- KoffeeLid ----------` lines it owns). Claude Code, Codex, Copilot and OpenCode are each
+  removable with `koffeelid uninstall-hooks <agent>`, from Reset or Uninstall, or — for Claude Code and
+  Codex — a Settings button; zsh has no CLI verb of its own, only a Settings button and Reset or Uninstall.
 
 ## Build from source
 
