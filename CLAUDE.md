@@ -132,7 +132,7 @@ script/install.sh                                     # skill: macos-install-loc
 script/publish.sh <patch|minor|major> --notes=<file> [--install]  # skill: macos-publish-release. The same build, plus a version bump, tag, push, GitHub release; installs only with --install
 # -------------------------------------------------------------------------------------------------
 
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (621); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (631); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -404,7 +404,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   it back when it quits. Every grant row is titled what System Settings titles the switch, quoted from the
   system's tables, and **nothing in the app asks for a permission without a click**. The rules and the traps
   are in the `macos-building-onboarding` skill; read it before touching that window or any permission row.
-- `swift test` is green (621 distinct cases: 599 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (631 distinct cases: 609 Core, 22 LidPlaneKit) and the Debug build warning-free at this
   commit. The app target has no automated tests; `docs/manual-test-checklist.md` is its verification.
 - **Codex auto-arm is in the tree and not yet walked with the installed app.** What was checked on this Mac
   from the tree: Codex CLI 0.157.0's `hooks/list` reports for a probe hook the same twelve hashes
