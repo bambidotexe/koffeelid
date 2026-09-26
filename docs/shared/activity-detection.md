@@ -27,15 +27,17 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
    `trusted_hash` = Codex's hash of the normalised entry) is written into Codex's `config.toml`; removing the
    hooks removes the trust first. A Codex hook counts as set up only while installed **and** trusted.
 3. The hook drains stdin to its end, keeps 8 MB at most, never blocks on anything but one `O_APPEND` write of at
-   most 4096 bytes, never launches the app, and exits 0 in every form; the app's `*_DISABLE=1` silences it, its
-   job lines included.
+   most 4096 bytes, never launches the app, and exits 0 for every hook form, unrecognised arguments included (a
+   malformed `job` call alone prints its usage); the app's `*_DISABLE=1` silences it, its job lines included.
 4. A journal line carries the agent (the hook's verb or flag says which; a bare hook is Claude Code's), the event
    under Claude Code's names (Copilot's and OpenCode's mapped onto them), `session_id`, `agent_id`, `tool_name`,
    `turn_id` (`turn_id`, else `prompt_id`), `notification_type`, `source`, the transcript path on `SessionStart`,
    `UserPromptSubmit`, `Stop` and `Interrupt` only (at most 1024 characters), the `background_tasks` ids of type
    `shell` or untyped (at most 16 × 40 characters), and the agent's pid. Identifiers are clamped at 200
    characters; a line still over 4096 bytes keeps only the session, turn and job ids. An event outside the
-   agent's own list is a parse error, never an event: a payload cannot forge another agent's `Interrupt`.
+   agent's own list, or not spelled as the agent sends it (Claude Code's and Codex's PascalCase in the payload,
+   Copilot's camelCase in the hook's argument), is a parse error, never an event: a payload cannot forge another
+   agent's `Interrupt`.
 5. The agent's pid is the nearest ancestor of the hook's parent that runs the agent named; OpenCode's
    `opencode_pid` is believed only when it is such an ancestor. A Copilot line whose session has no folder under
    `$COPILOT_HOME/session-state` (else `~/.copilot/session-state`) is a subagent's and is not written; the
@@ -58,12 +60,13 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
     pending); a `Stop` ends the turn without closing it.
 11. `Interrupt` → `idle`: it forgets helpers and background shells and closes the turn by interrupt. (`idle`, not
     `done`: a helper line arriving after it must not reopen an interrupted turn.)
-12. Compaction: `PreCompact` → `working`, remembering the state it found (the first since the last boundary);
-    `PostCompact` restores that state (else `working`); a prompt, a `Stop`, an `Interrupt` or a non-compact
+12. Compaction: `PreCompact` → `working`, remembering the state it found (the first since the last boundary),
+    with when it began and whether a helper raised it; `PostCompact` restores all three (else `working`); a prompt, a `Stop`, an `Interrupt` or a non-compact
     start forgets the snapshot.
 13. Helper events (`agent_id` set) mark the helper live and never speak for the main agent, except: a helper's
-    `PermissionRequest` → `waiting`; the helper acting again → `working`; a helper acting after `done` →
-    `working` with the finish held. `SubagentStop` marks the helper gone; one for an unknown session creates
+    `PermissionRequest` → `waiting`, raised by the helper; a helper acting again answers any wait a helper raised
+    (a permission, a question, a plan) → `working`, and a repeated `permission_prompt` notification on that wait
+    leaves it the helper's; a helper acting after `done` → `working` with the finish held. `SubagentStop` marks the helper gone; one for an unknown session creates
     nothing. Only the main agent's `background_tasks` replace the session's set.
 14. A helper is live for 240 s after its last event. A held finish becomes `done` 90 s after the last helper or
     background shell cleared, or 30 min after the session's last event; a new helper re-engages the hold; any
@@ -74,16 +77,16 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
     the last main-agent event that carried an id; the last 8 closed turns are kept. An event of a closed turn
     refreshes liveness and changes nothing — except a prompt or a start (always), a `SessionEnd`, and a
     main-agent `PreToolUse` of a turn a *verdict* closed, which reopens it; a turn an `Interrupt` closed reopens
-    with a prompt only. For 120 s after an `Interrupt`, and until a prompt, a tool or permission event without a
-    turn id changes nothing.
+    with a prompt only. For 120 s after an `Interrupt`, and until a prompt or a verdict closes the turn, a tool or
+    permission event without a turn id changes nothing.
 
 ## 3. Rescues: asking the source when the hooks say nothing
 
 17. A `working` session with nothing held, no live helper and no background shell, quiet for 20 s (0 at launch),
     is asked about at its source every 15 s: Claude Code's `<config>/sessions/<pid>.json`, Codex's managed daemon
     and then its rollout, Copilot's `events.jsonl`. OpenCode is never asked: its hooks, its server's exit and
-    staleness end it. A source that decided nothing is read again 15 s later at the earliest, however much else
-    the journal delivers.
+    staleness end it. A Codex rollout or a Copilot `events.jsonl` that decided nothing is read again 15 s later at
+    the earliest, however much else the journal delivers; Claude Code's record is read at every pass once due.
 18. **Claude Code.** `<config>` is the parent of the last `projects` folder at least two levels above the
     transcript path (absolute, no `.` or `..`), else the process's own `CLAUDE_CONFIG_DIR`, else `~/.claude`. A
     record must name the pid and the session. `idle` stamped after the last main-agent event ends the turn at
@@ -92,8 +95,9 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
 19. **Codex.** Only a session whose pid is the managed daemon (`--managed-daemon`, or under
     `/app-server-daemon/`) is asked `thread/read` (1 s, fail closed; only `initialize`, `initialized`,
     `thread/read`, `thread/loaded/list` are ever sent); a record about another thread, a partial loaded list, or
-    an unknown shape or status decides nothing; `notLoaded` / `idle` → the turn is over, dated to the rollout's
-    end marker, else the record's `updatedAt`; `active` → liveness. The rollout
+    an unknown shape or status decides nothing; `notLoaded` / `idle` → the turn is over, and the rollout says
+    how: its `task_complete` of this turn is a finish, its `turn_aborted` or no end of this turn is an end that
+    delivered nothing, dated to the marker, else the record's `updatedAt`; `active` → liveness. The rollout
     (`~/.codex/sessions/…/rollout-…-<sid>.jsonl`, named after the session, else found by id; last 64 KB): the
     last of `task_started` / `task_complete` / `turn_aborted` decides; an end stamped after the last main-agent
     event, or naming its turn, ends the turn; a start with no end is liveness; unreadable decides nothing. Any
@@ -120,7 +124,12 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
     `events.jsonl`'s modification time or last line; the registry and the daemon, which have no file to date, at
     the check), never later than now, never earlier than the session's last event; it
     never counts as a main-agent event. A session whose source last wrote 2 h ago is forgotten by staleness.
-24. A verdict that a turn is over takes effect at `min(max(endedAt, lastMainEventAt), now)`, `endedAt` being the
+24. A verdict that a turn is over closes the turn and follows the source: a **finished** turn (Claude Code's
+    record `idle` — see § 6 —, Codex's `task_complete`, Copilot's own `agentStop`) is a lost
+    `Stop` — `done`, or held while a helper is live or a background shell is out; every other end (aborted,
+    failed, the session closed) leaves the session not working and never `done` (`idle`, or an app's own
+    failure state), so a helper line without a turn id cannot reopen it. It takes effect at
+    `min(max(endedAt, lastMainEventAt), now)`, `endedAt` being the
     source's own stamp (the registry's `statusUpdatedAt`, the end marker's, the daemon record's `updatedAt`); an
     answered wait takes effect as of the check. Every verdict is journaled at its stamp, and a replay applies the
     same outcome as of the same stamp. A verdict never creates a session, never refreshes liveness, changes
@@ -146,8 +155,8 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
 27. The zsh snippet reports a job from `preexec` (`job begin --id zsh-$$ --pid $$ --label <first head>` and the
     count-after) and ends it from `precmd` (`job end --id zsh-$$`, `$?` read first and returned). Segment heads
     are read after `VAR=value` words and the prefixes `sudo time command builtin exec nice nohup env noglob
-    caffeinate` (with their flags, and the argument of `sudo -[ughpCDTUrt]`, `nice -n`, `env -[uCS]`); a line of
-    prefixes alone begins nothing; one head on the skip list skips the line. The skip list: `vi vim nvim emacs
+    caffeinate` (with their flags, and the argument of `sudo -[ughpCDTUrt]`, `nice -n`, `env -[uCS]`); a segment of prefixes
+    alone (`sudo -i`) opens an interactive shell and skips the whole line, as one head on the skip list does. The skip list: `vi vim nvim emacs
     nano pico less more man info ssh mosh tmux screen top htop btop watch tig lazygit su login claude codex
     copilot opencode grok koffeelid mysidepulse`, and the shells `zsh bash sh fish dash ksh` when every word
     after the shell is a flag. The job variable is declared, never assigned, at load; an interactive shell
@@ -166,6 +175,12 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
     pid is dropped after 2 h.
 
 ## 6. Not in the contract
+
+One bounded exception: how a rescued Claude Code end is classified. my-sidepulse reads the transcript when the
+record says `idle` and counts a finish only when it ends on a completed answer (its colour and its push depend on
+it), else an end that delivered nothing; koffeelid reads no transcript and counts every such end a finish. Both
+end the turn at the same moment and close it, so a later line of that turn changes nothing in either; only a
+helper line carrying no turn id could reopen koffeelid's and not my-sidepulse's.
 
 Each app's own: what a non-working state looks like (wait reasons, colours, the alert settle, pushes and their
 timing, acknowledgement — my-sidepulse; the hold-off after work, "Disarm once finished", the drop on local
@@ -200,7 +215,7 @@ job outcomes).
 | Job label | 60 characters |
 | A command counts after (default) | 5 s |
 | A job's shell asked at least every / second sighting at the prompt / job with no shell pid dropped | 15 s / 5 s / 2 h |
-| Journal rotation, idle / hard | 5 MB / 20 MB |
+| Journal rotation, idle / hard (idle as each app defines it) | 5 MB / 20 MB |
 | Codex hook timeout, `SessionEnd` and `Interrupt` / others | 3 s / 5 s |
 | Copilot hook `timeoutSec` | 5 s |
 | OpenCode plugin: hook timeout / queue / dedupe set | 2 s / 256 / 2048 |
