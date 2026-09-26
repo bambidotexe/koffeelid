@@ -404,8 +404,10 @@ Time rules (`tick`): a helper counts as live for 240 s after its last event; a h
 after everything cleared, or 30 min after the last event; `done` becomes `idle` after 20 min; a session silent
 for 2 h is removed. Registry rescues (`ActivityMonitor.checkRegistry`), for Claude Code sessions
 (`abandonCandidates`, no quiet gate at launch), reading `<config>/sessions/<pid>.json` where `<config>` is the
-session's `transcriptPath`'s config directory (`ClaudeRegistryRecord.configDir(fromTranscriptPath:)`), else
-`~/.claude`: a `working` session quiet for 20 s with nothing out is checked every 15 s; registry
+session's `transcriptPath`'s config directory (`ClaudeRegistryRecord.configDir(fromTranscriptPath:)`), else the
+pid's own `CLAUDE_CONFIG_DIR` (`ProcWalk.environmentValue("CLAUDE_CONFIG_DIR", forPid:)`, read from its
+`KERN_PROCARGS2` buffer the same way its argv is), else `~/.claude`: a `working` session quiet for 20 s with
+nothing out is checked every 15 s; registry
 `idle` stamped after the last main event → `turnOver`; registry `busy` → `noteBusy` (and one warning after
 5 min without a hook); a `waiting` session whose registry says `busy` stamped 2 s after the wait began →
 `dialogAnswered`. Codex checks (`ActivityMonitor.checkCodex`), for Codex sessions (`codexCandidates`, the

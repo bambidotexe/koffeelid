@@ -172,8 +172,9 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   `sessions/<pid>.json` record going `idle` ends it within about 35 s, and an `idle_prompt` or
   `agent_needs_input` notification after 50 s of main-agent quiet ends it too. The registry's verdict closes
   the turn; the notification, a timer rather than proof, does not. The registry is found from the session's
-  transcript path (`<config>/projects/…`), so a relocated `CLAUDE_CONFIG_DIR` is found; `~/.claude` is the
-  fallback. The app records its own verdicts (a turn over, from the registry, a rollout, Codex's daemon or a
+  transcript path (`<config>/projects/…`), so a relocated `CLAUDE_CONFIG_DIR` is found; a session no line has
+  named a path for falls back to the process's own `CLAUDE_CONFIG_DIR` (read from its environment), then to
+  `~/.claude`. The app records its own verdicts (a turn over, from the registry, a rollout, Codex's daemon or a
   Copilot `events.jsonl`, and a dialog answered) in the journal, stamped when the turn ended or the answer was seen, so a relaunch replays
   them; a verdict older than the session's last main-agent event changes nothing, and a verdict about a
   session the journal does not hold is ignored. At launch,

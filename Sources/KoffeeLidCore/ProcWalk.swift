@@ -98,6 +98,36 @@ public enum ProcWalk {
         return out
     }
 
+    /// The value of `name` in a same-user process's own environment, read past its argv in the same
+    /// KERN_PROCARGS2 buffer (argc, the exec path, its padding, argc argv strings, then `KEY=VALUE`
+    /// environment strings up to the double NUL that ends them). Nil when the process cannot be read or its
+    /// environment does not set the name.
+    public static func environmentValue(_ name: String, forPid pid: Int32) -> String? {
+        guard let buffer = procArgs(pid) else { return nil }
+        var argc: Int32 = 0
+        withUnsafeMutableBytes(of: &argc) { $0.copyBytes(from: buffer.prefix(MemoryLayout<Int32>.size)) }
+        var index = MemoryLayout<Int32>.size
+        while index < buffer.count, buffer[index] != 0 { index += 1 }   // exec path
+        while index < buffer.count, buffer[index] == 0 { index += 1 }   // padding
+        var remaining = Int(argc)
+        while remaining > 0, index < buffer.count {                     // argv strings
+            while index < buffer.count, buffer[index] != 0 { index += 1 }
+            index += 1
+            remaining -= 1
+        }
+        let prefix = Array("\(name)=".utf8)
+        while index < buffer.count {
+            var end = index
+            while end < buffer.count, buffer[end] != 0 { end += 1 }
+            if end > index, buffer[index..<end].starts(with: prefix) {
+                return String(decoding: buffer[(index + prefix.count)..<end], as: UTF8.self)
+            }
+            if end == index { break }   // a double NUL: past the environment
+            index = end + 1
+        }
+        return nil
+    }
+
     /// Both real install shapes: the launcher `~/.local/bin/claude` and the versioned target
     /// `~/.local/share/claude/versions/<version>` (whose p_comm is the version string).
     public static func isClaudePath(_ path: String) -> Bool {

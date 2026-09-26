@@ -4,11 +4,14 @@ import KoffeeLidCore
 
 /// Reads Claude Code's `<config>/sessions/<pid>.json`. The config directory is the one the session's transcript
 /// lives in (`ClaudeRegistryRecord.configDir(fromTranscriptPath:)`), which follows a relocated
-/// `CLAUDE_CONFIG_DIR`; `~/.claude` when the session names no transcript under a `projects` folder. The
-/// process's environment is not read: macOS withholds it from another process.
+/// `CLAUDE_CONFIG_DIR`; else the pid's own `CLAUDE_CONFIG_DIR`, read from its `KERN_PROCARGS2` environment
+/// (`ProcWalk.environmentValue`: a same-user process's environment, unlike another user's, is not withheld);
+/// `~/.claude` when neither names one.
 enum ClaudeProcessRegistry {
     static func read(pid: Int32, configDir: URL?) -> ClaudeRegistryRecord? {
-        let dir = configDir ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude")
+        let dir = configDir
+            ?? ProcWalk.environmentValue("CLAUDE_CONFIG_DIR", forPid: pid).map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude")
         guard let data = try? Data(contentsOf: dir.appendingPathComponent("sessions/\(pid).json")) else { return nil }
         return ClaudeRegistryRecord.parse(data, expectedPid: pid)
     }

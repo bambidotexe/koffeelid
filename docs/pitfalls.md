@@ -327,19 +327,28 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **Do not** let a verdict apply over a later main-agent event to close the gap: that rule is what keeps a
   stale verdict from ending a live turn.
 
-### Another process's environment cannot be read
-- **Symptom.** Under a relocated `CLAUDE_CONFIG_DIR` (an account switcher such as cswap), every Claude Code turn
-  ended with Esc or Ctrl-C stays working for 2 h, and the log carries `activity: no registry record for pid …`.
-- **Why.** macOS withholds it from a same-user reader, so a per-session `CLAUDE_CONFIG_DIR` is invisible, and
-  the registry is not in `~/.claude`.
-- **What the code does.** Reads the directory from the transcript path the hooks name
-  (`<config>/projects/<slug>/<session>.jsonl`, kept on the session as `transcriptPath`):
-  `ClaudeRegistryRecord.configDir(fromTranscriptPath:)` gives `<config>`, and the registry rescues and the
-  launch prune read `<config>/sessions/<pid>.json`. `~/.claude` is the fallback for a session no line has
-  named a path for (lines from before the field, tracking begun on a tool line); the `no registry record` line
-  is then the sign it missed, and only staleness (2 h) ends such a session.
-- **Do not** read the process's environment for it (macOS withholds another process's, even from `ps -E`), and
-  do not take the folder from a fixed depth: a helper's transcript sits deeper in the same folder.
+### A same-user process's environment is read from `KERN_PROCARGS2`, not from `ps`
+- **Symptom (before the fallback).** Under a relocated `CLAUDE_CONFIG_DIR` (an account switcher such as
+  cswap), a session no transcript line has named a path for (lines from before the field, tracking begun on a
+  tool line) read `~/.claude`'s registry, which is not where that Claude Code writes its record: every turn of
+  it ended with Esc or Ctrl-C stayed working for 2 h, and the log carried `activity: no registry record for
+  pid …`.
+- **Why it looks impossible.** `ps -E`, Activity Monitor and most higher-level APIs withhold another process's
+  environment for privacy. What they read from is `KERN_PROCARGS2`, the same `sysctl` buffer that hands over a
+  process's argv (`ProcWalk.arguments(forPid:)`); for a process the caller can already see with `kill(pid, 0)`
+  — the same user, sandboxing aside — the buffer carries the environment strings right after argv, and nothing
+  stops a direct `sysctl` read of them. `ProcWalk.environmentValue(_:forPid:)` reads past the exec path and
+  argv the same way `arguments(forPid:)` does, to the `KEY=VALUE` strings a double NUL ends
+  (`ProcWalkTests.testEnvironmentValueReadsOwnEnvironment` proves it against this process's own pid).
+- **What the code does.** The transcript path stays first
+  (`ClaudeRegistryRecord.configDir(fromTranscriptPath:)`, `<config>/projects/<slug>/<session>.jsonl` →
+  `<config>`): it costs no syscall and is known before the process is asked anything.
+  `ClaudeProcessRegistry.read` falls back to the pid's own `CLAUDE_CONFIG_DIR`
+  (`ProcWalk.environmentValue("CLAUDE_CONFIG_DIR", forPid:)`) for a session no line has named a path for, then
+  to `~/.claude`.
+- **Do not** take the folder from a fixed depth: a helper's transcript sits deeper in the same folder. **Do
+  not** drop the transcript path as the first source: the environment read is one `sysctl` per check, the
+  transcript path is free and already in hand.
 
 ### Hooks fire while the app is down
 - **What the code does.** The hook appends to a file with one `O_APPEND` write; the app replays this boot's

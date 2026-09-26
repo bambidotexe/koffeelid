@@ -128,6 +128,14 @@ final class ProcWalkTests: XCTestCase {
         XCTAssertFalse(ProcWalk.isManagedCodexDaemon(path: own.path, arguments: ownArguments))
         XCTAssertFalse(ProcWalk.isSharedCodexHost(path: own.path, arguments: ownArguments))
     }
+    func testEnvironmentValueReadsOwnEnvironment() {
+        // A same-user process's environment, past its own argv in the same KERN_PROCARGS2 buffer.
+        let expected = ProcessInfo.processInfo.environment["HOME"]
+        XCTAssertNotNil(expected)
+        XCTAssertEqual(ProcWalk.environmentValue("HOME", forPid: getpid()), expected)
+        XCTAssertNil(ProcWalk.environmentValue("KOFFEELID_NO_SUCH_VAR_EVER", forPid: getpid()))
+        XCTAssertNil(ProcWalk.environmentValue("HOME", forPid: 2_000_000), "a dead pid reads nothing")
+    }
     func testShellNamesAreRecognisedWithALoginDash() {
         for name in ["zsh", "-zsh", "bash", "-bash", "sh", "-sh", "fish", "dash", "ksh", "tcsh", "-tcsh"] {
             XCTAssertTrue(ProcWalk.ProcInfo(pid: 1, ppid: 0, name: name, path: nil).isShell, name)
