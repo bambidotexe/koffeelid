@@ -85,6 +85,16 @@ final class ShellInitTests: XCTestCase {
         XCTAssertEqual(try zsh("true vim").count, 2, "an argument is not a command")
         XCTAssertEqual(try zsh("cd '\(dir.path)' && true").count, 2)
     }
+    /// An agent is followed through its own hooks; as a terminal command it would hold the arm for as long as
+    /// its session stays open, working or not. Stand-ins, so no real agent ever runs.
+    func testTheAgentsAreNeverTerminalCommands() throws {
+        for agent in ["claude", "codex", "copilot", "opencode"] {
+            try write("bin/\(agent)", "#!/bin/sh\nexit 0\n")
+            XCTAssertEqual(try zsh(agent), [], agent)
+            XCTAssertEqual(try zsh("\(agent) --help"), [], agent)
+            XCTAssertEqual(try zsh("cd '\(dir.path)' && \(agent)"), [], agent)
+        }
+    }
     /// The shell's pid, written by the script before it sources the snippet.
     let printPid = #"print -r -- "pid $$" >> $KOFFEELID_LOG"#
     func pid(in calls: [String]) throws -> String {

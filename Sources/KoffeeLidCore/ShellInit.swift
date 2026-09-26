@@ -97,7 +97,7 @@ typeset -ga KOFFEELID_SKIP
   vi vim nvim emacs nano pico less more man info
   ssh mosh tmux screen top htop btop watch tig lazygit
   zsh bash sh fish su login
-  claude codex grok koffeelid
+  claude codex copilot opencode grok koffeelid
 )
 # Declared, never reset: a `source ~/.zshrc` inside a command keeps the job it belongs to.
 (( ${+_koffeelid_job} )) || typeset -g _koffeelid_job=
