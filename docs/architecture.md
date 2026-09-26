@@ -281,8 +281,9 @@ app's own verdict lines among them) → the time rules (`tick`), so a stale sess
 the registry (`pruneDead`: dead or recycled pids, a Claude Code pid whose registry record names another
 session among them; a session on a shared Codex host kept) → the jobs' shell probe (`probeJobs`) →
 `checkRegistry(quietSeconds: 0)`, the registry rescue on every working Claude Code session whatever its quiet → `checkCodex(atLaunch: true)`, after
-`thread/loaded/list` has ended (`finishTurn`, a lost `Stop`) each working session on the managed daemon whose thread the
-daemon does not hold (asked only when the managed daemon hosts one and its socket exists) → `checkCopilot(atLaunch: true)`, the
+`thread/loaded/list` has ended (`finishTurn`, a lost `Stop`) each working session on the managed daemon whose
+thread the daemon does not hold, dated to the rollout's own end marker when reading it finds one, else this
+check's own time (asked only when the managed daemon hosts one and its socket exists) → `checkCopilot(atLaunch: true)`, the
 `events.jsonl` check of every working Copilot session whatever its quiet → the first `sync()`. All of it comes before the first
 publish (`launched` holds `sync` back until the daemon's answer, at most 1 s; a 2 s fallback,
 `launchAnswerFallbackSeconds`, runs `finishLaunch` once should the answer never arrive, and a later answer is

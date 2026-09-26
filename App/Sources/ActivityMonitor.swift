@@ -426,14 +426,16 @@ final class ActivityMonitor {
     }
 
     /// At launch: a working session the managed daemon hosts whose thread it does not hold in memory has nothing
-    /// running. A nil answer leaves every session to its rollout.
+    /// running, dated to the source like `daemonAnswered`'s (the rollout's own end marker when reading it finds
+    /// one, else this check's own time, through `rescueStamp`). A nil answer leaves every session to its rollout.
     private func daemonListed(_ loaded: Set<String>?, asked: [String: Date]) {
         guard let loaded else { noteDaemonSilent(); return }
         let now = Date()
         for (sid, lastMain) in asked where !loaded.contains(sid) {
             guard let session = sessions.sessions[sid], session.state == .working, !session.pendingDone, session.lastMainEventAt == lastMain else { continue }
             onLog?("activity: Codex daemon has not loaded thread \(sid.prefix(8)), turn over")
-            endTurn(sid, finished: true, endedAt: now, now: now)
+            let endedAt = rolloutEndDate(sid: sid, recorded: session.transcriptPath, daemonPath: nil) ?? now
+            endTurn(sid, finished: true, endedAt: endedAt, now: now)
         }
     }
 
