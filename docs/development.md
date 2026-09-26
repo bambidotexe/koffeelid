@@ -44,6 +44,11 @@ build that relinks the app does (`docs/pitfalls.md` § Working on this Mac). `sw
 the app targets need `xcodebuild` (App Intents metadata, String Catalog, asset catalog). No linter is configured.
 XCTest's summary line undercounts here; count the per-case `passed` lines.
 
+**Testing.** Every test but one is hermetic. `OpencodePluginExecutedTests` runs the generated OpenCode plugin
+under a real `node`, found on `PATH` or the usual install locations a minimal environment's `PATH` might miss
+(Homebrew, `/usr/local`, `/usr/bin`, mise, Volta, nvm); with none found it `XCTSkip`s rather than failing, so
+`swift test` still comes back green on a machine with no Node.
+
 **Definition of done.** A change is done when the code and `docs/functional.md` (and the other documents it
 touches: architecture, macOS facts, pitfalls, the manual checklist) describe the same app, `swift test` and the
 warning check pass, the string catalog covers every new `L("…")` key, and the commit is per task. A request that

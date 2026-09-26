@@ -97,14 +97,16 @@ public struct HealthFacts: Equatable {
     /// `disableAllHooks` in either of Copilot's own settings files: turns every one of its hooks off, whatever
     /// `copilotHookEvents` says.
     public var copilotHooksDisabled: Bool
-    /// Whether Copilot is on this Mac (`~/.copilot` exists) or its hooks are set up: the Copilot line is a
-    /// check only then.
+    /// Whether Copilot is on this Mac (`~/.copilot/config.json` or `~/.copilot/session-state` exists, evidence
+    /// Copilot itself created, never `~/.copilot` alone, which Set Up creates too) or its hooks are set up: the
+    /// Copilot line is a check only then.
     public var copilotOnThisMac: Bool
     /// The plugin at `~/.config/opencode/plugins/koffeelid.js` is ours but not what this bundle would write
     /// today: a stale copy left by an older or another bundle.
     public var opencodeStale: Bool
-    /// Whether OpenCode is on this Mac (`~/.config/opencode`, `~/.opencode` or `/Applications/OpenCode.app`
-    /// exists) or its plugin is set up: the OpenCode line is a check only then.
+    /// Whether OpenCode is on this Mac (`~/.local/share/opencode`, `~/.opencode` or `/Applications/OpenCode.app`
+    /// exists, evidence OpenCode itself created, never `~/.config/opencode` alone, which Set Up creates too) or
+    /// its plugin is set up: the OpenCode line is a check only then.
     public var opencodeOnThisMac: Bool
     /// When each crash report of KoffeeLid in the last `HealthConstants.crashWindow` was written, newest first.
     public var recentCrashes: [Date]

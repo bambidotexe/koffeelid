@@ -3671,6 +3671,16 @@
         }
       }
     },
+    "Copilot's hooks are turned off: remove “disableAllHooks” from ~/.copilot/settings.json (or ~/.copilot/config.json).": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les hooks Copilot sont désactivés : supprimez « disableAllHooks » de ~/.copilot/settings.json (ou ~/.copilot/config.json)."
+          }
+        }
+      }
+    },
     "the OpenCode plugin belongs to another copy of KoffeeLid": {
       "localizations": {
         "fr": {

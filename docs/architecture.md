@@ -508,7 +508,9 @@ byte for byte.
 `HookInstaller.installCopilot`/`installOpencode` write these whole files to `~/.copilot/hooks/koffeelid.json`
 and `~/.config/opencode/plugins/koffeelid.js` (creating the `hooks/`/`plugins/` directory); `uninstallCopilot`/
 `uninstallOpencode` refuse the same way install does, reporting a file that cannot even be parsed as a failure
-rather than skipping it. `copilotInstalledCount` and `opencodeInstalled` (each with an off-main variant told
+rather than skipping it, and remove that same `hooks/`/`plugins/` directory afterward, but only once it is
+empty (`removeIfEmpty`): never a folder with anything else left in it, and never `~/.copilot` or
+`~/.config/opencode` itself. `copilotInstalledCount` and `opencodeInstalled` (each with an off-main variant told
 its paths, for the Health page and the menu's "Disarm once finished" gate) read them back byte-exact to this
 bundle's own path; `copilotHooksPresent`/`opencodePluginPresent` (plain existence) are what Reset and Uninstall
 gate their removal on instead, so a file from an older or another copy of KoffeeLid — ours, but not

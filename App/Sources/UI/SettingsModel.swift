@@ -21,6 +21,9 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var launchAtLogin = false
     /// The grants and hooks that are there right now.
     @Published private(set) var held: Set<SettingsGrant> = []
+    /// `disableAllHooks` in one of Copilot's own files: every one of its hooks is off, ours included, whatever
+    /// `held` says about the file itself.
+    @Published private(set) var copilotHooksDisabled = false
     @Published private(set) var sensorPresent = false
     /// The last angle the sensor reported, nil while nothing has been read.
     @Published private(set) var lidAngle: Double?
@@ -109,6 +112,8 @@ final class SettingsModel: ObservableObject {
 
         let now = Set((PermissionCatalog.items + HookCatalog.items).filter { $0.granted() }.map(\.id))
         if now != held { held = now }
+        let copilotDisabled = HookInstaller.copilotHooksDisabled()
+        if copilotDisabled != copilotHooksDisabled { copilotHooksDisabled = copilotDisabled }
         // The notification grant answers asynchronously: the catalog's last answer stands until the new
         // one lands, on the main queue.
         PermissionCatalog.refreshNotifications { [weak self] in

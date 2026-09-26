@@ -63,13 +63,18 @@ final class HealthCheck: ObservableObject {
             fresh.copilotHookEvents = copilot
             fresh.copilotHooksUnreadable = copilot == nil
             fresh.copilotHooksDisabled = HookInstaller.copilotHooksDisabled()
-            fresh.copilotOnThisMac = FileManager.default.fileExists(atPath: HookInstaller.copilotHome.path)
+            // Evidence Copilot itself created, never `copilotHome` (`~/.copilot`): `installCopilot()` creates
+            // that folder too when it writes the hooks file, so it would prove only that Set Up ran.
+            fresh.copilotOnThisMac = FileManager.default.fileExists(atPath: HookInstaller.copilotConfigURL.path)
+                || FileManager.default.fileExists(atPath: HookInstaller.copilotSessionStateURL.path)
                 || HookInstaller.copilotHooksPresent()
             let opencodeText = try? String(contentsOf: HookInstaller.opencodePluginURL, encoding: .utf8)
             fresh.opencodeStale = opencodeText.map { OpencodePlugin.isOurs($0) && !OpencodePlugin.isCurrent($0, hookPath: hookPath) } ?? false
-            let opencodeHome = FileManager.default.homeDirectoryForCurrentUser
-            fresh.opencodeOnThisMac = FileManager.default.fileExists(atPath: HookInstaller.opencodeConfigDir.path)
-                || FileManager.default.fileExists(atPath: opencodeHome.appendingPathComponent(".opencode").path)
+            // Evidence OpenCode itself created, never `opencodeConfigDir` (`~/.config/opencode`):
+            // `installOpencode()` creates that folder too when it writes the plugin.
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            fresh.opencodeOnThisMac = FileManager.default.fileExists(atPath: home.appendingPathComponent(".local/share/opencode").path)
+                || FileManager.default.fileExists(atPath: home.appendingPathComponent(".opencode").path)
                 || FileManager.default.fileExists(atPath: "/Applications/OpenCode.app")
                 || HookInstaller.opencodePluginPresent()
             let wait = max(0, minimumBusy - Date().timeIntervalSince(started))

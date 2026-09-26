@@ -120,9 +120,11 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   the way into the journal. A subagent's session (one with a `parent_id`) becomes helper events of its
   top-level ancestor, walking every link in between, not of its immediate parent. The hook counts as set up
   only while the installed file matches, byte for byte, what this copy of KoffeeLid would write today. A
-  session counts as working from a prompt or tool event until its
-  `Stop`; every busy period ends in exactly one terminal event (succeeded, failed or interrupted), so OpenCode
-  needs no rescue for a quiet turn the way Claude Code, Codex and Copilot do.
+  session counts as working from a prompt or tool event until its execution ends:
+  `session.execution.succeeded` fires `Stop`; `session.execution.failed` fires `StopFailure`, which does not
+  count as running, the way a permission wait does not; `session.execution.interrupted` fires `Interrupt`,
+  which closes the turn and ends its helpers at once. Every busy period ends in exactly one of these three, so
+  OpenCode needs no rescue for a quiet turn the way Claude Code, Codex and Copilot do.
 - **A closed turn stays closed.** Every event of a turn carries the turn's id: Claude Code's `prompt_id`,
   Codex's `turn_id`. An `Interrupt`, or a verdict that the turn is over (§ Without an end event), closes the
   turn. Any event that arrives for a closed turn, but a prompt, a `SessionStart`, a `SessionEnd` or a tool call
@@ -200,9 +202,11 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   longer does; a file that cannot be read decides nothing, and a file that decided nothing is read again 15 s
   later at the earliest. Only `<session-state>/<session id>/events.jsonl` is read, where `<session-state>` is
   `$COPILOT_HOME/session-state` when the app's own environment sets `COPILOT_HOME`, else
-  `~/.copilot/session-state`. The launch checks only end turns, but for a Claude Code dialog the
-  registry says was answered, which counts again as it would at the first check. A session silent for 2 h is
-  dropped; a command is asked of its shell instead (Terminal, above).
+  `~/.copilot/session-state`: a `COPILOT_HOME` set only in the shell that runs `copilot` is not seen by the
+  app, which reads its own environment's `~/.copilot`, so such a Ctrl+C'd or failed turn is invisible to the
+  check and ends only at Copilot's own exit or the 2 h staleness. The launch checks only end turns, but for a
+  Claude Code dialog the registry says was answered, which counts again as it would at the first check. A
+  session silent for 2 h is dropped; a command is asked of its shell instead (Terminal, above).
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after
@@ -335,7 +339,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   |---|---|
   | General | the app icon; Startup (launch at login, show in menu bar, and a note naming the way back to this window once the icon is hidden); Updates; Quit ("Quit KoffeeLid" is the menu's Quit: disarms, clears the kernel flag, releases the sleep lock, then exits); Uninstall (see below) |
   | Arming | Lid gesture (the switch, the key to hold, the two travels); Menu bar and shortcuts (right-click, the two shortcuts); Low battery (the switch and its level) |
-  | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code, Codex, Copilot, OpenCode and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
+  | Auto-Arm | While you work (the switch, what counts as running right now); Claude Code, Codex, Copilot (a warning while `disableAllHooks` turns its hooks off), OpenCode and Terminal (each hook's state, the button that sets it up or removes it, its waits) |
   | Lid Effect | Effect (the switch, and the Screen Recording grant while it is on); Lid angle (the live angle, the angle in the menu bar); When it starts; Look; Preview (reset to defaults, simulate a fold) |
   | Sound | Lid-close sound (the switch, the charger and display switches of the closed-lid reminders, and the clip as a pop-up menu: picking one plays it); Volume (the forced volume and its level) |
   | System | Staying awake safely (sleep lock, Background App Activity, each with its button while missing); Permissions (Screen Recording, Input Monitoring, Notifications, each with its Allow button and a warning naming its switch in System Settings while denied); Diagnostics (the log's switch, open the log); Start over (show the onboarding again, reset everything). Only states with a control beside them: a bare verdict is on Health |
@@ -381,11 +385,13 @@ lid closes, only on the built-in display, and captures nothing while the lid res
     **Notifications permission** (Granted green, Denied orange), **Claude Code hooks** and **Codex hooks**
     (Enabled green, Disabled orange; their tooltips say how many of the 15, or the 12, hook events point at
     this copy of KoffeeLid, Codex's counting only the trusted ones), **Copilot hooks** and **OpenCode plugin**
-    (Enabled green, Disabled orange; shown only while their agent is on this Mac or already set up: Copilot
-    when `~/.copilot` exists, OpenCode when `~/.config/opencode`, `~/.opencode` or `/Applications/OpenCode.app`
-    does; Copilot's tooltip says how many of the 7 hook events point here, or that they are turned off by
-    `disableAllHooks`, or that the file could not be read; OpenCode's says when the plugin is ours but belongs
-    to another copy of KoffeeLid), **Terminal hook (zsh)** (Enabled green, Disabled orange), **Lid angle
+    (Enabled green, Disabled orange; shown only while their agent is on this Mac or already set up: evidence
+    the agent itself created, never a folder KoffeeLid's own Set Up creates, so Copilot counts when
+    `~/.copilot/config.json` or `~/.copilot/session-state` exists, OpenCode when `~/.local/share/opencode`,
+    `~/.opencode` or `/Applications/OpenCode.app` does; Copilot's tooltip says how many of the 7 hook events
+    point here, or that they are turned off by `disableAllHooks`, or that the file could not be read;
+    OpenCode's says when the plugin is ours but belongs to another copy of KoffeeLid), **Terminal hook (zsh)**
+    (Enabled green, Disabled orange), **Lid angle
     sensor** (Available green, Missing orange). Only while wrong: **Lid sleep**, second (Enabled red while armed,
     Disabled orange while a clear is being retried), and **Crashes in the last 7 days**, last (the count, orange,
     the last one's date in the tooltip, from `~/Library/Logs/DiagnosticReports`). At most thirteen lines, with

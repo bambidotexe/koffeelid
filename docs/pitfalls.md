@@ -617,8 +617,9 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **Why.** A subagent session carries a `parent_id` naming the session that started it, and its events belong
   with that session's, not on their own. A permission granted by a rule or an auto-approval flag is still
   asked and replied to, about 3 ms apart — indistinguishable in the payload from a person answering at once.
-- **What the code does.** `ActivityTrim.opencodeMapping` reads `parent_id` and turns a subagent's events into
-  helper events of the parent (`sessionId` the parent, `agentId` the child); a `permission.asked` followed a
+- **What the code does.** `ActivityTrim.opencodeEvent` reads `parent_id` and hands `opencodeMapping` the
+  subagent flag, which turns a subagent's events into helper events of the parent (`sessionId` the parent,
+  `agentId` the child); a `permission.asked` followed a
   few milliseconds later by `permission.replied` still counts as the wait ending, never as a person
   interrupted mid-turn.
 - **Do not** create a session for an id that carries a `parent_id`, and do not read a fast

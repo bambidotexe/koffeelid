@@ -169,6 +169,9 @@ enum HookInstaller {
     static var copilotHooksURL: URL { copilotHome.appendingPathComponent("hooks/koffeelid.json") }
     static var copilotSettingsURL: URL { copilotHome.appendingPathComponent("settings.json") }
     static var copilotConfigURL: URL { copilotHome.appendingPathComponent("config.json") }
+    /// Copilot's own session folder: evidence Copilot itself created, unlike `copilotHome` (`~/.copilot`),
+    /// which `installCopilot()` creates too when it writes the hooks file.
+    static var copilotSessionStateURL: URL { copilotHome.appendingPathComponent("session-state") }
 
     /// Writes the whole `~/.copilot/hooks/koffeelid.json`: the file is wholly ours, so there is no backup to
     /// take. Refuses, unchanged, when a file already sits there and does not look like one of ours.
@@ -196,8 +199,20 @@ enum HookInstaller {
         guard CopilotHookFile.isOurs(root) else {
             return (false, "~/.copilot/hooks/koffeelid.json does not look like a file KoffeeLid wrote; left it untouched.")
         }
-        do { try FileManager.default.removeItem(at: path); return (true, "Removed the Copilot hooks file.") }
-        catch { return (false, "uninstall-hooks copilot failed: \(error)\nYour Copilot hooks file was not modified.") }
+        do {
+            try FileManager.default.removeItem(at: path)
+            removeIfEmpty(path.deletingLastPathComponent())
+            return (true, "Removed the Copilot hooks file.")
+        } catch { return (false, "uninstall-hooks copilot failed: \(error)\nYour Copilot hooks file was not modified.") }
+    }
+
+    /// Removes `dir` only when it is now empty, never a folder with anything left in it and never anything
+    /// above it: `uninstallCopilot`'s `~/.copilot/hooks/`, `uninstallOpencode`'s
+    /// `~/.config/opencode/plugins/`, and nothing else. `~/.copilot` and `~/.config/opencode` are left alone
+    /// either way, whatever else Copilot or OpenCode keeps there.
+    private static func removeIfEmpty(_ dir: URL) {
+        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: dir.path), contents.isEmpty else { return }
+        try? FileManager.default.removeItem(at: dir)
     }
 
     /// A file sits at `~/.copilot/hooks/koffeelid.json`, whether or not it matches this bundle's own path:
@@ -259,8 +274,11 @@ enum HookInstaller {
         guard OpencodePlugin.isOurs(text) else {
             return (false, "~/.config/opencode/plugins/koffeelid.js does not look like a file KoffeeLid wrote; left it untouched.")
         }
-        do { try FileManager.default.removeItem(at: path); return (true, "Removed the OpenCode plugin.") }
-        catch { return (false, "uninstall-hooks opencode failed: \(error)\nYour OpenCode plugin was not modified.") }
+        do {
+            try FileManager.default.removeItem(at: path)
+            removeIfEmpty(path.deletingLastPathComponent())
+            return (true, "Removed the OpenCode plugin.")
+        } catch { return (false, "uninstall-hooks opencode failed: \(error)\nYour OpenCode plugin was not modified.") }
     }
 
     /// A file sits at `~/.config/opencode/plugins/koffeelid.js`, whether or not it matches this bundle's own

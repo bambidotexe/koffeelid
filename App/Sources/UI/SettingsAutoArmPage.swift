@@ -50,6 +50,9 @@ struct SettingsAutoArmPage: View {
             }
             SettingsGroup(title: L("Copilot"),
                           hint: L("KoffeeLid adds ~/.copilot/hooks/koffeelid.json. The wait leaves you time to pick a session up from another device: touching this Mac's keyboard or trackpad ends it at once."),
+                          warnings: model.copilotHooksDisabled
+                            ? [L("Copilot's hooks are turned off: remove “disableAllHooks” from ~/.copilot/settings.json (or ~/.copilot/config.json).")]
+                            : [],
                           notes: [L("A session waiting for your answer does not count as running.")]) {
                 StatusRow(L("Copilot hooks"), mark: model.mark(.copilotHooks, yes: L("Enabled"), no: L("Disabled")))
                 ButtonRow {
