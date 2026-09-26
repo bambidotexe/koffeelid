@@ -86,10 +86,18 @@ public struct HealthFacts: Equatable {
     /// settings file could not be read.
     public var claudeHookEvents: Int?
     public var claudeSettingsUnreadable: Bool
+    /// Something of ours is in `~/.claude/settings.json`, whatever bundle wrote it (any event's entry carries
+    /// our marker), or the file exists and could not be read, so there is no telling: the Claude Code line is
+    /// a check only then. False with no file at all: nothing of KoffeeLid's is there.
+    public var claudeHooksPresent: Bool
     /// How many of the Codex hook events point at this copy of KoffeeLid and are trusted by Codex; nil until
     /// read or when either of Codex's two files could not be read.
     public var codexHookEvents: Int?
     public var codexHooksUnreadable: Bool
+    /// Something of ours is in `~/.codex/hooks.json`, whatever bundle wrote it and whatever `config.toml`
+    /// trusts, or the file exists and could not be read: the Codex line is a check only then. False with no
+    /// file at all.
+    public var codexHooksPresent: Bool
     /// How many of the 7 Copilot hook events point at this copy of KoffeeLid; nil until read or when
     /// `~/.copilot/hooks/koffeelid.json` could not be read.
     public var copilotHookEvents: Int?
@@ -97,17 +105,14 @@ public struct HealthFacts: Equatable {
     /// `disableAllHooks` in either of Copilot's own settings files: turns every one of its hooks off, whatever
     /// `copilotHookEvents` says.
     public var copilotHooksDisabled: Bool
-    /// Whether Copilot is on this Mac (`~/.copilot/config.json` or `~/.copilot/session-state` exists, evidence
-    /// Copilot itself created, never `~/.copilot` alone, which Set Up creates too) or its hooks are set up: the
-    /// Copilot line is a check only then.
-    public var copilotOnThisMac: Bool
+    /// `~/.copilot/hooks/koffeelid.json` exists, ours or not, readable or not: the Copilot line is a check
+    /// only then.
+    public var copilotHooksPresent: Bool
     /// The plugin at `~/.config/opencode/plugins/koffeelid.js` is ours but not what this bundle would write
     /// today: a stale copy left by an older or another bundle.
     public var opencodeStale: Bool
-    /// Whether OpenCode is on this Mac (`~/.local/share/opencode`, `~/.opencode` or `/Applications/OpenCode.app`
-    /// exists, evidence OpenCode itself created, never `~/.config/opencode` alone, which Set Up creates too) or
-    /// its plugin is set up: the OpenCode line is a check only then.
-    public var opencodeOnThisMac: Bool
+    /// `~/.config/opencode/plugins/koffeelid.js` exists: the OpenCode line is a check only then.
+    public var opencodeHooksPresent: Bool
     /// When each crash report of KoffeeLid in the last `HealthConstants.crashWindow` was written, newest first.
     public var recentCrashes: [Date]
 
@@ -118,9 +123,10 @@ public struct HealthFacts: Equatable {
                 lastClaudeEvent: HookEventSeen?, lastCodexEvent: HookEventSeen?,
                 lastCopilotEvent: HookEventSeen?, lastOpencodeEvent: HookEventSeen?,
                 lastTerminalEventAt: Date?, watchdogRunning: Bool?, agentPlistName: String,
-                claudeHookEvents: Int?, claudeSettingsUnreadable: Bool, codexHookEvents: Int?,
-                codexHooksUnreadable: Bool, copilotHookEvents: Int?, copilotHooksUnreadable: Bool,
-                copilotHooksDisabled: Bool, copilotOnThisMac: Bool, opencodeStale: Bool, opencodeOnThisMac: Bool,
+                claudeHookEvents: Int?, claudeSettingsUnreadable: Bool, claudeHooksPresent: Bool,
+                codexHookEvents: Int?, codexHooksUnreadable: Bool, codexHooksPresent: Bool,
+                copilotHookEvents: Int?, copilotHooksUnreadable: Bool, copilotHooksDisabled: Bool,
+                copilotHooksPresent: Bool, opencodeStale: Bool, opencodeHooksPresent: Bool,
                 recentCrashes: [Date]) {
         self.now = now
         self.held = held
@@ -146,14 +152,16 @@ public struct HealthFacts: Equatable {
         self.agentPlistName = agentPlistName
         self.claudeHookEvents = claudeHookEvents
         self.claudeSettingsUnreadable = claudeSettingsUnreadable
+        self.claudeHooksPresent = claudeHooksPresent
         self.codexHookEvents = codexHookEvents
         self.codexHooksUnreadable = codexHooksUnreadable
+        self.codexHooksPresent = codexHooksPresent
         self.copilotHookEvents = copilotHookEvents
         self.copilotHooksUnreadable = copilotHooksUnreadable
         self.copilotHooksDisabled = copilotHooksDisabled
-        self.copilotOnThisMac = copilotOnThisMac
+        self.copilotHooksPresent = copilotHooksPresent
         self.opencodeStale = opencodeStale
-        self.opencodeOnThisMac = opencodeOnThisMac
+        self.opencodeHooksPresent = opencodeHooksPresent
         self.recentCrashes = recentCrashes
     }
 }
@@ -286,16 +294,18 @@ public struct HealthReading: Equatable {
 /// The Health page's two tables: the checks, green, orange or red, and the readings, blue.
 ///
 /// **A check is something that has to be in place or running for KoffeeLid to work**: the sleep lock, the
-/// kernel's lid-sleep flag while armed, the crash watchdog, the three permissions, the five hooks (Copilot's
-/// and OpenCode's only while their agent is on the Mac), the lid angle sensor. Red is what stops KoffeeLid
-/// from keeping a closed Mac awake, or from doing it safely: a grant the onboarding marks required (the
-/// sleep lock, Background App Activity), the lid-sleep flag not held while armed, a sleep lock that did not
-/// engage. Everything that degrades a feature is orange. A
-/// preference is never a check, whichever way it is set, and neither is a reading: the battery, the heat,
-/// the displays, the version, the memory are on no table.
+/// kernel's lid-sleep flag while armed, the crash watchdog, the three permissions, the lid angle sensor, and
+/// each of the five hooks once something of it is set up. Red is what stops KoffeeLid from keeping a closed
+/// Mac awake, or from doing it safely: a grant the onboarding marks required (the sleep lock, Background App
+/// Activity), the lid-sleep flag not held while armed, a sleep lock that did not engage. Everything that
+/// degrades a feature is orange. A preference is never a check, whichever way it is set, and neither is a
+/// reading: the battery, the heat, the displays, the version, the memory are on no table.
 public enum HealthReport {
-    /// The Health table, in page order. Every line is there always, except the lid-sleep flag and the crashes,
-    /// which have nothing to say while they are fine and are a line only while they are wrong.
+    /// The Health table, in page order. Every permission, the sleep lock, the crash watchdog and the lid
+    /// sensor are there always; the lid-sleep flag and the crashes have nothing to say while they are fine
+    /// and are a line only while they are wrong; each of the five hooks is a line only once something of
+    /// KoffeeLid's is set up for it (held, partly there, pointing at another copy, or a file present but
+    /// unreadable) — nothing of ours there is no line and no warning, not an install the user may never make.
     public static func checks(for facts: HealthFacts) -> [HealthItem] {
         var items = [sleepLock(facts)]
         if let lidSleep = lidSleep(facts) { items.append(lidSleep) }
@@ -305,17 +315,11 @@ public enum HealthReport {
         items.append(inputMonitoring(facts))
         items.append(grant(.notifications, .notifications, facts: facts, yes: .granted, no: .denied,
                            fix: .notifications))
-        let hookDetail: HealthDetail? = facts.claudeSettingsUnreadable ? .settingsUnreadable
-            : facts.claudeHookEvents.map { .hookEvents(installed: $0, of: HookConfig.claude.events.count) }
-        items.append(grant(.claudeHooks, .claudeHooks, facts: facts, yes: .enabled, no: .disabled,
-                           detail: hookDetail, fix: .setUpClaudeCode))
-        let codexDetail: HealthDetail? = facts.codexHooksUnreadable ? .codexFilesUnreadable
-            : facts.codexHookEvents.map { .hookEvents(installed: $0, of: HookConfig.codex.events.count) }
-        items.append(grant(.codexHooks, .codexHooks, facts: facts, yes: .enabled, no: .disabled,
-                           detail: codexDetail, fix: .setUpCodex))
+        if let claude = claudeHooks(facts) { items.append(claude) }
+        if let codex = codexHooks(facts) { items.append(codex) }
         if let copilot = copilotHooks(facts) { items.append(copilot) }
         if let opencode = opencodePlugin(facts) { items.append(opencode) }
-        items.append(grant(.zshHook, .zshHook, facts: facts, yes: .enabled, no: .disabled, fix: .setUpTerminal))
+        if let zsh = zshHook(facts) { items.append(zsh) }
         items.append(HealthItem(.lidSensor, HealthRules.lidSensor(present: facts.sensorPresent),
                                 facts.sensorPresent ? .available : .missing, fix: .noLidSensor))
         if let last = facts.recentCrashes.first {
@@ -385,11 +389,31 @@ public enum HealthReport {
                           detail: detail, fix: fix)
     }
 
-    /// Copilot's hooks file, a line only while Copilot is on this Mac or its hooks are set up: unlike Claude
-    /// Code's and Codex's, which are there for every KoffeeLid install. `disableAllHooks` is its own detail,
-    /// distinct from a count that has not reached 7.
+    /// Claude Code's hooks, a line only while something of ours is set up: held, some but not all events, an
+    /// entry pointing at another copy of KoffeeLid, or the file present but unreadable.
+    static func claudeHooks(_ facts: HealthFacts) -> HealthItem? {
+        guard facts.claudeHooksPresent else { return nil }
+        let detail: HealthDetail? = facts.claudeSettingsUnreadable ? .settingsUnreadable
+            : facts.claudeHookEvents.map { .hookEvents(installed: $0, of: HookConfig.claude.events.count) }
+        return grant(.claudeHooks, .claudeHooks, facts: facts, yes: .enabled, no: .disabled, detail: detail,
+                    fix: .setUpClaudeCode)
+    }
+
+    /// Codex's hooks, a line only while something of ours is in `~/.codex/hooks.json`, whatever
+    /// `config.toml` trusts: not yet trusted is still ours, and still shown, orange.
+    static func codexHooks(_ facts: HealthFacts) -> HealthItem? {
+        guard facts.codexHooksPresent else { return nil }
+        let detail: HealthDetail? = facts.codexHooksUnreadable ? .codexFilesUnreadable
+            : facts.codexHookEvents.map { .hookEvents(installed: $0, of: HookConfig.codex.events.count) }
+        return grant(.codexHooks, .codexHooks, facts: facts, yes: .enabled, no: .disabled, detail: detail,
+                    fix: .setUpCodex)
+    }
+
+    /// Copilot's hooks file, a line only while `~/.copilot/hooks/koffeelid.json` exists: unlike Claude Code's
+    /// and Codex's files, which the user may never have Copilot to write anything else into.
+    /// `disableAllHooks` is its own detail, distinct from a count that has not reached 7.
     static func copilotHooks(_ facts: HealthFacts) -> HealthItem? {
-        guard facts.copilotOnThisMac else { return nil }
+        guard facts.copilotHooksPresent else { return nil }
         let detail: HealthDetail? = facts.copilotHooksUnreadable ? .copilotFileUnreadable
             : facts.copilotHooksDisabled ? .copilotDisabled
             : facts.copilotHookEvents.map { .hookEvents(installed: $0, of: CopilotHookFile.events.count) }
@@ -397,13 +421,20 @@ public enum HealthReport {
                     fix: .setUpCopilot)
     }
 
-    /// OpenCode's plugin, a line only while OpenCode is on this Mac or its plugin is set up. A plugin that is
-    /// ours but not what this bundle would write today is stale, not merely missing.
+    /// OpenCode's plugin, a line only while `~/.config/opencode/plugins/koffeelid.js` exists. A plugin that
+    /// is ours but not what this bundle would write today is stale, not merely missing.
     static func opencodePlugin(_ facts: HealthFacts) -> HealthItem? {
-        guard facts.opencodeOnThisMac else { return nil }
+        guard facts.opencodeHooksPresent else { return nil }
         let detail: HealthDetail? = facts.opencodeStale ? .opencodePluginStale : nil
         return grant(.opencodeHooks, .opencodeHooks, facts: facts, yes: .enabled, no: .disabled, detail: detail,
                     fix: .setUpOpencode)
+    }
+
+    /// The zsh snippet, a line only while it is there: unlike the two agents' hook files, sourcing the
+    /// snippet is all it takes, so it has no broken state of its own to report.
+    static func zshHook(_ facts: HealthFacts) -> HealthItem? {
+        guard facts.held.contains(.zshHook) else { return nil }
+        return grant(.zshHook, .zshHook, facts: facts, yes: .enabled, no: .disabled, fix: .setUpTerminal)
     }
 
     /// The sleep lock is a grant (a sudoers rule) that must also do its job: engaged for as long as an arm

@@ -2,12 +2,12 @@ import Foundation
 import KoffeeLidCore
 
 /// The readings only the Health page takes: whether the crash watchdog runs, how many Claude Code, Codex and
-/// Copilot hook events point at this copy, whether the OpenCode plugin is current, whether each of Copilot
-/// and OpenCode is on this Mac, and KoffeeLid's crash reports. What the rest of the window also shows (a
-/// grant, the lid) is `SettingsModel`'s poll, and KoffeeLid's own state (the mode, the kernel flag, the sleep
-/// lock, the hooks' last events) is read from the coordinator each time the page draws; these are read when
-/// the page is shown and when Check Again is pressed, and never on a timer, so a page nobody is looking at
-/// costs nothing.
+/// Copilot hook events point at this copy, whether the OpenCode plugin is current, whether anything of
+/// KoffeeLid's is set up for each of the five hooks (the gate that puts its line on the table at all), and
+/// KoffeeLid's crash reports. What the rest of the window also shows (a grant, the lid) is `SettingsModel`'s
+/// poll, and KoffeeLid's own state (the mode, the kernel flag, the sleep lock, the hooks' last events) is read
+/// from the coordinator each time the page draws; these are read when the page is shown and when Check Again
+/// is pressed, and never on a timer, so a page nobody is looking at costs nothing.
 ///
 /// **The window drives this, not a view**, like the model's poll: `SettingsWindow` reads it when it opens on
 /// the Health page and when the page is picked. Every one of these waits on something (every process's path,
@@ -20,14 +20,16 @@ final class HealthCheck: ObservableObject {
         var watchdogRunning: Bool?
         var claudeHookEvents: Int?
         var claudeSettingsUnreadable = false
+        var claudeHooksPresent = false
         var codexHookEvents: Int?
         var codexHooksUnreadable = false
+        var codexHooksPresent = false
         var copilotHookEvents: Int?
         var copilotHooksUnreadable = false
         var copilotHooksDisabled = false
-        var copilotOnThisMac = false
+        var copilotHooksPresent = false
         var opencodeStale = false
-        var opencodeOnThisMac = false
+        var opencodeHooksPresent = false
     }
 
     @Published private(set) var readings = Readings()
@@ -56,27 +58,23 @@ final class HealthCheck: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             var fresh = Self.readSlowly(process: process, watchdog: watchdog, settingsURL: settingsURL,
                                         command: command, now: started)
+            let codexRoot = try? HookSettingsFile.load(at: codexHooksURL)
             let codex = HookInstaller.codexInstalledCount(hooksURL: codexHooksURL, configURL: codexConfigURL, command: codexCommand)
             fresh.codexHookEvents = codex
             fresh.codexHooksUnreadable = codex == nil
+            // Something of ours is in the file, whatever bundle wrote it and whatever config.toml trusts;
+            // unreadable counts as present too, since there is then no telling there is nothing of ours.
+            fresh.codexHooksPresent = codexRoot.map { root in
+                HookConfig.codex.events.contains { HookConfig.codex.installedCommand(in: root, event: $0) != nil }
+            } ?? FileManager.default.fileExists(atPath: codexHooksURL.path)
             let copilot = HookInstaller.copilotInstalledCount(hooksURL: HookInstaller.copilotHooksURL, hookPath: hookPath)
             fresh.copilotHookEvents = copilot
             fresh.copilotHooksUnreadable = copilot == nil
             fresh.copilotHooksDisabled = HookInstaller.copilotHooksDisabled()
-            // Evidence Copilot itself created, never `copilotHome` (`~/.copilot`): `installCopilot()` creates
-            // that folder too when it writes the hooks file, so it would prove only that Set Up ran.
-            fresh.copilotOnThisMac = FileManager.default.fileExists(atPath: HookInstaller.copilotConfigURL.path)
-                || FileManager.default.fileExists(atPath: HookInstaller.copilotSessionStateURL.path)
-                || HookInstaller.copilotHooksPresent()
+            fresh.copilotHooksPresent = HookInstaller.copilotHooksPresent()
             let opencodeText = try? String(contentsOf: HookInstaller.opencodePluginURL, encoding: .utf8)
             fresh.opencodeStale = opencodeText.map { OpencodePlugin.isOurs($0) && !OpencodePlugin.isCurrent($0, hookPath: hookPath) } ?? false
-            // Evidence OpenCode itself created, never `opencodeConfigDir` (`~/.config/opencode`):
-            // `installOpencode()` creates that folder too when it writes the plugin.
-            let home = FileManager.default.homeDirectoryForCurrentUser
-            fresh.opencodeOnThisMac = FileManager.default.fileExists(atPath: home.appendingPathComponent(".local/share/opencode").path)
-                || FileManager.default.fileExists(atPath: home.appendingPathComponent(".opencode").path)
-                || FileManager.default.fileExists(atPath: "/Applications/OpenCode.app")
-                || HookInstaller.opencodePluginPresent()
+            fresh.opencodeHooksPresent = HookInstaller.opencodePluginPresent()
             let wait = max(0, minimumBusy - Date().timeIntervalSince(started))
             DispatchQueue.main.asyncAfter(deadline: .now() + wait) {
                 MainActor.assumeIsolated {
@@ -104,8 +102,14 @@ final class HealthCheck: ObservableObject {
         do {
             let root = try HookSettingsFile.load(at: settingsURL) ?? [:]
             slow.claudeHookEvents = HookConfig.claude.installedCount(in: root, command: command)
+            // Something of ours is in the file, whatever bundle wrote it: any event's entry carries our
+            // marker.
+            slow.claudeHooksPresent = HookConfig.claude.events.contains { HookConfig.claude.installedCommand(in: root, event: $0) != nil }
         } catch {
+            // Exists and could not be read: there is no telling there is nothing of ours, so it counts as
+            // present too.
             slow.claudeSettingsUnreadable = true
+            slow.claudeHooksPresent = true
         }
         return slow
     }
@@ -129,10 +133,12 @@ final class HealthCheck: ObservableObject {
             lastTerminalEventAt: controller.activity.lastTerminalEventAt,
             watchdogRunning: readings.watchdogRunning, agentPlistName: RelaunchAgentController.plistName,
             claudeHookEvents: readings.claudeHookEvents, claudeSettingsUnreadable: readings.claudeSettingsUnreadable,
+            claudeHooksPresent: readings.claudeHooksPresent,
             codexHookEvents: readings.codexHookEvents, codexHooksUnreadable: readings.codexHooksUnreadable,
+            codexHooksPresent: readings.codexHooksPresent,
             copilotHookEvents: readings.copilotHookEvents, copilotHooksUnreadable: readings.copilotHooksUnreadable,
-            copilotHooksDisabled: readings.copilotHooksDisabled, copilotOnThisMac: readings.copilotOnThisMac,
-            opencodeStale: readings.opencodeStale, opencodeOnThisMac: readings.opencodeOnThisMac,
+            copilotHooksDisabled: readings.copilotHooksDisabled, copilotHooksPresent: readings.copilotHooksPresent,
+            opencodeStale: readings.opencodeStale, opencodeHooksPresent: readings.opencodeHooksPresent,
             recentCrashes: readings.recentCrashes)
     }
 

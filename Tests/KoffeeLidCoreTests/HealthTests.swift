@@ -18,9 +18,10 @@ final class HealthTests: XCTestCase {
                     lastOpencodeEvent: HookEventSeen(name: "Stop", at: now.addingTimeInterval(-45)),
                     lastTerminalEventAt: now.addingTimeInterval(-30), watchdogRunning: true,
                     agentPlistName: "dev.rubens.koffeelid.agent.plist", claudeHookEvents: 15,
-                    claudeSettingsUnreadable: false, codexHookEvents: 12, codexHooksUnreadable: false,
-                    copilotHookEvents: 7, copilotHooksUnreadable: false, copilotHooksDisabled: false,
-                    copilotOnThisMac: true, opencodeStale: false, opencodeOnThisMac: true, recentCrashes: [])
+                    claudeSettingsUnreadable: false, claudeHooksPresent: true, codexHookEvents: 12,
+                    codexHooksUnreadable: false, codexHooksPresent: true, copilotHookEvents: 7,
+                    copilotHooksUnreadable: false, copilotHooksDisabled: false, copilotHooksPresent: true,
+                    opencodeStale: false, opencodeHooksPresent: true, recentCrashes: [])
     }
 
     /// The same Mac, armed, with the flag and the lock holding.
@@ -54,17 +55,34 @@ final class HealthTests: XCTestCase {
     }
 
     func testEveryMissingGrantFollowsTheOnboardingsRequiredMark() {
+        // Not the hooks: unlike a permission, holding nothing back is not a state a hook can be in and still
+        // report (there is then nothing of ours to report at all); see the "only once set up" tests below.
         let lines: [SettingsGrant: HealthItemID] = [
             .sleepLock: .sleepLock, .loginItems: .crashWatchdog, .screenRecording: .screenRecording,
-            .inputMonitoring: .inputMonitoring, .notifications: .notifications, .claudeHooks: .claudeHooks,
-            .codexHooks: .codexHooks, .copilotHooks: .copilotHooks, .opencodeHooks: .opencodeHooks,
-            .zshHook: .zshHook,
+            .inputMonitoring: .inputMonitoring, .notifications: .notifications,
         ]
         for (grant, id) in lines {
             var facts = healthy()
             facts.held.remove(grant)
             let line = check(id, facts)
             XCTAssertEqual(line?.level, grant.isRequired ? .failure : .warning, grant.rawValue)
+            XCTAssertNotNil(line?.fix, grant.rawValue)
+        }
+    }
+
+    /// The four hook files still report, orange, while something of ours is there but not held: some events
+    /// but not all, an entry pointing at another copy of KoffeeLid. The zsh line has no such state: it is
+    /// either there (green) or gone.
+    func testAHookThatIsOursButNotFullyHeldIsOrange() {
+        let lines: [SettingsGrant: HealthItemID] = [
+            .claudeHooks: .claudeHooks, .codexHooks: .codexHooks, .copilotHooks: .copilotHooks,
+            .opencodeHooks: .opencodeHooks,
+        ]
+        for (grant, id) in lines {
+            var facts = healthy()
+            facts.held.remove(grant)
+            let line = check(id, facts)
+            XCTAssertEqual(line?.level, .warning, grant.rawValue)
             XCTAssertNotNil(line?.fix, grant.rawValue)
         }
     }
@@ -166,9 +184,6 @@ final class HealthTests: XCTestCase {
         facts.held.remove(.codexHooks)
         XCTAssertEqual(check(.codexHooks, facts)?.word, .disabled)
         XCTAssertEqual(check(.codexHooks, facts)?.fix, .setUpCodex)
-        facts.held.remove(.zshHook)
-        XCTAssertEqual(check(.zshHook, facts)?.word, .disabled)
-        XCTAssertEqual(check(.zshHook, facts)?.fix, .setUpTerminal)
     }
 
     func testCopilotHooksDisabledIsItsOwnDetailDistinctFromTheCount() {
@@ -186,19 +201,59 @@ final class HealthTests: XCTestCase {
         XCTAssertEqual(check(.opencodeHooks, facts)?.fix, .setUpOpencode)
     }
 
-    func testCopilotAndOpenCodeAreLinesOnlyOnThisMacOrSetUp() {
+    /// Each hook line is on the table only once something of KoffeeLid's is set up for it: never having
+    /// touched an agent the user does not run is not a thing to fix, so it is not a line and not a warning.
+    func testAHookIsALineOnlyOnceSomethingOfOursIsSetUp() {
         var facts = healthy()
-        facts.copilotOnThisMac = false
-        facts.opencodeOnThisMac = false
+        facts.held.remove(.claudeHooks)
+        facts.held.remove(.codexHooks)
+        facts.held.remove(.copilotHooks)
+        facts.held.remove(.opencodeHooks)
+        facts.held.remove(.zshHook)
+        facts.claudeHooksPresent = false
+        facts.codexHooksPresent = false
+        facts.copilotHooksPresent = false
+        facts.opencodeHooksPresent = false
+        XCTAssertNil(check(.claudeHooks, facts))
+        XCTAssertNil(check(.codexHooks, facts))
         XCTAssertNil(check(.copilotHooks, facts))
         XCTAssertNil(check(.opencodeHooks, facts))
-        XCTAssertEqual(HealthReport.checks(for: facts).map(\.id), [.sleepLock, .crashWatchdog, .screenRecording,
-                                                                   .inputMonitoring, .notifications, .claudeHooks,
-                                                                   .codexHooks, .zshHook, .lidSensor])
-        facts.copilotOnThisMac = true
-        facts.opencodeOnThisMac = true
+        XCTAssertNil(check(.zshHook, facts))
+        let checks = HealthReport.checks(for: facts)
+        XCTAssertEqual(checks.map(\.id), [.sleepLock, .crashWatchdog, .screenRecording, .inputMonitoring,
+                                          .notifications, .lidSensor])
+        XCTAssertTrue(checks.allSatisfy { $0.level == .good }, "no hook set up leaves no warning under the table either")
+
+        facts.claudeHooksPresent = true
+        facts.codexHooksPresent = true
+        facts.copilotHooksPresent = true
+        facts.opencodeHooksPresent = true
+        XCTAssertNotNil(check(.claudeHooks, facts))
+        XCTAssertNotNil(check(.codexHooks, facts))
         XCTAssertNotNil(check(.copilotHooks, facts))
         XCTAssertNotNil(check(.opencodeHooks, facts))
+        // Still gone: presence is not held, and zsh's only state is held or nothing.
+        XCTAssertNil(check(.zshHook, facts))
+
+        facts.held.insert(.zshHook)
+        XCTAssertNotNil(check(.zshHook, facts))
+    }
+
+    /// An unreadable file counts as present too: there is no telling there is nothing of ours in it.
+    func testAnUnreadableHookFileIsPresentEvenWhenNeverSetUp() {
+        var facts = healthy()
+        facts.held.remove(.claudeHooks)
+        facts.held.remove(.codexHooks)
+        facts.held.remove(.copilotHooks)
+        facts.claudeHooksPresent = true
+        facts.claudeSettingsUnreadable = true
+        facts.codexHooksPresent = true
+        facts.codexHooksUnreadable = true
+        facts.copilotHooksPresent = true
+        facts.copilotHooksUnreadable = true
+        XCTAssertEqual(check(.claudeHooks, facts)?.level, .warning)
+        XCTAssertEqual(check(.codexHooks, facts)?.level, .warning)
+        XCTAssertEqual(check(.copilotHooks, facts)?.level, .warning)
     }
 
     func testAMacWithoutTheLidSensorIsWorthALook() {
@@ -297,9 +352,10 @@ final class HealthTests: XCTestCase {
     // MARK: How long the tables may grow
 
     func testTheTablesStayShortInTheWorstCase() {
-        // Everything that can go wrong gone wrong at once, and every reading there.
+        // Every hook present, four of the five broken (zsh has no broken state of its own), and every
+        // reading there.
         var worst = armed()
-        worst.held = [.inputMonitoring, .claudeHooks, .zshHook]
+        worst.held = [.inputMonitoring, .zshHook]
         worst.lidSleepFlagSet = false
         worst.sensorPresent = false
         worst.fnReader = .failed

@@ -365,8 +365,10 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   the same on every page (`SettingsStatus`, `HealthRules`): **a grant that is missing is red when the onboarding
   marks it required and orange otherwise, never blue.** The sleep lock (Available / Missing) and Background App
   Activity (Enabled / Disabled) are required, so red while missing; Screen Recording, Input Monitoring and
-  Notifications (Granted / Denied) and the five hooks (Enabled / Disabled) are optional, so orange while missing,
-  whatever the switches. Auto-arm switched on with no hook set up also puts a warning under its switch. A
+  Notifications (Granted / Denied) are optional, so orange while missing, whatever the switches. Each of the
+  five hooks (Enabled / Disabled) is optional too, but unlike a permission it is on Health only once something
+  of it is set up (below): the user may never run the agent it is for, and orange for a setup nobody has made
+  is misleading, not a thing to fix. Auto-arm switched on with no hook set up also puts a warning under its switch. A
   state the user can fix has a button under it only while it is wrong; once it is right the button goes and the
   row stays. A state with nothing to press beside it is on the Health page alone, unless it is the context of what
   its page holds (a grant above its button, the lid angle beside the angle sliders, the work running now beside
@@ -383,20 +385,31 @@ lid closes, only on the built-in display, and captures nothing while the lid res
     watchdog it runs, one line: Running green; Disabled red while Background App Activity is off; Stopped orange
     while it is on and the watchdog is not running), **Screen Recording permission**, **Input Monitoring
     permission** (also Failed orange while the lid gesture uses 🌐 Fn and this Mac's own keyboard cannot be read),
-    **Notifications permission** (Granted green, Denied orange), **Claude Code hooks** and **Codex hooks**
-    (Enabled green, Disabled orange; their tooltips say how many of the 15, or the 12, hook events point at
-    this copy of KoffeeLid, Codex's counting only the trusted ones), **Copilot hooks** and **OpenCode plugin**
-    (Enabled green, Disabled orange; shown only while their agent is on this Mac or already set up: evidence
-    the agent itself created, never a folder KoffeeLid's own Set Up creates, so Copilot counts when
-    `~/.copilot/config.json` or `~/.copilot/session-state` exists, OpenCode when `~/.local/share/opencode`,
-    `~/.opencode` or `/Applications/OpenCode.app` does; Copilot's tooltip says how many of the 7 hook events
-    point here, or that they are turned off by `disableAllHooks`, or that the file could not be read;
-    OpenCode's says when the plugin is ours but belongs to another copy of KoffeeLid), **Terminal hook (zsh)**
-    (Enabled green, Disabled orange), **Lid angle
-    sensor** (Available green, Missing orange). Only while wrong: **Lid sleep**, second (Enabled red while armed,
-    Disabled orange while a clear is being retried), and **Crashes in the last 7 days**, last (the count, orange,
-    the last one's date in the tooltip, from `~/Library/Logs/DiagnosticReports`). At most thirteen lines, with
-    everything wrong at once.
+    **Notifications permission** (Granted green, Denied orange), and **Lid angle sensor** (Available green,
+    Missing orange).
+
+    Each of the five hooks is a line only once something of KoffeeLid's is set up for it; the user may not run
+    every agent, and a setup nobody has made is not a thing to fix, so it is neither a line nor a warning under
+    the table. In page order, between Notifications and the lid sensor: **Claude Code hooks** (a line while an
+    event of `~/.claude/settings.json` carries KoffeeLid's marker, whatever bundle wrote it, or the file could
+    not be read; Enabled green while every one of the 15 events points at this copy, Disabled orange otherwise;
+    the tooltip says how many do, or that the file could not be read), **Codex hooks** (the same test against
+    `~/.codex/hooks.json`, whatever `config.toml` currently trusts; Enabled green while every one of the 12
+    events points at this copy and is trusted, Disabled orange otherwise; the tooltip counts the trusted ones,
+    or says either file could not be read), **Copilot hooks** (a line while `~/.copilot/hooks/koffeelid.json`
+    exists, ours or not, readable or not; Enabled green while every one of its 7 events points at this copy and
+    `disableAllHooks` is not set, Disabled orange otherwise; the tooltip says how many events point here, or
+    that they are turned off by `disableAllHooks`, or that the file could not be read), **OpenCode plugin** (a
+    line while `~/.config/opencode/plugins/koffeelid.js` exists; Enabled green while it is exactly what this
+    bundle would write today, Disabled orange otherwise; the tooltip says when the plugin is ours but belongs
+    to another copy of KoffeeLid), **Terminal hook (zsh)** (a line, always green, only once `~/.zshrc` sources
+    the snippet: unlike the four files above, sourcing it is all it takes, so there is no broken state of its
+    own to show orange).
+
+    Only while wrong: **Lid sleep**, second (Enabled red while armed, Disabled orange while a clear is being
+    retried), and **Crashes in the last 7 days**, last (the count, orange, the last one's date in the tooltip,
+    from `~/Library/Logs/DiagnosticReports`). At most thirteen lines, with every hook set up and broken and
+    everything else wrong at once.
   - **Information** (Informations): at most eight readings, blue. **State** (Off, Armed, Armed + screen on,
     Auto-armed, Armed for one close; the tooltip is the command line's status line); **Lid angle now** (with the
     sensor); **Last Claude Code event**, **Last Codex event**, **Last Copilot event** and **Last OpenCode
@@ -404,12 +417,13 @@ lid closes, only on the built-in display, and captures nothing while the lid res
     time); **Last terminal command** (the same); **Last turned itself off** (the safety rail and how long ago,
     once one has ended an arm since launch).
 
-  Its own readings (whether the watchdog runs, the Claude Code settings file, Codex's hooks file and its trust
-  in `config.toml`, how many of Copilot's hooks point here and whether `disableAllHooks` is set, whether the
-  OpenCode plugin is current or stale, whether each of Copilot and OpenCode is on this Mac, crash reports) are
-  taken off the main thread when the page is shown and on Check Again, never on a timer; the grants and the lid
-  come from the window's poll, and KoffeeLid's own state from the coordinator as the page draws. The version
-  and updates are not health: they stay on General.
+  Its own readings (whether the watchdog runs, the Claude Code settings file and whether anything of ours is in
+  it, Codex's hooks file and its trust in `config.toml` and whether anything of ours is in it regardless, how
+  many of Copilot's hooks point here and whether `disableAllHooks` is set and whether the file exists, whether
+  the OpenCode plugin is current or stale and whether it exists, crash reports) are taken off the main thread
+  when the page is shown and on Check Again, never on a timer; the grants and the lid come from the window's
+  poll, and KoffeeLid's own state from the coordinator as the page draws. The version and updates are not
+  health: they stay on General.
 - **Onboarding.** Four pages in an ordinary window: pitch, Permissions, "Arm while you work" (the five hooks), All set.
   Shown at first launch and from Settings › System › "Show Onboarding Again". It opens in front because it is
   the last window to open, and from then on it behaves like any other window: a permission dialog, the

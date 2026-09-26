@@ -169,9 +169,6 @@ enum HookInstaller {
     static var copilotHooksURL: URL { copilotHome.appendingPathComponent("hooks/koffeelid.json") }
     static var copilotSettingsURL: URL { copilotHome.appendingPathComponent("settings.json") }
     static var copilotConfigURL: URL { copilotHome.appendingPathComponent("config.json") }
-    /// Copilot's own session folder: evidence Copilot itself created, unlike `copilotHome` (`~/.copilot`),
-    /// which `installCopilot()` creates too when it writes the hooks file.
-    static var copilotSessionStateURL: URL { copilotHome.appendingPathComponent("session-state") }
 
     /// Writes the whole `~/.copilot/hooks/koffeelid.json`: the file is wholly ours, so there is no backup to
     /// take. Refuses, unchanged, when a file already sits there and does not look like one of ours.

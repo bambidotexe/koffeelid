@@ -48,10 +48,15 @@ the sensor, the lid angle), the coordinator's read-only state as the page draws 
 `lastEvent(for: .opencode)` / `lastTerminalEventAt`), and `HealthCheck`, which the window asks to read when it
 opens on Health, when Health is picked and on Check Again, never on a timer, all off the main thread: the crash
 reports (`CrashReports`), whether the watchdog runs (`ProcWalk.isRunning`, by file identity),
-`~/.claude/settings.json`'s hook count, Codex's trusted hook count (`HookInstaller.codexInstalledCount`), how
-many of Copilot's hooks point at this copy and whether `disableAllHooks` is set, whether the OpenCode plugin is
-current or stale, and whether each of Copilot and OpenCode is on this Mac at all (their two checks show only
-then). Check Again shows a spinner until they land, and at least
+`~/.claude/settings.json`'s hook count and whether any event in it carries KoffeeLid's marker at all, Codex's
+trusted hook count (`HookInstaller.codexInstalledCount`) and the same any-marker test against
+`~/.codex/hooks.json` whatever its trust, how many of Copilot's hooks point at this copy, whether
+`disableAllHooks` is set and whether `~/.copilot/hooks/koffeelid.json` exists at all, and whether the OpenCode
+plugin is current or stale and whether `~/.config/opencode/plugins/koffeelid.js` exists at all. Each of the
+five hooks is a line on Health only while its presence fact holds (`HealthFacts.claudeHooksPresent` /
+`codexHooksPresent` / `copilotHooksPresent` / `opencodeHooksPresent`, and `held.contains(.zshHook)` for the
+zsh line, which has no broken state of its own): nothing of KoffeeLid's set up is no line and no warning, not
+an install the user may never make. Check Again shows a spinner until they land, and at least
 `HealthConstants.minimumBusy`. The
 onboarding is an AppKit window and reads the same `PermissionCatalog` and `HookCatalog`. It is a normal window
 too, at the normal level and with the default collection behaviour, like the other two: `AppDelegate` activates
