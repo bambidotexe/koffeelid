@@ -4,7 +4,11 @@ import KoffeeLidCore
 /// `koffeelid install-hooks` / `uninstall-hooks` and the Settings buttons share this. Edits Claude Code's
 /// `~/.claude/settings.json` through `HookConfig.claude`, and Codex's `~/.codex/hooks.json` through
 /// `HookConfig.codex` together with the trust Codex wants in `~/.codex/config.toml` (`CodexHookTrust`);
-/// backs every file up first, and reports what actually landed.
+/// backs every file up first, and reports what actually landed. Writes Copilot's whole
+/// `~/.copilot/hooks/koffeelid.json` (`CopilotHookFile`) and OpenCode's whole
+/// `~/.config/opencode/plugins/koffeelid.js` (`OpencodePlugin`): each file is wholly ours, so there is
+/// nothing to merge and no backup to take, and a pre-existing file that is not recognisably ours is left
+/// untouched.
 enum HookInstaller {
     /// Resolved like `zshrcURL`: a dotfiles-managed `~/.claude/settings.json` is often a symlink, and
     /// reading/writing through the resolved path keeps the link intact instead of replacing it.
@@ -156,6 +160,96 @@ enum HookInstaller {
         let states = CodexHookTrust.states(in: configText)
         return CodexHookTrust.entries(hooksFile: hooksURL.path, root: root ?? [:], config: config, command: command)
             .filter { states[$0.key]?.trustedHash == $0.hash && states[$0.key]?.enabled != false }.count
+    }
+
+    // MARK: Copilot
+
+    /// Copilot's home, symlinks resolved like the others.
+    static var copilotHome: URL { FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".copilot").resolvingSymlinksInPath() }
+    static var copilotHooksURL: URL { copilotHome.appendingPathComponent("hooks/koffeelid.json") }
+    static var copilotSettingsURL: URL { copilotHome.appendingPathComponent("settings.json") }
+    static var copilotConfigURL: URL { copilotHome.appendingPathComponent("config.json") }
+
+    /// Writes the whole `~/.copilot/hooks/koffeelid.json`: the file is wholly ours, so there is no backup to
+    /// take. Refuses, unchanged, when a file already sits there and does not look like one of ours.
+    static func installCopilot() -> (ok: Bool, message: String) {
+        let path = copilotHooksURL
+        if FileManager.default.fileExists(atPath: path.path) {
+            guard let root = try? HookSettingsFile.load(at: path), CopilotHookFile.isOurs(root) else {
+                return (false, "~/.copilot/hooks/koffeelid.json already exists and is not a file KoffeeLid wrote; left it untouched.")
+            }
+        }
+        do {
+            try HookSettingsFile.write(CopilotHookFile.root(hookPath: hookPath), to: path)
+            return (true, "Installed \(CopilotHookFile.events.count) Copilot hooks -> \(hookPath) hook copilot")
+        } catch { return (false, "install-hooks copilot failed: \(error)\nYour Copilot hooks file was not modified.") }
+    }
+
+    /// Absent is success: there is nothing of ours left to remove.
+    static func uninstallCopilot() -> (ok: Bool, message: String) {
+        guard FileManager.default.fileExists(atPath: copilotHooksURL.path) else { return (true, "No Copilot hooks file found — nothing to remove.") }
+        do { try FileManager.default.removeItem(at: copilotHooksURL); return (true, "Removed the Copilot hooks file.") }
+        catch { return (false, "uninstall-hooks copilot failed: \(error)\nYour Copilot hooks file was not modified.") }
+    }
+
+    /// How many of the 7 events point at THIS bundle's hook binary; nil if the file is unreadable/invalid.
+    /// An absent file counts as empty.
+    static func copilotInstalledCount() -> Int? { copilotInstalledCount(hooksURL: copilotHooksURL, hookPath: hookPath) }
+
+    /// The same, told its path and the hook path: file IO only, so the Health page can ask off the main
+    /// thread (`hookPath` reads the bundle on the main actor).
+    static func copilotInstalledCount(hooksURL: URL, hookPath: String) -> Int? {
+        let root: [String: Any]?
+        do { root = try HookSettingsFile.load(at: hooksURL) } catch { return nil }
+        return CopilotHookFile.installedCount(in: root ?? [:], hookPath: hookPath)
+    }
+
+    /// `disableAllHooks` in either `~/.copilot/settings.json` or `~/.copilot/config.json`; both absent reads
+    /// as not disabled.
+    static func copilotHooksDisabled() -> Bool {
+        let settingsText = (try? String(contentsOf: copilotSettingsURL, encoding: .utf8)) ?? ""
+        let configText = (try? String(contentsOf: copilotConfigURL, encoding: .utf8)) ?? ""
+        return CopilotHookFile.disabled(settingsText: settingsText, configText: configText)
+    }
+
+    // MARK: OpenCode
+
+    /// OpenCode's config directory, symlinks resolved like the others.
+    static var opencodeConfigDir: URL { FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/opencode").resolvingSymlinksInPath() }
+    static var opencodePluginURL: URL { opencodeConfigDir.appendingPathComponent("plugins/koffeelid.js") }
+
+    /// Writes the whole `~/.config/opencode/plugins/koffeelid.js`: the file is wholly ours, so there is no
+    /// backup to take. Refuses, unchanged, when a file already sits there and does not look like one of ours.
+    static func installOpencode() -> (ok: Bool, message: String) {
+        let path = opencodePluginURL
+        if FileManager.default.fileExists(atPath: path.path) {
+            guard let existing = try? String(contentsOf: path, encoding: .utf8), OpencodePlugin.isOurs(existing) else {
+                return (false, "~/.config/opencode/plugins/koffeelid.js already exists and is not a file KoffeeLid wrote; left it untouched.")
+            }
+        }
+        do {
+            try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try OpencodePlugin.source(hookPath: hookPath).write(to: path, atomically: true, encoding: .utf8)
+            return (true, "Installed the OpenCode plugin -> \(hookPath) hook opencode")
+        } catch { return (false, "install-hooks opencode failed: \(error)\nYour OpenCode plugin was not modified.") }
+    }
+
+    /// Absent is success: there is nothing of ours left to remove.
+    static func uninstallOpencode() -> (ok: Bool, message: String) {
+        guard FileManager.default.fileExists(atPath: opencodePluginURL.path) else { return (true, "No OpenCode plugin found — nothing to remove.") }
+        do { try FileManager.default.removeItem(at: opencodePluginURL); return (true, "Removed the OpenCode plugin.") }
+        catch { return (false, "uninstall-hooks opencode failed: \(error)\nYour OpenCode plugin was not modified.") }
+    }
+
+    /// Whether the plugin at `~/.config/opencode/plugins/koffeelid.js` matches, byte for byte, what this
+    /// bundle would write today.
+    static func opencodeInstalled() -> Bool { opencodeInstalled(pluginURL: opencodePluginURL, hookPath: hookPath) }
+
+    /// The same, told its path and the hook path: file IO only, so the Health page can ask off the main
+    /// thread (`hookPath` reads the bundle on the main actor).
+    static func opencodeInstalled(pluginURL: URL, hookPath: String) -> Bool {
+        guard let text = try? String(contentsOf: pluginURL, encoding: .utf8) else { return false }
+        return OpencodePlugin.isCurrent(text, hookPath: hookPath)
     }
 
     // MARK: ~/.zshrc

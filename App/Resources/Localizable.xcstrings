@@ -401,56 +401,6 @@
         }
       }
     },
-    "Auto-armed while a command runs": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activé automatiquement tant qu'une commande tourne"
-          }
-        }
-      }
-    },
-    "Auto-armed while Claude Code and a command run": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activé automatiquement tant que Claude Code et une commande tournent"
-          }
-        }
-      }
-    },
-    "Auto-armed while Claude Code and Codex work": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activé automatiquement tant que Claude Code et Codex travaillent"
-          }
-        }
-      }
-    },
-    "Auto-armed while Codex and a command run": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activé automatiquement tant que Codex et une commande tournent"
-          }
-        }
-      }
-    },
-    "Auto-armed while Claude Code, Codex and a command run": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activé automatiquement tant que Claude Code, Codex et une commande tournent"
-          }
-        }
-      }
-    },
     "Auto-armed": {
       "localizations": {
         "fr": {
@@ -461,22 +411,62 @@
         }
       }
     },
-    "Auto-armed while Claude Code works": {
+    "Auto-armed while %@ works": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Activé automatiquement tant que Claude Code travaille"
+            "value": "Activé automatiquement tant que %@ travaille"
           }
         }
       }
     },
-    "Auto-armed while Codex works": {
+    "Auto-armed while %@ work": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Activé automatiquement tant que Codex travaille"
+            "value": "Activé automatiquement tant que %@ travaillent"
+          }
+        }
+      }
+    },
+    "Auto-armed while %@ runs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant que %@ tourne"
+          }
+        }
+      }
+    },
+    "Auto-armed while %@ run": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activé automatiquement tant que %@ tournent"
+          }
+        }
+      }
+    },
+    "a command": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "une commande"
+          }
+        }
+      }
+    },
+    " and ": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " et "
           }
         }
       }

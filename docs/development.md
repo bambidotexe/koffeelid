@@ -266,9 +266,12 @@ fold angles and compare. One 1440 × 900 render takes about a second with `swift
 UserDefaults and the activity journal with the installed app. Fake one Claude Code turn:
 `echo '{"hook_event_name":"UserPromptSubmit","session_id":"fake"}' | /Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook`
 (arms if the activity switch is on; the fake event carries no pid, so only a matching `Stop` or staleness ends
-it), or one Codex turn with `… KoffeeLidHook hook codex` (ended by a `Stop`, an `Interrupt` or staleness).
-Run `koffeelid install-hooks` and `install-hooks codex` only from `/Applications/KoffeeLid.app`: they write
-the absolute path of the binary that ran them, and Codex's trust hash covers that path. To see what Codex
+it), or one Codex turn with `… KoffeeLidHook hook codex` (ended by a `Stop`, an `Interrupt` or staleness), or
+one Copilot turn with `… KoffeeLidHook hook copilot userPromptSubmitted` then `… hook copilot agentStop` (the
+event name is Copilot's own, in `args`, not the payload), or one OpenCode turn with `… KoffeeLidHook hook
+opencode` and a body shaped like the plugin's (`hook_event_name`, `session_id`, `opencode_pid`).
+Run `koffeelid install-hooks` and `install-hooks codex|copilot|opencode` only from `/Applications/KoffeeLid.app`:
+they write the absolute path of the binary that ran them, and Codex's trust hash covers that path. To see what Codex
 makes of the hooks without a turn: `codex app-server` on stdio, send `initialize` then `hooks/list`, and read
 each entry's `currentHash` and `trustStatus` (`docs/macOS.md` § Codex). The timings in `ActivityConstants`
 were sized from recorded Claude Code sessions; change them only against new recordings.

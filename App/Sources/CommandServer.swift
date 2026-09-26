@@ -25,7 +25,7 @@ final class CommandServer {
 
 /// Client side, run from `main.swift` before AppKit starts when the first argument is a verb.
 enum CommandLineClient {
-    static let usage = "usage: koffeelid arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings | install-hooks [claude|codex] | uninstall-hooks [claude|codex] | shell-init zsh"
+    static let usage = "usage: koffeelid arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings | install-hooks [claude|codex|copilot|opencode] | uninstall-hooks [claude|codex|copilot|opencode] | shell-init zsh"
 
     /// Returns an exit code when the arguments were a CLI invocation, nil to start the app normally.
     static func run(arguments: [String]) -> Int32? {
@@ -38,7 +38,9 @@ enum CommandLineClient {
             switch arguments.count >= 3 ? arguments[2] : "claude" {
             case "claude": r = install ? HookInstaller.install() : HookInstaller.uninstall()
             case "codex": r = install ? HookInstaller.installCodex() : HookInstaller.uninstallCodex()
-            default: fputs("usage: koffeelid \(arguments[1]) [claude|codex]\n", stderr); return 2
+            case "copilot": r = install ? HookInstaller.installCopilot() : HookInstaller.uninstallCopilot()
+            case "opencode": r = install ? HookInstaller.installOpencode() : HookInstaller.uninstallOpencode()
+            default: fputs("usage: koffeelid \(arguments[1]) [claude|codex|copilot|opencode]\n", stderr); return 2
             }
             print(r.message); return r.ok ? 0 : 1
         case "shell-init":

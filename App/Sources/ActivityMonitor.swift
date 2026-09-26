@@ -3,32 +3,37 @@ import KoffeeLidCore
 
 struct ActivitySnapshot: Equatable {
     var running = false
-    var claudeSessions = 0
-    var codexSessions = 0
+    /// Sessions working right now, per agent (Claude Code, Codex, Copilot, OpenCode).
+    var workingByAgent: [ActivityAgent: Int] = [:]
     var runningJobs = 0
     /// The apps hosting the running commands' shells (`ActivityBadge.terminal(hosting:)`).
     var terminalBadges: Set<ActivityBadge> = []
-    var workingSessions: Int { claudeSessions + codexSessions }
+    var workingSessions: Int { workingByAgent.values.reduce(0, +) }
     /// The kinds with something running, for `ActivityArmPolicy`.
     var kinds: Set<ActivityKind> {
         var kinds: Set<ActivityKind> = []
-        if claudeSessions > 0 { kinds.insert(.claude) }
-        if codexSessions > 0 { kinds.insert(.codex) }
+        if (workingByAgent[.claude] ?? 0) > 0 { kinds.insert(.claude) }
+        if (workingByAgent[.codex] ?? 0) > 0 { kinds.insert(.codex) }
+        if (workingByAgent[.copilot] ?? 0) > 0 { kinds.insert(.copilot) }
+        if (workingByAgent[.opencode] ?? 0) > 0 { kinds.insert(.opencode) }
         if runningJobs > 0 { kinds.insert(.terminal) }
         return kinds
     }
     /// The apps at work, for the auto-armed cup and the menu's auto-arm line.
     var badges: Set<ActivityBadge> {
         var badges = terminalBadges
-        if claudeSessions > 0 { badges.insert(.claude) }
-        if codexSessions > 0 { badges.insert(.codex) }
+        if (workingByAgent[.claude] ?? 0) > 0 { badges.insert(.claude) }
+        if (workingByAgent[.codex] ?? 0) > 0 { badges.insert(.codex) }
+        if (workingByAgent[.copilot] ?? 0) > 0 { badges.insert(.copilot) }
+        if (workingByAgent[.opencode] ?? 0) > 0 { badges.insert(.opencode) }
         return badges
     }
     /// For the status line and the log. Not localized: it is CLI/log text.
     var summary: String {
         let s = workingSessions == 1 ? "1 session working" : "\(workingSessions) sessions working"
         let j = runningJobs == 1 ? "1 command" : "\(runningJobs) commands"
-        return "\(s) (Claude Code \(claudeSessions), Codex \(codexSessions)), \(j)"
+        let perAgent = ActivityAgent.allCases.map { "\($0.name) \(workingByAgent[$0] ?? 0)" }.joined(separator: ", ")
+        return "\(s) (\(perAgent)), \(j)"
     }
 }
 
@@ -41,11 +46,14 @@ final class ActivityMonitor {
     var onLog: ((String) -> Void)?
     var jobArmAfterSeconds: Double = ActivityConstants.jobArmAfterDefaultSeconds
     private(set) var snapshot = ActivitySnapshot()
-    /// The last Claude Code hook event, the last Codex hook event and the last terminal command event this
-    /// monitor took in, from this boot's replay onwards: the Health page's proof that each hook still reports.
-    private(set) var lastClaudeEvent: HookEventSeen?
-    private(set) var lastCodexEvent: HookEventSeen?
+    /// The last hook event this monitor took in for each agent, and the last terminal command event, from
+    /// this boot's replay onwards: the Health page's proof that each hook still reports.
+    private(set) var lastEventByAgent: [ActivityAgent: HookEventSeen] = [:]
     private(set) var lastTerminalEventAt: Date?
+    func lastEvent(for agent: ActivityAgent) -> HookEventSeen? { lastEventByAgent[agent] }
+    /// Convenience for the Health page today; Task 4 adds Copilot's and OpenCode's own readings.
+    var lastClaudeEvent: HookEventSeen? { lastEvent(for: .claude) }
+    var lastCodexEvent: HookEventSeen? { lastEvent(for: .codex) }
 
     private var sessions = ActivitySessionStore()
     private var jobs = ActivityJobStore()
@@ -205,11 +213,8 @@ final class ActivityMonitor {
             if lastTerminalEventAt.map({ e.loggedAt > $0 }) ?? true { lastTerminalEventAt = e.loggedAt }
         default:
             let seen = HookEventSeen(name: e.event.rawValue, at: e.loggedAt)
-            switch e.effectiveAgent {
-            case .claude: if lastClaudeEvent.map({ e.loggedAt > $0.at }) ?? true { lastClaudeEvent = seen }
-            case .codex: if lastCodexEvent.map({ e.loggedAt > $0.at }) ?? true { lastCodexEvent = seen }
-            case .copilot, .opencode: break // no Health reading of their own
-            }
+            let agent = e.effectiveAgent
+            if lastEventByAgent[agent].map({ e.loggedAt > $0.at }) ?? true { lastEventByAgent[agent] = seen }
         }
     }
 
@@ -243,7 +248,7 @@ final class ActivityMonitor {
 
     private func publish(now: Date) {
         let new = ActivitySnapshot(running: sessions.isRunning || jobs.isRunning(at: now),
-                                   claudeSessions: sessions.workingCount(of: .claude), codexSessions: sessions.workingCount(of: .codex),
+                                   workingByAgent: Dictionary(uniqueKeysWithValues: ActivityAgent.allCases.map { ($0, sessions.workingCount(of: $0)) }),
                                    runningJobs: jobs.runningCount(at: now),
                                    terminalBadges: Set(jobs.runningOwnerPids(at: now).map { ActivityBadge.terminal(hosting: ProcWalk.chain(from: $0)) }))
         guard new != snapshot else { return }

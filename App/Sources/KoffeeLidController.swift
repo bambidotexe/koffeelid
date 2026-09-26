@@ -702,6 +702,8 @@ final class KoffeeLidController {
         }
         if (HookInstaller.installedCount() ?? 0) > 0 { done.append(HookInstaller.uninstall().ok ? "claude code hooks removed" : "claude code hooks removal failed") }
         if (HookInstaller.codexInstalledCount() ?? 0) > 0 { done.append(HookInstaller.uninstallCodex().ok ? "codex hooks removed" : "codex hooks removal failed") }
+        if (HookInstaller.copilotInstalledCount() ?? 0) > 0 { done.append(HookInstaller.uninstallCopilot().ok ? "copilot hooks removed" : "copilot hooks removal failed") }
+        if HookInstaller.opencodeInstalled() { done.append(HookInstaller.uninstallOpencode().ok ? "opencode plugin removed" : "opencode plugin removal failed") }
         if HookInstaller.zshrcHasSnippet() { done.append(HookInstaller.removeFromZshrc().ok ? "zsh snippet removed" : "zsh snippet removal failed") }
         if let id = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: id); done.append("preferences cleared") }
         hotKey.register(); refreshGestureSampling(); effect.parameters = prefs.effect; builtInFn.start(); refreshStatusItem()
@@ -761,6 +763,14 @@ final class KoffeeLidController {
         if (HookInstaller.codexInstalledCount() ?? 0) > 0 {
             let r = HookInstaller.uninstallCodex()
             if r.ok { done.append("codex hooks removed") } else { failed.append(String(format: L("The Codex hooks could not be removed: %@"), r.message)) }
+        }
+        if (HookInstaller.copilotInstalledCount() ?? 0) > 0 {
+            let r = HookInstaller.uninstallCopilot()
+            if r.ok { done.append("copilot hooks removed") } else { failed.append(String(format: L("The Copilot hooks could not be removed: %@"), r.message)) }
+        }
+        if HookInstaller.opencodeInstalled() {
+            let r = HookInstaller.uninstallOpencode()
+            if r.ok { done.append("opencode plugin removed") } else { failed.append(String(format: L("The OpenCode plugin could not be removed: %@"), r.message)) }
         }
         if HookInstaller.zshrcHasSnippet() {
             let r = HookInstaller.removeFromZshrc()
@@ -963,7 +973,8 @@ final class KoffeeLidController {
         case "armWithOption", "gestureModifier", "gestureActivationDegrees", "gestureReverseCancelDegrees":
             if key == "gestureActivationDegrees" { effect.foldThresholdDegrees = prefs.gestureActivationDegrees }
             gesture.reset(); refreshGestureSampling()
-        case "armOnActivity", "activityJobArmAfterSeconds", Preferences.holdOffKey(.claude), Preferences.holdOffKey(.codex), Preferences.holdOffKey(.terminal):
+        case "armOnActivity", "activityJobArmAfterSeconds", Preferences.holdOffKey(.claude), Preferences.holdOffKey(.codex),
+             Preferences.holdOffKey(.copilot), Preferences.holdOffKey(.opencode), Preferences.holdOffKey(.terminal):
             activityPolicy.holdOffs = prefs.activityHoldOffs
             activity.jobArmAfterSeconds = prefs.activityJobArmAfterSeconds
             if key == "armOnActivity" { log.log(prefs.armOnActivity ? "auto-arm enabled" : "auto-arm disabled"); handleActivity(activity.snapshot) }
@@ -1021,7 +1032,9 @@ final class KoffeeLidController {
         // With a hook set up: end the arm a minute after the work is over (a manual arm, or an auto-arm
         // ahead of its long hold-off). Pending until it fires; clicking again cancels.
         if (HookInstaller.installedCount() ?? 0) == HookConfig.claude.events.count
-            || (HookInstaller.codexInstalledCount() ?? 0) == HookConfig.codex.events.count || HookInstaller.zshrcHasSnippet() {
+            || (HookInstaller.codexInstalledCount() ?? 0) == HookConfig.codex.events.count
+            || (HookInstaller.copilotInstalledCount() ?? 0) == CopilotHookFile.events.count
+            || HookInstaller.opencodeInstalled() || HookInstaller.zshrcHasSnippet() {
             let once = NSMenuItem(title: L("Disarm once finished"), action: #selector(menuToggleDisarmOnce(_:)), keyEquivalent: "")
             once.target = self; once.state = activityDisarmOncePending ? .on : .off
             m.addItem(once)
@@ -1038,21 +1051,40 @@ final class KoffeeLidController {
     @objc private func menuSelectMode(_ sender: NSMenuItem) { setMode(ArmMode.allCases[sender.tag], source: .menu) }
     @objc private func menuToggleDisarmOnce(_ sender: NSMenuItem) { requestActivityDisarmOnce(sender.state != .on) }
 
-    /// The greyed line under the header: why a closed lid does not sleep while the menu says Off.
+    /// The greyed line under the header: why a closed lid does not sleep while the menu says Off. Built from
+    /// the kinds at work rather than one key per combination: `%@` is the names in `ActivityKind`'s order
+    /// (Claude Code, Codex, Copilot, OpenCode, a command), joined `, ` and a final ` and `/` et `; the verb
+    /// is "works"/"work" unless a command is among them, in which case it is "runs"/"run" — singular for one
+    /// kind at work, plural for more than one.
     private func autoArmHint() -> String {
-        switch activity.snapshot.kinds {
-        case [.claude]: return L("Auto-armed while Claude Code works")
-        case [.codex]: return L("Auto-armed while Codex works")
-        case [.terminal]: return L("Auto-armed while a command runs")
-        case [.claude, .codex]: return L("Auto-armed while Claude Code and Codex work")
-        case [.claude, .terminal]: return L("Auto-armed while Claude Code and a command run")
-        case [.codex, .terminal]: return L("Auto-armed while Codex and a command run")
-        case [.claude, .codex, .terminal]: return L("Auto-armed while Claude Code, Codex and a command run")
-        default: break
+        let kinds = activity.snapshot.kinds
+        if !kinds.isEmpty {
+            let ordered = ActivityKind.allCases.filter { kinds.contains($0) }
+            let list = Self.joinedNames(ordered.map(Self.name(for:)))
+            let hasCommand = kinds.contains(.terminal)
+            let template = ordered.count == 1
+                ? (hasCommand ? L("Auto-armed while %@ runs") : L("Auto-armed while %@ works"))
+                : (hasCommand ? L("Auto-armed while %@ run") : L("Auto-armed while %@ work"))
+            return String(format: template, list)
         }
         let left = activityPolicy.nextDeadline(after: Date()).map { $0.timeIntervalSinceNow } ?? 0
         let text = left >= 60 ? String(format: L("%d min"), Int((left / 60).rounded(.up))) : String(format: L("%d s"), Int(left.rounded(.up)))
         return String(format: L("Auto-armed, off in %@"), text)
+    }
+    private static func name(for kind: ActivityKind) -> String {
+        switch kind {
+        case .claude: return ActivityAgent.claude.name
+        case .codex: return ActivityAgent.codex.name
+        case .copilot: return ActivityAgent.copilot.name
+        case .opencode: return ActivityAgent.opencode.name
+        case .terminal: return L("a command")
+        }
+    }
+    /// "a", "a and b", "a, b and c": every name but the last joined by ", ", the last joined by ` and `/` et `.
+    private static func joinedNames(_ names: [String]) -> String {
+        guard let last = names.last else { return "" }
+        guard names.count > 1 else { return last }
+        return names.dropLast().joined(separator: ", ") + L(" and ") + last
     }
     @objc private func menuSettings() { onOpenSettings?() }
     @objc private func menuQuit() { NSApp.terminate(nil) }

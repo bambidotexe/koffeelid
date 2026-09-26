@@ -99,6 +99,27 @@ up any of the three hooks from that page or from the onboarding turns it on.
   working from a prompt or tool event until its `Stop`, or until its turn closes (below); its `Interrupt` (Esc,
   Ctrl-C) closes the turn and ends its helpers at once. A session blocked on a permission or on `request_user_input`
   does not count. Helpers hold a `Stop` as they do for Claude Code.
+- **Copilot**: 7 hook events in `~/.copilot/hooks/koffeelid.json` run `KoffeeLidHook hook copilot <event>`;
+  camelCase keys, `exec` (no shell), the event name riding in `args` since a camelCase payload carries none.
+  The file is wholly KoffeeLid's own, so there is no backup and no merge: set-up only refuses, unchanged, when
+  a file already sits there that does not look like one of ours. Never `preToolUse` or `permissionRequest`:
+  either denies the tool on a failing hook, so a hook file outliving the app would block every Copilot tool
+  call. The hook counts as set up only while all 7 events point at this copy **and** neither
+  `~/.copilot/settings.json` nor `~/.copilot/config.json` sets `disableAllHooks`. A session counts as working
+  from a prompt or tool event until its `agentStop`, or until its turn closes (below, read from
+  `events.jsonl`); Copilot has no `Interrupt` hook. A session blocked on a permission or a question does not
+  count.
+- **OpenCode** has no command hooks; KoffeeLid installs a plugin instead,
+  `~/.config/opencode/plugins/koffeelid.js`, which a running server loads, reloads and unloads by itself
+  within a second, no registration, no trust step. The file is wholly KoffeeLid's own, so there is no backup
+  and no merge: set-up only refuses, unchanged, when a file already sits there that does not look like one of
+  ours. The plugin maps OpenCode's own events onto this vocabulary (`SessionStart`, `UserPromptSubmit`, tool
+  events, `Stop`, `Interrupt`, …) before calling `KoffeeLidHook hook opencode`; a subagent's session (one with
+  a `parent_id`) becomes helper events of its top-level ancestor, walking every link in between, not of its
+  immediate parent. The hook counts as set up only while the installed file matches, byte for byte, what this
+  copy of KoffeeLid would write today. A session counts as working from a prompt or tool event until its
+  `Stop`; every busy period ends in exactly one terminal event (succeeded, failed or interrupted), so OpenCode
+  needs no rescue for a quiet turn the way Claude Code, Codex and Copilot do.
 - **A closed turn stays closed.** Every event of a turn carries the turn's id: Claude Code's `prompt_id`,
   Codex's `turn_id`. An `Interrupt`, or a verdict that the turn is over (§ Without an end event), closes the
   turn. Any event that arrives for a closed turn, but a prompt, a `SessionStart`, a `SessionEnd` or a tool call
@@ -275,10 +296,10 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 - **Menu-bar cup.** Three glyphs: empty (Off), closed eyes (Armed), round eyes (Armed + screen on). Auto-armed
   is the closed-eyes cup wearing, hung off its bottom-right corner and clear of the eyes, without widening the
   item or moving the cup, the icon of each app at work:
-  the Claude desktop app for Claude Code, the OpenAI desktop app for Codex, and for a command the
-  terminal app hosting its shell (Terminal, iTerm, an editor's terminal…; Terminal's icon when no app hosts it,
-  as over ssh). Several stack up and to the right, front to back Claude Code, Codex, then the terminals, three
-  at most. The icons are the installed apps' own, nothing is bundled: an app that is not installed gives no
+  the Claude desktop app for Claude Code, the OpenAI desktop app for Codex, GitHub Copilot.app for Copilot,
+  OpenCode.app for OpenCode, and for a command the terminal app hosting its shell (Terminal, iTerm, an editor's
+  terminal…; Terminal's icon when no app hosts it, as over ssh). Several stack up and to the right, front to
+  back Claude Code, Codex, Copilot, OpenCode, then the terminals, three at most. The icons are the installed apps' own, nothing is bundled: an app that is not installed gives no
   badge. An app that stops while another still works loses its badge at once; once nothing runs, the apps
   that last ran stay through the hold-off, so the cup still says why the Mac is armed, and go when the level
   drops. A manual mode always wins over the auto cup. Orange = the
@@ -286,11 +307,13 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   nothing else: every arming path that does not go through it (the gesture, the two shortcuts, auto-arm, the
   CLI, URLs, App Intents) and every armed behaviour work exactly as before; right-clicking to arm and the lid
   angle simply have no icon left to use.
-- **Menu.** Header with the mode; a greyed line while the auto level holds ("Auto-armed while Claude Code
-  works", "… while Codex works", "… while a command runs", "… while Claude Code and Codex work", "… while
-  Claude Code and a command run", "… while Codex and a command run", "… while Claude Code, Codex and a
-  command run", or "Auto-armed, off in N min"), followed by the same app icons the cup wears; the three modes,
-  each followed by its cup in grey; "Disarm once finished"; Settings…; Quit.
+- **Menu.** Header with the mode; a greyed line while the auto level holds, built from the kinds at work
+  rather than one string per combination: "Auto-armed while %@ works/work" (one/several agents), "…
+  runs/run" when a command is among them, the names in `ActivityKind`'s order (Claude Code, Codex, Copilot,
+  OpenCode, a command) joined ", " and a final " and " — "Auto-armed while Claude Code works", "Auto-armed
+  while Claude Code, Copilot and a command run" — or "Auto-armed, off in N min" while nothing runs but the
+  hold-off has not ended; followed by the same app icons the cup wears; the three modes, each followed by its
+  cup in grey; "Disarm once finished" (present while any of the five hooks is set up); Settings…; Quit.
 - **Opening the app.** KoffeeLid has no Dock icon. Opening it again from Finder, Spotlight, the Applications
   folder or `open -b dev.rubens.koffeelid` while it runs opens Settings — the way back in when the menu-bar
   cup is hidden, alongside `koffeelid settings`. A launch that starts the app (at login, from the watchdog,
@@ -386,11 +409,12 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   or display change; lock failed; lid sleep restoration pending or failed; sleep could not be re-enabled; a
   newer release found by an automatic check, the only one with a button (§ Updates).
 - **CLI.** `koffeelid arm | off | caffeinate | toggle-armed | toggle-caffeinate | status | settings |
-  install-hooks [claude|codex] | uninstall-hooks [claude|codex] | shell-init zsh`. The hook verbs take the
-  agent as an optional word, Claude Code when none is given. The arming verbs launch the app if needed and
-  print the status line. `status` with the app not running prints `mode: off (KoffeeLid is not running)`. Exit
-  codes: 0, 1 (`did not …`, no answer), 2 (usage). The status line reads, for example,
-  `mode: armed + screen on · auto-armed (activity) · lid: open · sleep lock: on · activity: 1 session working (Claude Code 1, Codex 0), 0 commands`.
+  install-hooks [claude|codex|copilot|opencode] | uninstall-hooks [claude|codex|copilot|opencode] | shell-init
+  zsh`. The hook verbs take the agent as an optional word, Claude Code when none is given. The arming verbs
+  launch the app if needed and print the status line. `status` with the app not running prints `mode: off
+  (KoffeeLid is not running)`. Exit codes: 0, 1 (`did not …`, no answer), 2 (usage). The status line reads,
+  for example,
+  `mode: armed + screen on · auto-armed (activity) · lid: open · sleep lock: on · activity: 1 session working (Claude Code 1, Codex 0, Copilot 0, OpenCode 0), 0 commands`.
 - **App Intents.** Arm, Arm + screen on, Turn Off, Toggle, Toggle screen on, Status.
 
 ## Settings and defaults
@@ -406,7 +430,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
 | Arming › Menu bar and shortcuts | Press ⌃⌥⌘L to arm, or to turn off / Press ⌃⌥⌘K to arm with the screen on, or to turn off | `armWithShortcut` / `armWithCaffeinateShortcut` | on / on | combos fixed: `hotKeyCode`, `hotKeyModifiers`, `caffeinateHotKeyCode`, `caffeinateHotKeyModifiers` have no UI |
 | Arming › Low battery | Turn off when the battery runs low, Battery level | `lowBatteryDisarm`, `lowBatteryDisarmPercent` | on, 10 % | 5–50 % |
 | Auto-Arm › While you work | Arm while Claude Code, Codex or a terminal command is running | `armOnActivity` | off | |
-| Auto-Arm › Claude Code / Codex / Terminal | Stay armed after Claude Code finishes / Stay armed after Codex finishes / Stay armed after a command finishes | `activityHoldOff.claude` / `activityHoldOff.codex` / `activityHoldOff.terminal` | 30 min / 30 min / 60 s | 1–120 min / 1–120 min / 10–600 s |
+| Auto-Arm › Claude Code / Codex / Copilot / OpenCode / Terminal | Stay armed after Claude Code finishes / Stay armed after Codex finishes / Stay armed after Copilot finishes / Stay armed after OpenCode finishes / Stay armed after a command finishes | `activityHoldOff.claude` / `activityHoldOff.codex` / `activityHoldOff.copilot` / `activityHoldOff.opencode` / `activityHoldOff.terminal` | 30 min / 30 min / 30 min / 30 min / 60 s | 1–120 min / 1–120 min / 1–120 min / 1–120 min / 10–600 s |
 | Auto-Arm › Terminal | Ignore commands shorter than | `activityJobArmAfterSeconds` | 5 s | 0–30 s |
 | Lid Effect | Show the desktop folding away as the lid closes, every slider of When it starts and Look, Show the lid angle in the menu bar | `effectParameters` (JSON) | enabled; start below 95° with the gesture / 75° otherwise; flatten again 0.5 s; zoom 80 %; perspective 40 %; blur 0.15×; soft edges 100 %; shading 100 %; responsiveness 70 %; angle in menu bar off | 30–120° / 30–90° (the second never above the first); 0.25–10 s; 0–200 %; 0–2×; 0–100 % |
 | Sound › Lid-close sound | Play a sound when the lid closes, Sound | `lidCloseSoundEnabled`, `lidCloseSoundName` | on, `blip-pop` | six clips; an unknown name falls back to the first |
@@ -443,15 +467,17 @@ one exception, and the button says so ("Open Login Items"): macOS offers no dial
 grant's whole flow. The sleep lock's button shows the administrator-password dialog.
 
 Settings › System › "Reset KoffeeLid…" asks for confirmation, then disarms, removes the sudoers rule, unregisters the
-login items, resets Screen Recording, Input Monitoring and notifications, removes the Claude Code hooks, the Codex hooks
-and the zsh block, clears the preferences and whatever an update left in Application Support, and reopens onboarding.
+login items, resets Screen Recording, Input Monitoring and notifications, removes the Claude Code hooks, the Codex
+hooks, Copilot's hooks file, OpenCode's plugin and the zsh block, clears the preferences and whatever an update left
+in Application Support, and reopens onboarding.
 
 ## Uninstall
 
 Settings › General › Uninstall takes KoffeeLid off the Mac. The group always shows a warning, because what it warns
 about is not a state that can be put right but the hazard of the other way out: **dragging the bundle to the Trash is
 not an uninstall.** It removes the app and nothing else, and what is left goes on running against an app that is gone,
-the Claude Code and Codex hooks calling a binary that is not there once per event for ever.
+the Claude Code and Codex hooks, Copilot's hooks file and OpenCode's plugin each calling a binary that is not there
+once per event for ever.
 
 "Uninstall KoffeeLid" asks for confirmation, then, in this order:
 
@@ -465,7 +491,8 @@ the Claude Code and Codex hooks calling a binary that is not there once per even
    they name it (`tccutil reset` against a bundle identifier with no bundle behind it fails, and nothing puts that
    right afterwards);
 4. unregisters the watchdog agent and launch at login, and registers neither back;
-5. removes the Claude Code hooks, the Codex hooks with their trust, the zsh block and the backups the hooks left;
+5. removes the Claude Code hooks, the Codex hooks with their trust, Copilot's hooks file, OpenCode's plugin, the
+   zsh block and the backups the hooks left;
 6. removes `/etc/sudoers.d/koffeelid` and `/usr/local/bin/koffeelid` in one administrator-password dialog, and only
    if one of them is there (`UninstallPlan`);
 7. clears the preferences;

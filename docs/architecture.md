@@ -437,8 +437,11 @@ three; an OpenCode session is not asked about when quiet (its hooks, its server'
 so it adds only its staleness deadline. `pruneDead` keeps a
 `hostedBySharedCodex` session without asking about its pid; the kqueue on the host still drops them all when
 it exits. For a Claude Code session with a live pid, `pruneDead` asks `registrySession` for the session the pid's
-record names (read from the same directory as the rescues) and drops the session when it is another. Only `working` counts as running, and the snapshot counts Claude Code's and Codex's per agent (`claudeSessions`,
-`codexSessions`).
+record names (read from the same directory as the rescues) and drops the session when it is another. Only `working` counts as running, and the snapshot counts every agent's sessions in one dictionary keyed by
+`ActivityAgent` (`ActivitySnapshot.workingByAgent`, built from `ActivitySessionStore.workingCount(of:)` over
+`ActivityAgent.allCases`); `kinds`, `badges` and `summary` read it per agent, so a new agent needs no new
+stored property. `ActivityMonitor.lastEventByAgent` is the same shape for the last hook event of each agent;
+`lastClaudeEvent` and `lastCodexEvent` are read-only conveniences over it for today's Health page.
 
 `ActivityJobStore`: one slot per job id (`zsh-<shell pid>`), counted once `armAfter` has elapsed, dropped on
 `job end`, on the owner shell's exit (kqueue), when its shell answers that it runs nothing, or, for a job
@@ -467,8 +470,9 @@ accumulates the kinds seen (`involved`); when nothing runs, `offAt = idleSince +
 `armFailed()` zero it and suppress it until the running set empties. The coordinator schedules one timer at
 `nextDeadline` and a 2 s local-input poll while a countdown runs.
 
-`HookInstaller` is stateless and has no link to the coordinator; the CLI verbs `install-hooks [claude|codex]`,
-`uninstall-hooks [claude|codex]` and `shell-init zsh` run it in-process without contacting the app.
+`HookInstaller` is stateless and has no link to the coordinator; the CLI verbs
+`install-hooks [claude|codex|copilot|opencode]`, `uninstall-hooks [claude|codex|copilot|opencode]` and
+`shell-init zsh` run it in-process without contacting the app.
 `HookConfig` is one spec per agent whose hooks live in a `hooks` object (`HookConfig.claude`,
 `HookConfig.codex`: the events, the marker that recognises our entries whatever bundle path they were
 installed from, the matcher, the timeouts; `HookConfig.of` answers nil for Copilot and OpenCode) and
@@ -483,6 +487,23 @@ the one shape Codex itself writes; it reads that shape back for the row's state,
 ours by its hash, and refuses to write beside a state kept in another TOML form. `ShellInit` builds the
 snippet and edits `~/.zshrc` (it removes only what sits between its two header lines, its marker comment,
 and uncommented `shell-init zsh` lines that name KoffeeLid).
+
+Copilot's and OpenCode's files hold no `hooks` object of `HookConfig`'s shape, so each gets its own pure Core
+type and a whole-file write instead of a merge — no backup, since there is nothing of a stranger's to lose,
+only a refusal (unchanged) when a file already at that path does not look like one of ours. `CopilotHookFile`
+builds `~/.copilot/hooks/koffeelid.json` from `ActivityEventName.copilotHookEvents`: one `command` entry per
+event, `exec` the hook binary's absolute path, `args` `["hook","copilot",<event>]`; `isOurs` recognises an
+entry by that shape whatever bundle path it names, `installedCount` counts only entries that name THIS
+bundle's path, and `disabled` reads `disableAllHooks` from `~/.copilot/settings.json` and
+`~/.copilot/config.json` (whole-line `//` comments stripped first). `OpencodePlugin.source(hookPath:)` renders
+the plugin text from `research-opencode.md` § 9.2 for that path (`location.shutdown` dropped from its
+forwarded events and every `directory` field removed, no path leaving OpenCode; a subagent's events attach to
+the top-level session by walking the plugin's own `state.parents` map to its root, capped at 16 hops against a
+cycle); `isOurs` looks for the hook binary's marker and the plugin's id, `isCurrent` compares byte for byte.
+`HookInstaller.installCopilot`/`installOpencode` write these whole files to `~/.copilot/hooks/koffeelid.json`
+and `~/.config/opencode/plugins/koffeelid.js` (creating the `hooks/`/`plugins/` directory); `copilotInstalledCount`
+and `opencodeInstalled` (each with an off-main variant told its paths, for the Health page) read them back the
+same way.
 
 ## Updates
 

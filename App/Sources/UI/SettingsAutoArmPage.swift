@@ -70,7 +70,8 @@ struct SettingsAutoArmPage: View {
     private var workMark: StatusMark {
         let snapshot = model.activity
         if snapshot.workingSessions == 0 && snapshot.runningJobs == 0 { return .info(L("None")) }
-        return .info(String(format: L("Claude Code: %d, Codex: %d, commands: %d"), snapshot.claudeSessions, snapshot.codexSessions, snapshot.runningJobs))
+        return .info(String(format: L("Claude Code: %d, Codex: %d, commands: %d"),
+                            snapshot.workingByAgent[.claude] ?? 0, snapshot.workingByAgent[.codex] ?? 0, snapshot.runningJobs))
     }
 
     /// Stored in seconds, set in minutes: an agent's wait is a long one.
