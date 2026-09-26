@@ -182,6 +182,7 @@ public struct ActivitySessionStore {
         switch verdict {
         case .turnOver: turnOver(sessionId: sid, now: e.loggedAt)
         case .dialogAnswered: dialogAnswered(sessionId: sid, now: e.loggedAt)
+        case .waitAbandoned: abandonWait(sessionId: sid, now: e.loggedAt, endedAt: e.loggedAt)
         }
     }
 
@@ -363,7 +364,7 @@ public struct ActivitySessionStore {
     }
     /// Waiting Copilot sessions (a permission prompt, most often), each with the transcript path its hooks named
     /// and when the wait began (`stateSince`): Copilot fires no hook when the prompt is answered, so the read
-    /// lives in the app, against `events.jsonl` (`CopilotTranscriptTail.waitAnswered`).
+    /// lives in the app, against `events.jsonl` (`CopilotTranscriptTail.waitDecision`).
     public func copilotWaitCandidates() -> [(sessionId: String, transcriptPath: String?, waitSince: Date)] {
         sessions.values.compactMap { s in
             guard s.agent == .copilot, s.state == .waiting else { return nil }
@@ -375,5 +376,18 @@ public struct ActivitySessionStore {
     public mutating func dialogAnswered(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .waiting else { return }
         set(&s, .working, now); sessions[sessionId] = s
+    }
+    /// A Copilot wait cancelled at its source: Ctrl+C or a double Esc at a permission prompt fires no hook, and
+    /// `events.jsonl` ends on an `abort` stamped after the wait began (`CopilotTranscriptTail.waitDecision`).
+    /// Idle, the turn closed, as of `endedAt` (never after `now`); nil, changing nothing, when the session is
+    /// not a Copilot wait or the abort is not after the wait began (another turn's). Returns the instant the
+    /// verdict took effect, for the journal.
+    @discardableResult
+    public mutating func abandonWait(sessionId: String, now: Date, endedAt: Date) -> Date? {
+        guard var s = sessions[sessionId], s.agent == .copilot, s.state == .waiting, endedAt > s.stateSince else { return nil }
+        let stamp = min(endedAt, now)
+        set(&s, .idle, stamp); closeTurn(&s, byInterrupt: false, now: now)
+        sessions[sessionId] = s
+        return stamp
     }
 }

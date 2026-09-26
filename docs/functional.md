@@ -218,12 +218,15 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   check and ends only at Copilot's own exit or the 2 h staleness. Answering a Copilot permission prompt fires no
   hook either, nor does a second prompt that opens right after the first closes, before any hook runs at all:
   `events.jsonl` writes `permission.completed` and nothing else. A session waiting since `waitSince` is checked
-  the same way, at the same cadence, with no quiet gate: with the turn still at work, a latest permission line
-  that is `permission.completed`, stamped after the wait began, is the prompt answered, approved or denied, and
-  the session counts as working again within about 15 s of the answer. A latest `permission.requested` is a
-  prompt still open, a tool called beside it finishing included; an end is for the checks above, this one only
-  ever returns a session to working. A question needs none of this: its answer ends the `ask_user` tool, and
-  `postToolUse` fires. The launch checks only end turns, or answer a wait: a
+  the same way, at the same cadence, with no quiet gate, its file read once to decide both: an `abort` stamped
+  after the wait began is Ctrl+C or a double Esc at the prompt, and the wait is over — idle, the turn closed, at
+  the abort's own stamp, journaled so a relaunch replays the same state; else, with the turn still at work, a
+  latest permission line that is `permission.completed`, stamped after the wait began, is the prompt answered,
+  approved or denied, and the session counts as working again within about 15 s of the answer. A latest
+  `permission.requested` is a prompt still open, a tool called beside it finishing included; an end of another
+  kind after it is for the checks above, this one only ever returns a session to working or ends its wait. A
+  question needs none of this: its answer ends the `ask_user` tool, and
+  `postToolUse` fires. The launch checks only end turns, or answer or abandon a wait: a
   Claude Code dialog the registry says was answered, or a Copilot prompt its `events.jsonl` says was answered,
   counts again as it would at the first check. A
   session silent for 2 h is dropped; a command is asked of its shell instead (Terminal, above).

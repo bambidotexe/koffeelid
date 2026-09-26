@@ -559,12 +559,15 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   at that instant, but the approved tool call itself then often runs for minutes with no line or hook after it
   until it ends: `postToolUse`, the next hook to actually fire, is that far away.
 - **What the code does.** `ActivityMonitor.checkCopilot` also reads a waiting Copilot session's `events.jsonl`
-  (`copilotWaitCandidates`, no quiet gate, the same 15 s cadence as the quiet-turn check above,
-  `transcriptCheckedAt` shared with it): with the turn at work, a latest permission line that is
+  once (`copilotWaitCandidates`, no quiet gate, the same 15 s cadence as the quiet-turn check above,
+  `transcriptCheckedAt` shared with it), deciding both things a wait can end in from that one read
+  (`CopilotTranscriptTail.waitDecision`): with the turn at work, a latest permission line that is
   `permission.completed`, stamped after the wait began, returns the session to working as of the check,
-  journaled like Claude Code's answered dialog (`CopilotTranscriptTail.waitAnswered`). A latest
-  `permission.requested` is a prompt still open: Copilot runs several tools at once, and one called beside the
-  prompt can finish while it waits, so no other step of the turn is read as the answer.
+  journaled like Claude Code's answered dialog; an `abort` stamped after the wait began — Ctrl+C or a double
+  Esc at the prompt fires no hook either — ends the wait instead (`ActivitySessionStore.abandonWait`: idle, the
+  turn closed, at the abort's own stamp, journaled `wait-abandoned` so a relaunch replays the same state). A
+  latest `permission.requested` is a prompt still open: Copilot runs several tools at once, and one called
+  beside the prompt can finish while it waits, so no other step of the turn is read as the answer.
 - **Do not** subscribe `preToolUse` or `permissionRequest` to learn the answer directly: for Copilot a failing
   hook denies the tool (fail-closed), so a hook file outliving the app, or one that crashes, would block every
   Copilot tool call.

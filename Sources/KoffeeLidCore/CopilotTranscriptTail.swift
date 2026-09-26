@@ -75,25 +75,36 @@ public enum CopilotTranscriptTail {
         }
     }
 
-    /// When a Copilot session waiting on a permission prompt since `waitSince` had it answered, or nil: approving
-    /// or denying fires no hook (`events.jsonl` writes `permission.completed`), and a second prompt can open right
-    /// after the first closes, before any hook runs at all. With the turn still at work, the latest permission
-    /// line decides: a `permission.completed` stamped after `waitSince` is the answer, at its own stamp; a
-    /// `permission.requested` is a prompt still open, and a tool called beside it finishing is no answer. An end
-    /// after it (the session's own `agentStop`, `abort`, `session.error`, `session.shutdown`) answers nothing: this
-    /// check only returns a session to working, ends are for the other checks and staleness. An unreadable tail
-    /// or no permission line answers nothing either. A question's answer needs none of this: it ends its
-    /// `ask_user` tool, and `postToolUse` fires.
-    public static func waitAnswered(tail: Data, waitSince: Date, sessionId: String) -> Date? {
+    /// What a session's tail means while it waits on a permission prompt since `waitSince`.
+    public enum WaitDecision: Equatable {
+        /// Ctrl+C or a double Esc at the prompt: `abandonWait`, the turn closed, dark.
+        case aborted(at: Date)
+        /// The prompt's own `permission.completed` after the wait began: `dialogAnswered`, at its own stamp.
+        case answered(at: Date)
+        case nothing
+    }
+
+    /// What a Copilot session waiting on a permission prompt since `waitSince` had happen to it, read once: an
+    /// `abort` stamped after `waitSince` is Ctrl+C or a double Esc at the prompt, ending the wait as a working
+    /// turn's abort ends a turn; with the turn still at work, the latest permission line being its own
+    /// `permission.completed` stamped after `waitSince` is the prompt answered (approving or denying fires no
+    /// hook, and a second prompt can open right after the first closes, before any hook runs at all), at its
+    /// own stamp; a `permission.requested` is a prompt still open, and a tool called beside it finishing is no
+    /// answer; any other end (the session's own `agentStop`, `session.error`, `session.shutdown`) decides
+    /// nothing: this check only ever returns a session to working or ends its wait, ends of other kinds are
+    /// for the other checks and staleness. An unreadable tail or no permission line decides nothing either. A
+    /// question's answer needs none of this: it ends its `ask_user` tool, and `postToolUse` fires.
+    public static func waitDecision(tail: Data, sessionId: String, waitSince: Date) -> WaitDecision {
         for line in tail.split(separator: 0x0A).reversed() {
             guard let raw = rawMarker(in: Data(line), sessionId: sessionId) else { continue }
             switch raw {
-            case .end, .permissionRequested: return nil
-            case .permissionCompleted(let at): return at > waitSince ? at : nil
+            case .end(.aborted(let at)): return at > waitSince ? .aborted(at: at) : .nothing
+            case .end, .permissionRequested: return .nothing
+            case .permissionCompleted(let at): return at > waitSince ? .answered(at: at) : .nothing
             case .workStep: continue
             }
         }
-        return nil
+        return .nothing
     }
 
     /// The steps of a turn: a prompt taken, a model call, a message, a tool, a permission.
@@ -101,8 +112,8 @@ public enum CopilotTranscriptTail {
                                                     "tool.execution_complete", "permission.requested", "permission.completed"]
 
     /// What a line's own type says, before it becomes a `Verdict` (for `verdict`) or an answer (for
-    /// `waitAnswered`): an end, the two permission steps told apart from every other step of the turn (so
-    /// `waitAnswered` can tell an open prompt from its answer), or nothing.
+    /// `waitDecision`): an end, the two permission steps told apart from every other step of the turn (so
+    /// `waitDecision` can tell an open prompt from its answer), or nothing.
     private enum RawMarker { case end(Verdict), permissionRequested(Date), permissionCompleted(Date), workStep(Date) }
 
     private static func rawMarker(in line: Data, sessionId: String) -> RawMarker? {

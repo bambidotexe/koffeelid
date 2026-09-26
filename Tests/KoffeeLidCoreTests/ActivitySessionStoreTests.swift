@@ -645,6 +645,50 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(replay.sessions[copilotSid], live.sessions[copilotSid])
         XCTAssertEqual(replay.sessions[copilotSid]?.state, .working)
     }
+    /// Ctrl+C or a double Esc at a Copilot permission prompt: no hook at all, `events.jsonl` ends on an
+    /// `abort` after the wait began. Dark, the turn closed, at the abort's own stamp.
+    func testAWaitCancelledWithCtrlCGoesDarkWithoutAPush() {
+        store.apply(copilot("userPromptSubmitted", at: 0)); store.apply(copilot("sessionStart", at: 0.2, ["source": "new"]))
+        store.apply(copilot("notification", at: 2, ["notification_type": "permission_prompt", "hook_event_name": "Notification"]))
+        XCTAssertEqual(state(copilotSid), .waiting)
+        XCTAssertEqual(store.abandonWait(sessionId: copilotSid, now: t0.addingTimeInterval(40), endedAt: t0.addingTimeInterval(8)), t0.addingTimeInterval(8))
+        XCTAssertEqual(state(copilotSid), .idle); XCTAssertEqual(store.sessions[copilotSid]?.stateSince, t0.addingTimeInterval(8))
+        XCTAssertFalse(store.isRunning)
+
+        var early = ActivitySessionStore()
+        early.apply(ev(.notification, "c1", at: 2, notif: "permission_prompt", pid: 19860, by: .copilot))
+        XCTAssertNil(early.abandonWait(sessionId: "c1", now: t0.addingTimeInterval(40), endedAt: t0.addingTimeInterval(1)),
+                     "an abort from before the wait began is another turn's")
+        XCTAssertEqual(early.sessions["c1"]?.state, .waiting)
+
+        var working = ActivitySessionStore()
+        working.apply(ev(.userPromptSubmit, "c1", pid: 19860, by: .copilot))
+        XCTAssertNil(working.abandonWait(sessionId: "c1", now: t0.addingTimeInterval(40), endedAt: t0.addingTimeInterval(8)), "a wait only")
+
+        var claudeWaiting = ActivitySessionStore()
+        claudeWaiting.apply(ev(.userPromptSubmit)); claudeWaiting.apply(ev(.permissionRequest, at: 2, tool: "Bash"))
+        XCTAssertEqual(claudeWaiting.sessions["s1"]?.state, .waiting)
+        XCTAssertNil(claudeWaiting.abandonWait(sessionId: "s1", now: t0.addingTimeInterval(40), endedAt: t0.addingTimeInterval(8)),
+                     "only Copilot abandons a wait")
+    }
+    /// Journaled as `wait-abandoned`: replaying the lines gives the session the live store holds, reading the
+    /// line back changes nothing, and a line stamped before the wait began changes nothing either.
+    func testAnAbandonedWaitReplaysAsTheSameVerdict() {
+        let wait = [copilot("userPromptSubmitted", at: 0), copilot("sessionStart", at: 0.2, ["source": "new"]),
+                    copilot("notification", at: 2, ["notification_type": "permission_prompt", "hook_event_name": "Notification"])]
+        var live = ActivitySessionStore()
+        wait.forEach { live.apply($0) }
+        XCTAssertEqual(live.abandonWait(sessionId: copilotSid, now: t0.addingTimeInterval(40), endedAt: t0.addingTimeInterval(8)), t0.addingTimeInterval(8))
+        let line = verdict("wait-abandoned", copilotSid, at: 8)
+        var replay = ActivitySessionStore()
+        (wait + [line]).forEach { replay.apply($0) }
+        XCTAssertEqual(replay.sessions[copilotSid], live.sessions[copilotSid])
+        live.apply(line); XCTAssertEqual(live.sessions[copilotSid], replay.sessions[copilotSid], "the app's own line read back is a no-op")
+
+        var tooEarly = ActivitySessionStore()
+        (wait + [verdict("wait-abandoned", copilotSid, at: 1)]).forEach { tooEarly.apply($0) }
+        XCTAssertEqual(tooEarly.sessions[copilotSid]?.state, .waiting, "a verdict from before the wait began is not about it")
+    }
     func testAnOpencodeRunWithAPermissionApprovedThreeMillisecondsLater() {
         replay(opencode("session.created", at: 0)); XCTAssertEqual(state(ocParent), .idle)
         replay(opencode("session.inbox.enqueued", at: 0.006, ["delivery": "steer"])); XCTAssertEqual(state(ocParent), .working)

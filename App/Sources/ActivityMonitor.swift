@@ -487,13 +487,15 @@ final class ActivityMonitor {
     }
 
     /// Ctrl+C and a double Esc fire no hook in Copilot, and a failed turn fires no `agentStop`: a quiet working
-    /// Copilot session is read from its `events.jsonl`, ending the turn when the file says it is over. Answering a
-    /// permission prompt fires no hook either, nor does a second prompt that opens right after — a waiting session
-    /// is read the same way, and its prompt's `permission.completed` after the wait began
-    /// (`CopilotTranscriptTail.waitAnswered`) returns it to working, as of the check, like Claude Code's answered
-    /// dialog. At launch every Copilot session, working or waiting, is read without the quiet gate.
-    /// Live, a file read with no event since is read again `abandonRecheckSeconds` later at the earliest —
-    /// `transcriptCheckedAt` is shared between the two loops, since a session is never both working and waiting.
+    /// Copilot session is read from its `events.jsonl`, ending the turn when the file says it is over. A waiting
+    /// session is read the same way, once, deciding both at once (`CopilotTranscriptTail.waitDecision`): an
+    /// `abort` stamped after the wait began cancels it (Ctrl+C or a double Esc at the prompt) — idle, the turn
+    /// closed, journaled so a replay gives the same state; else its prompt's `permission.completed` after the
+    /// wait began (answering fires no hook either, nor does a second prompt that opens right after) returns it
+    /// to working, as of the check, like Claude Code's answered dialog. At launch every Copilot session, working
+    /// or waiting, is read without the quiet gate. Live, a file read with no event since is read again
+    /// `abandonRecheckSeconds` later at the earliest — `transcriptCheckedAt` is shared between the two loops,
+    /// since a session is never both working and waiting.
     private func checkCopilot(now: Date, atLaunch: Bool) {
         transcriptCheckedAt = transcriptCheckedAt.filter { sessions.sessions[$0.key] != nil }
         for (sid, recorded) in sessions.copilotCandidates(at: now, quietSeconds: atLaunch ? 0 : ActivityConstants.abandonQuietSeconds) {
@@ -520,11 +522,18 @@ final class ActivityMonitor {
             if !atLaunch, let checked = transcriptCheckedAt[sid], session.lastEventAt <= checked,
                now.timeIntervalSince(checked) < ActivityConstants.abandonRecheckSeconds { continue }
             transcriptCheckedAt[sid] = now
-            guard let tail = CopilotTranscript.path(sessionId: sid, recorded: recorded).flatMap(CopilotTranscript.read(path:))?.tail,
-                  CopilotTranscriptTail.waitAnswered(tail: tail, waitSince: waitSince, sessionId: sid) != nil else { continue }
-            onLog?("activity: Copilot prompt answered without a hook (\(sid.prefix(8))); back to working")
-            sessions.dialogAnswered(sessionId: sid, now: now)
-            journal(.dialogAnswered, sid: sid, at: now)
+            guard let tail = CopilotTranscript.path(sessionId: sid, recorded: recorded).flatMap(CopilotTranscript.read(path:))?.tail else { continue }
+            switch CopilotTranscriptTail.waitDecision(tail: tail, sessionId: sid, waitSince: waitSince) {
+            case .aborted(let at):
+                onLog?("activity: Copilot wait cancelled (\(sid.prefix(8))); the turn is over")
+                if let stamp = sessions.abandonWait(sessionId: sid, now: now, endedAt: at) { journal(.waitAbandoned, sid: sid, at: stamp) }
+            case .answered:
+                onLog?("activity: Copilot prompt answered without a hook (\(sid.prefix(8))); back to working")
+                sessions.dialogAnswered(sessionId: sid, now: now)
+                journal(.dialogAnswered, sid: sid, at: now)
+            case .nothing:
+                break
+            }
         }
     }
 
