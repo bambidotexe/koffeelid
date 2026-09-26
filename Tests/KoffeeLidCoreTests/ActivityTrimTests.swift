@@ -80,14 +80,14 @@ final class ActivityTrimTests: XCTestCase {
         XCTAssertFalse(String(decoding: try! ActivityCodec.encodeLine(stop), as: UTF8.self).contains("secret"))
     }
     func testTheHooksArgumentsSayWhichAgentSpeaks() {
-        XCTAssertEqual(HookCall(arguments: []), .claude)
+        XCTAssertEqual(HookCall(arguments: ["claude"]), .claude)
         XCTAssertEqual(HookCall(arguments: ["codex"]), .codex)
         XCTAssertEqual(HookCall(arguments: ["copilot", "agentStop"]), .copilot(event: "agentStop"))
         XCTAssertEqual(HookCall(arguments: ["copilot", "preToolUse"]), .copilot(event: "preToolUse"), "the trim, not the arguments, refuses the name")
         XCTAssertEqual(HookCall(arguments: ["opencode"]), .opencode)
         XCTAssertEqual([HookCall.claude, .codex, .copilot(event: "x"), .opencode].map(\.agent), [.claude, .codex, .copilot, .opencode])
-        for arguments in [["copilot"], ["copilot", "agentStop", "extra"], ["codex", "extra"], ["opencode", "x"], ["claude"], ["job"], [""]] {
-            XCTAssertNil(HookCall(arguments: arguments), "\(arguments): the hook writes nothing and still exits 0")
+        for arguments in [[], ["copilot"], ["copilot", "agentStop", "extra"], ["codex", "extra"], ["opencode", "x"], ["claude", "x"], ["job"], [""]] {
+            XCTAssertNil(HookCall(arguments: arguments), "\(arguments): the hook names no agent, writes nothing and still exits 0")
         }
     }
     func testLabelIsTrimmedTo60() {

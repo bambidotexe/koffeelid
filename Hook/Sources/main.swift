@@ -2,19 +2,26 @@ import Foundation
 import Darwin
 import KoffeeLidCore
 
-/// `KoffeeLidHook hook` runs inside every Claude Code turn, `hook codex` inside every Codex turn, `hook copilot
-/// <event>` inside every Copilot turn and `hook opencode` for every OpenCode event a plugin forwards to it:
-/// it must never block on anything but one append, never launch the app, and always exit 0, whatever its
-/// arguments (Copilot denies a tool whose hook fails). `job begin|end` are the zsh snippet's primitives.
+/// `KoffeeLidHook hook claude` runs inside every Claude Code turn, `hook codex` inside every Codex turn,
+/// `hook copilot <event>` inside every Copilot turn and `hook opencode` for every OpenCode event a plugin
+/// forwards to it: it must never block on anything but one append, never launch the app, and always exit 0,
+/// whatever its arguments (Copilot denies a tool whose hook fails). The hook always names its agent: `hook`
+/// alone is no agent's and writes nothing. `job begin|end` are the zsh snippet's primitives.
 enum HookMain {
+    static let usageLine = "usage: KoffeeLidHook hook claude | codex | copilot EVENT | opencode | job begin --id ID --pid PID [--label TEXT] [--arm-after SECONDS] | job end --id ID\n"
+
     static func run(_ args: [String]) -> Int32 {
         let disabled = ProcessInfo.processInfo.environment["KOFFEELID_DISABLE"] == "1"
         switch args.first {
         case "hook":
             // Every form reads its payload to the end first, the ones that write nothing included, so the agent
-            // writing it never meets a closed pipe. Arguments no agent's hook sends write nothing.
+            // writing it never meets a closed pipe. Arguments no agent's hook sends — an agent left unnamed
+            // among them — write nothing and say so on stderr, exit 0 all the same.
             let input = readInput()
-            guard !disabled, let call = HookCall(arguments: Array(args.dropFirst())) else { return 0 }
+            guard !disabled else { return 0 }
+            guard let call = HookCall(arguments: Array(args.dropFirst())) else {
+                FileHandle.standardError.write(Data(usageLine.utf8)); return 0
+            }
             return hook(call, input: input)
         case "job": return disabled ? 0 : job(Array(args.dropFirst()))
         default: return disabled ? 0 : usage()
@@ -22,7 +29,7 @@ enum HookMain {
     }
 
     static func usage() -> Int32 {
-        FileHandle.standardError.write(Data("usage: KoffeeLidHook hook [codex | copilot EVENT | opencode] | job begin --id ID --pid PID [--label TEXT] [--arm-after SECONDS] | job end --id ID\n".utf8))
+        FileHandle.standardError.write(Data(usageLine.utf8))
         return 2
     }
 

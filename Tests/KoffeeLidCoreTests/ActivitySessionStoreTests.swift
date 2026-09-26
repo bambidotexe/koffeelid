@@ -328,6 +328,62 @@ final class ActivitySessionStoreTests: XCTestCase {
         XCTAssertEqual(state("c1"), .working); XCTAssertTrue(store.sessions["c1"]!.pendingDone)
         XCTAssertEqual(store.sessions["c1"]?.liveAgents["h1"], t0.addingTimeInterval(3), "the helper's report still counts")
     }
+    func testAHelpersWaitKeepsAHeldFinishAndTheHoldEndsIt() {
+        // A Stop with a helper live is held; the helper asks a permission, is answered and stops: the hold must
+        // still end the turn, since OpenCode has no rescue that would.
+        store.apply(ev(.userPromptSubmit, "o1", pid: 300, by: .opencode))
+        store.apply(ev(.subagentStart, "o1", at: 1, agent: "h1", pid: 300, by: .opencode))
+        store.apply(ev(.stop, "o1", at: 2, pid: 300, by: .opencode))
+        XCTAssertEqual(state("o1"), .working); XCTAssertTrue(store.sessions["o1"]!.pendingDone)
+        store.apply(ev(.permissionRequest, "o1", at: 3, tool: "bash", agent: "h1", pid: 300, by: .opencode))
+        XCTAssertEqual(state("o1"), .waiting); XCTAssertTrue(store.sessions["o1"]!.pendingDone, "the wait keeps the held finish")
+        store.apply(ev(.postToolUse, "o1", at: 4, tool: "bash", agent: "h1", pid: 300, by: .opencode))
+        XCTAssertEqual(state("o1"), .working); XCTAssertTrue(store.sessions["o1"]!.pendingDone, "answered, the hold goes on")
+        store.apply(ev(.subagentStop, "o1", at: 5, agent: "h1", pid: 300, by: .opencode))
+        store.tick(now: t0.addingTimeInterval(5 + ActivityConstants.holdGraceSeconds))
+        XCTAssertEqual(state("o1"), .done, "the hold ends the turn, as it would have without the prompt")
+    }
+    func testAHelpersUnansweredWaitFreezesTheHold() {
+        store.apply(ev(.userPromptSubmit)); store.apply(ev(.subagentStart, at: 1, agent: "h1"))
+        store.apply(ev(.stop, at: 2)); store.apply(ev(.permissionRequest, at: 3, tool: "Bash", agent: "h1"))
+        XCTAssertEqual(state(), .waiting)
+        store.tick(now: t0.addingTimeInterval(3 + ActivityConstants.agentStaleSeconds + ActivityConstants.holdGraceSeconds + 1))
+        XCTAssertEqual(state(), .waiting, "a prompt still open is not a finish: the hold's clocks run only while working")
+        store.tick(now: t0.addingTimeInterval(3 + ActivityConstants.holdTTLSeconds + 1))
+        XCTAssertEqual(state(), .waiting)
+        store.apply(ev(.postToolUse, at: 4 + ActivityConstants.holdTTLSeconds, tool: "Bash", agent: "h1"))
+        XCTAssertEqual(state(), .working); XCTAssertTrue(store.sessions["s1"]!.pendingDone, "answered at last, the hold resumes")
+    }
+    func testAHelpersLineWithNoTurnIdInsideTheQuarantineChangesNothing() {
+        store.apply(ev(.userPromptSubmit, "o1", pid: 300, by: .opencode))
+        store.apply(ev(.subagentStart, "o1", at: 1, agent: "h1", pid: 300, by: .opencode))
+        store.apply(ev(.interrupt, "o1", at: 2, pid: 300, by: .opencode)); XCTAssertEqual(state("o1"), .idle)
+        store.apply(ev(.permissionRequest, "o1", at: 3, tool: "bash", agent: "h1", pid: 300, by: .opencode))
+        XCTAssertEqual(state("o1"), .idle, "a helper's straggler inside the quarantine")
+        store.apply(ev(.postToolUse, "o1", at: 4, tool: "bash", agent: "h1", pid: 300, by: .opencode))
+        XCTAssertEqual(state("o1"), .idle); XCTAssertFalse(store.isRunning)
+        XCTAssertTrue(store.sessions["o1"]!.liveAgents.isEmpty, "set aside, not registered again")
+        XCTAssertEqual(store.sessions["o1"]?.lastEventAt, t0.addingTimeInterval(4), "liveness still")
+        // Past the quarantine the same line is what it always was: a helper's wait.
+        store.apply(ev(.permissionRequest, "o1", at: 2 + ActivityConstants.abortQuarantineSeconds + 1, tool: "bash", agent: "h2", pid: 300, by: .opencode))
+        XCTAssertEqual(state("o1"), .waiting)
+    }
+    func testALineOfAnEndedSessionCreatesNothingUntilAStartOrAPrompt() {
+        store.apply(ev(.userPromptSubmit, "c1", pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.interrupt, "c1", at: 1, pid: 300, by: .codex, turn: "t1"))
+        store.apply(ev(.sessionEnd, "c1", at: 2, pid: 300, by: .codex)); XCTAssertNil(state("c1"))
+        store.apply(ev(.postToolUse, "c1", at: 15, tool: "shell", pid: 300, by: .codex, turn: "t1"))
+        XCTAssertNil(state("c1"), "the late end of the aborted tool conjures no session"); XCTAssertFalse(store.isRunning)
+        store.apply(ev(.stop, "c1", at: 16, pid: 300, by: .codex, turn: "t1")); XCTAssertNil(state("c1"))
+        store.apply(ev(.userPromptSubmit, "c1", at: 20, pid: 300, by: .codex, turn: "t2"))
+        XCTAssertEqual(state("c1"), .working, "a prompt of the same id is a session again")
+        // A start too; and past 120 s any line, as for a session never heard of.
+        store = ActivitySessionStore()
+        store.apply(ev(.sessionEnd)); store.apply(ev(.sessionStart, at: 1, source: "resume")); XCTAssertEqual(state(), .idle)
+        store = ActivitySessionStore()
+        store.apply(ev(.sessionEnd)); store.apply(ev(.postToolUse, at: ActivityConstants.abortQuarantineSeconds + 1, tool: "Bash"))
+        XCTAssertEqual(state(), .working)
+    }
     func testARegistryVerdictClosesTheTurn() {
         store.apply(ev(.userPromptSubmit, turn: "p1")); store.apply(ev(.preToolUse, at: 1, tool: "Bash", turn: "p1"))
         store.finishTurn(sessionId: "s1", endedAt: t0.addingTimeInterval(30), now: t0.addingTimeInterval(30)); XCTAssertEqual(state(), .done)

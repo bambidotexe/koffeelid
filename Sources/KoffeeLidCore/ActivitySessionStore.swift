@@ -69,6 +69,10 @@ public struct CompactionSnapshot: Equatable {
 /// so journal replay and live events share one path.
 public struct ActivitySessionStore {
     public private(set) var sessions: [String: ActivitySession] = [:]
+    /// The sessions a `SessionEnd` forgot, by id, for `abortQuarantineSeconds`: until then only a start or a
+    /// prompt of that id creates a session again, and any other line of it (the late end of a tool the turn had
+    /// aborted, a `Stop` after the exit) conjures nothing.
+    var endedAt: [String: Date] = [:]
     public init() {}
 
     /// The tools whose call is a question to the user: Claude Code's `AskUserQuestion` and `ExitPlanMode`,
@@ -85,10 +89,15 @@ public struct ActivitySessionStore {
         let agent = e.effectiveAgent
         guard ActivityEventName.hookEvents(for: agent).contains(e.event), let sid = e.sessionId else { return }
         let now = e.loggedAt
-        if e.event == .sessionEnd { sessions.removeValue(forKey: sid); return }
+        if e.event == .sessionEnd { sessions.removeValue(forKey: sid); endedAt[sid] = now; return }
         // A helper's own end naming a session the store never heard of tells nothing about it: it must not
-        // conjure one into existence.
+        // conjure one into existence; nor does any line of a session just ended but a start or a prompt.
         if sessions[sid] == nil, e.agentId != nil, e.event == .subagentStop { return }
+        if sessions[sid] == nil, let ended = endedAt[sid] {
+            if [.sessionStart, .userPromptSubmit].contains(e.event) || now.timeIntervalSince(ended) >= ActivityConstants.abortQuarantineSeconds {
+                endedAt.removeValue(forKey: sid)
+            } else { return }
+        }
         var s = sessions[sid] ?? ActivitySession(id: sid, at: now)
         s.agent = agent
         s.lastEventAt = now
@@ -103,11 +112,13 @@ public struct ActivitySessionStore {
 
         if let agentId = e.agentId {
             // Helper events maintain the registry and never speak for the main agent — except that a helper
-            // blocked on a permission blocks the whole turn, and a helper active after `done` re-opens it.
+            // blocked on a permission blocks the whole turn, and a helper active after `done` re-opens it. A
+            // held finish stays held through the helper's wait: only a main-agent event cancels a hold, and the
+            // hold is what ends the turn once the helper is gone (OpenCode has no rescue that would).
             switch e.event {
             case .subagentStop: s.liveAgents.removeValue(forKey: agentId)
             case .permissionRequest:
-                s.liveAgents[agentId] = now; clearPending(&s); set(&s, .waiting, now, fromAgent: true)
+                s.liveAgents[agentId] = now; set(&s, .waiting, now, fromAgent: true)
             default:
                 s.liveAgents[agentId] = now
                 if s.state == .waiting, s.waitingFromAgent { set(&s, .working, now) }
@@ -223,11 +234,14 @@ public struct ActivitySessionStore {
     /// without a turn id inside the quarantine after an `Interrupt`.
     static func changesNothing(_ e: ActivityEvent, in s: ActivitySession) -> Bool {
         let ofClosedTurn = e.turnId.map(s.closedTurnIds.contains) ?? false
-        if e.agentId != nil { return ofClosedTurn }
-        if [.sessionStart, .userPromptSubmit].contains(e.event) { return false }
-        // A new tool call is never an aborted tool's straggler, and a verdict can close a turn that waits on a
-        // dialog whose hook lines were lost: its next tool call is the turn at work.
-        if ofClosedTurn { return e.event != .preToolUse || e.turnId.map(s.interruptedTurnIds.contains) ?? false }
+        if e.agentId == nil {
+            if [.sessionStart, .userPromptSubmit].contains(e.event) { return false }
+            // A new tool call is never an aborted tool's straggler, and a verdict can close a turn that waits on
+            // a dialog whose hook lines were lost: its next tool call is the turn at work.
+            if ofClosedTurn { return e.event != .preToolUse || e.turnId.map(s.interruptedTurnIds.contains) ?? false }
+        } else if ofClosedTurn { return true }
+        // The quarantine covers a helper's tool and permission lines too: an Interrupt ended its helpers, and a
+        // straggler of one must not raise a wait the helper's next line would then answer into `working`.
         guard e.turnId == nil, lateToolEvents.contains(e.event), let interruptedAt = s.interruptedAt else { return false }
         return e.loggedAt.timeIntervalSince(interruptedAt) < ActivityConstants.abortQuarantineSeconds
     }
@@ -295,9 +309,12 @@ public struct ActivitySessionStore {
 
     /// Every time-based rule. Call with the wall clock; schedule the next call at `nextDeadline(after:)`.
     public mutating func tick(now: Date) {
+        endedAt = endedAt.filter { now.timeIntervalSince($0.value) < ActivityConstants.abortQuarantineSeconds }
         for (id, original) in sessions {
             var s = original
-            if s.pendingDone {
+            // The hold's clocks run only while the session works: a wait a helper raised freezes them until it
+            // is answered, since a prompt still open is not a finish.
+            if s.pendingDone, s.state == .working {
                 updateHoldRelease(&s, now: now)
                 let graceExpired = s.holdReleasedAt.map { now.timeIntervalSince($0) >= ActivityConstants.holdGraceSeconds } ?? false
                 let ttlExpired = now.timeIntervalSince(s.lastEventAt) >= ActivityConstants.holdTTLSeconds

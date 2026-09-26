@@ -23,13 +23,19 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
    whose failure denies the tool) and OpenCode's plugin (the 19 forwarded events, `session.tool.input.started`
    read for tool names) feed one append-only journal per app, one trimmed line per event.
 2. A Codex hook is installed with no `matcher`, `timeout` 3 for `SessionEnd` and `Interrupt` and 5 otherwise,
-   after every existing group, and its trust (`[hooks.state."<hooks file>:<event>:<group>:<handler>"]`,
+   after every existing group the first time and **in its own place afterwards** (a group of ours already in
+   the event's array is replaced at its index, so no group after it moves and no trust key of another
+   program's changes), and its trust (`[hooks.state."<hooks file>:<event>:<group>:<handler>"]`,
    `trusted_hash` = Codex's hash of the normalised entry) is written into Codex's `config.toml`; removing the
-   hooks removes the trust first. A Codex hook counts as set up only while installed **and** trusted.
+   hooks removes the trust first. A Codex hook counts as set up only while installed **and** trusted. A
+   `config.toml` that already holds a state of ours in any form but that table (an inline table, a dotted key
+   `"<key>".trusted_hash` under `[hooks.state]`) is refused before either file is written.
 3. The hook drains stdin to its end, keeps 8 MB at most, never blocks on anything but one `O_APPEND` write of at
    most 4096 bytes, never launches the app, and exits 0 for every hook form, unrecognised arguments included (a
    malformed `job` call alone prints its usage); the app's `*_DISABLE=1` silences it, its job lines included.
-4. A journal line carries the agent (the hook's verb or flag says which; a bare hook is Claude Code's), the event
+   **The hook always names its agent** (`claude`, `codex`, `copilot <event>`, `opencode`): a `hook` naming
+   none is no agent's, prints its usage and writes nothing, exit 0 all the same.
+4. A journal line carries the agent (the hook's verb or flag says which; a bare hook writes no line), the event
    under Claude Code's names (Copilot's and OpenCode's mapped onto them), `session_id`, `agent_id`, `tool_name`,
    `turn_id` (`turn_id`, else `prompt_id`), `notification_type`, `source`, the transcript path on `SessionStart`,
    `UserPromptSubmit`, `Stop` and `Interrupt` only (at most 1024 characters), the `background_tasks` ids of type
@@ -64,21 +70,26 @@ app then does with a session that is not working (a hold-off, a colour, a push) 
     with when it began and whether a helper raised it; `PostCompact` restores all three (else `working`); a prompt, a `Stop`, an `Interrupt` or a non-compact
     start forgets the snapshot.
 13. Helper events (`agent_id` set) mark the helper live and never speak for the main agent, except: a helper's
-    `PermissionRequest` → `waiting`, raised by the helper; a helper acting again answers any wait a helper raised
-    (a permission, a question, a plan) → `working`, and a repeated `permission_prompt` notification on that wait
-    leaves it the helper's; a helper acting after `done` → `working` with the finish held. `SubagentStop` marks the helper gone; one for an unknown session creates
-    nothing. Only the main agent's `background_tasks` replace the session's set.
+    `PermissionRequest` → `waiting`, raised by the helper, **a held finish staying held**; a helper acting again
+    answers any wait a helper raised (a permission, a question, a plan) → `working`, the finish still held if it
+    was, and a repeated `permission_prompt` notification on that wait leaves it the helper's; a helper acting
+    after `done` → `working` with the finish held. `SubagentStop` marks the helper gone; one for an unknown
+    session creates nothing. Only the main agent's `background_tasks` replace the session's set.
 14. A helper is live for 240 s after its last event. A held finish becomes `done` 90 s after the last helper or
-    background shell cleared, or 30 min after the session's last event; a new helper re-engages the hold; any
-    main-agent event cancels it.
-15. `done` → `idle` after 20 min. A session with no event for 2 h is forgotten. `SessionEnd` forgets the session;
-    the death of the pid it recorded forgets every session on that pid.
+    background shell cleared, or 30 min after the session's last event, **counted only while the session is
+    `working`**: a wait a helper raised freezes the hold until it is answered. A new helper re-engages the hold;
+    only a main-agent event cancels it.
+15. `done` → `idle` after 20 min. A session with no event for 2 h is forgotten. `SessionEnd` forgets the session
+    and remembers its id for 120 s: until then only a start or a prompt of that id creates a session again, and
+    any other line of it (the late end of a tool the turn had aborted) is dropped. The death of the pid a
+    session recorded forgets every session on that pid.
 16. **A closed turn stays closed.** An `Interrupt`, or a verdict that the turn is over, closes the turn named by
     the last main-agent event that carried an id; the last 8 closed turns are kept. An event of a closed turn
     refreshes liveness and changes nothing — except a prompt or a start (always), a `SessionEnd`, and a
     main-agent `PreToolUse` of a turn a *verdict* closed, which reopens it; a turn an `Interrupt` closed reopens
     with a prompt only. For 120 s after an `Interrupt`, and until a prompt or a verdict closes the turn, a tool or
-    permission event without a turn id changes nothing.
+    permission event without a turn id, the main agent's or a helper's, changes nothing (a helper's
+    `SubagentStop` still marks it gone).
 
 ## 3. Rescues: asking the source when the hooks say nothing
 
@@ -203,7 +214,7 @@ job outcomes).
 | Quiet before a working session is asked at its source | 20 s |
 | Recheck cadence (quiet turns, open waits, Copilot waits) | 15 s |
 | Quiet before a waiting Copilot session is first read | none |
-| Tool or permission lines without a turn id ignored after an `Interrupt` | 120 s |
+| Tool or permission lines without a turn id ignored after an `Interrupt`; an ended session's id remembered | 120 s |
 | Source says running with no hook, before one log line | 300 s |
 | Registry `busy` lead over a wait's start | 2 s |
 | Rollout and `events.jsonl` tail read | 64 KB |

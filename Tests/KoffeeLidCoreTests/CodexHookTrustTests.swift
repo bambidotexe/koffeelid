@@ -67,6 +67,16 @@ final class CodexHookTrustTests: XCTestCase {
         return CodexHookTrust.entries(hooksFile: file, root: root, config: HookConfig.codex, command: cmd)
     }
     var hashes: Set<String> { CodexHookTrust.hashes(config: HookConfig.codex, command: cmd) }
+
+    func testADottedKeyStateUnderTheHeaderIsRefusedLikeAnInlineOne() {
+        // `"<key>".trusted_hash = …` under `[hooks.state]` defines the same table a `[hooks.state."<key>"]`
+        // header would: adding ours beside it would define it twice and Codex would refuse the file.
+        let key = entries.first!.key
+        let ours = "[hooks.state]\n\"\(key)\".trusted_hash = \"sha256:old\"\n"
+        XCTAssertNil(CodexHookTrust.trusting(ours, entries: entries, ourHashes: hashes))
+        let theirs = "[hooks.state]\n\"/Users/me/.codex/hooks.json:stop:7:0\".trusted_hash = \"sha256:x\"\n"
+        XCTAssertNotNil(CodexHookTrust.trusting(theirs, entries: entries, ourHashes: hashes), "another program's dotted state is no reason to refuse")
+    }
     /// A real config.toml: a comment, a multi-line string holding a header-looking line, tables, the trust of
     /// the stranger's Stop hook (the first group of that event, so `:stop:0:0`).
     let config = """

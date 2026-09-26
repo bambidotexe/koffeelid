@@ -10,6 +10,9 @@ public struct HookConfig {
     public let events: [String]
     /// Recognises our own entries whatever bundle path they were installed from.
     public let marker: String
+    /// A whole command of ours from before the hook named its agent (`… KoffeeLidHook hook`, nothing after):
+    /// still ours to replace and remove, never counted as set up, since such a hook writes nothing now.
+    let legacySuffix: String?
     /// Claude Code takes an explicit match-all matcher. Codex reads a missing one as match-all and hashes
     /// an entry's identity for its trust, so the smaller entry is the one it gets.
     let matcher: String?
@@ -18,11 +21,17 @@ public struct HookConfig {
 
     public static let claude = HookConfig(
         agent: .claude, events: ActivityEventName.claudeCodeEvents.map(\.rawValue),
-        marker: "/Contents/MacOS/KoffeeLidHook hook", matcher: "*", timeout: { _ in 5 })
+        marker: "/Contents/MacOS/KoffeeLidHook hook claude", legacySuffix: "/Contents/MacOS/KoffeeLidHook hook",
+        matcher: "*", timeout: { _ in 5 })
     public static let codex = HookConfig(
         agent: .codex, events: ActivityEventName.codexEvents.map(\.rawValue),
-        marker: "/Contents/MacOS/KoffeeLidHook hook codex", matcher: nil,
+        marker: "/Contents/MacOS/KoffeeLidHook hook codex", legacySuffix: nil, matcher: nil,
         timeout: { $0 == "SessionEnd" || $0 == "Interrupt" ? 3 : 5 })
+
+    /// Whether a hook command is one of ours, in any form this spec ever wrote.
+    public func isOurs(_ command: String) -> Bool {
+        command.contains(marker) || (legacySuffix.map { command.trimmingCharacters(in: .whitespaces).hasSuffix($0) } ?? false)
+    }
     /// The spec of an agent whose hooks live in such a `hooks` object; nil for Copilot, whose hook file has
     /// another shape, and OpenCode, which takes a plugin.
     public static func of(_ agent: ActivityAgent) -> HookConfig? {
@@ -42,16 +51,28 @@ public struct HookConfig {
         return group
     }
 
+    /// Our group goes after every existing group the first time and in its own place afterwards: a group of
+    /// ours already in the event's array is replaced at its index, so no group after it moves (Codex names a
+    /// hook's trust after that index). Any other trace of ours — a second group, a handler in a stranger's
+    /// group, an entry under an event no longer subscribed — is scrubbed.
     public func install(into root: [String: Any], command: String) -> [String: Any] {
         var root = root
         if let existing = root["hooks"], !(existing is [String: Any]) { return root }
         var hooks = (root["hooks"] as? [String: Any]) ?? [:]
-        for (event, value) in hooks where value is [Any] { hooks[event] = scrubEventValue(value) }
+        for (event, value) in hooks where value is [Any] && !events.contains(event) { hooks[event] = scrubEventValue(value) }
         for event in events {
             if let existing = hooks[event], !(existing is [Any]) { continue }
-            var groups = (hooks[event] as? [Any]) ?? []
-            groups.append(entry(for: event, command: command))
-            hooks[event] = groups
+            let groups = (hooks[event] as? [Any]) ?? []
+            let fresh = entry(for: event, command: command)
+            if let index = groups.firstIndex(where: { ($0 as? [String: Any]).map { scrubGroup($0) == nil } ?? false }) {
+                hooks[event] = groups.enumerated().compactMap { i, group -> Any? in
+                    if i == index { return fresh }
+                    guard let group = group as? [String: Any] else { return group }
+                    return scrubGroup(group)
+                }
+            } else {
+                hooks[event] = scrubEventValue(groups) + [fresh]
+            }
         }
         root["hooks"] = hooks
         return root
@@ -72,7 +93,7 @@ public struct HookConfig {
         guard let hooks = root["hooks"] as? [String: Any], let groups = hooks[event] as? [Any] else { return nil }
         for case let group as [String: Any] in groups {
             for case let hook as [String: Any] in (group["hooks"] as? [Any]) ?? [] {
-                if let command = hook["command"] as? String, command.contains(marker) { return command }
+                if let command = hook["command"] as? String, isOurs(command) { return command }
             }
         }
         return nil
@@ -102,7 +123,7 @@ public struct HookConfig {
         guard let items = group["hooks"] as? [Any] else { return group }
         let kept = items.filter { item in
             guard let hook = item as? [String: Any], let command = hook["command"] as? String else { return true }
-            return !command.contains(marker)
+            return !isOurs(command)
         }
         if kept.isEmpty { return nil }
         var group = group; group["hooks"] = kept; return group

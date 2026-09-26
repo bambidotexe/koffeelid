@@ -20,7 +20,7 @@ enum HookInstaller {
     static var hookPath: String {
         MainActor.assumeIsolated { ActivityMonitor.hookBinaryURL }.resolvingSymlinksInPath().standardizedFileURL.path
     }
-    static var command: String { "\(hookPath) hook" }
+    static var command: String { "\(hookPath) hook claude" }
     static var codexCommand: String { "\(hookPath) hook codex" }
     static var snippet: String { ShellInit.zsh(hookPath: hookPath) }
 

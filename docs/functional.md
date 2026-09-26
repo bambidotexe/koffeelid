@@ -81,12 +81,19 @@ key counts: an external keyboard's Fn/Globe key never arms. Without the grant an
 Off by default ("Arm while Claude Code, Codex, Copilot, OpenCode or a terminal command is running", Settings ›
 Auto-Arm). Setting up any of the five hooks from that page or from the onboarding turns it on.
 
-- **Claude Code**: 15 hook events in `~/.claude/settings.json` run the embedded `KoffeeLidHook hook`, which
-  appends one trimmed line per event to `~/Library/Application Support/KoffeeLid/activity.jsonl`. A session
+- **Claude Code**: 15 hook events in `~/.claude/settings.json` run the embedded `KoffeeLidHook hook claude`,
+  which appends one trimmed line per event to `~/Library/Application Support/KoffeeLid/activity.jsonl`. The
+  hook always names its agent (`claude`, `codex`, `copilot <event>`, `opencode`): `KoffeeLidHook hook` alone
+  writes nothing, prints its usage and exits 0, so an entry of that older form is recognised as KoffeeLid's
+  (Health shows the hooks as there and wrong, Set up replaces it, Remove takes it) and never counted as set
+  up. A session
   counts as working from a prompt or tool event until its `Stop`, or until its turn closes (below). A session
   blocked on a question, a plan
   approval or a permission does not count. A `Stop` while helpers or background shells are still out keeps the
-  turn running until they finish or fall silent (240 s per helper, 90 s grace, 30 min cap). A compaction is work
+  turn running until they finish or fall silent (240 s per helper, 90 s grace, 30 min cap); a helper's
+  permission prompt inside that hold pauses it — the session waits, the finish stays held, and the hold's
+  clocks run again once the helper acts — so a turn whose helper asked a question before it ended still ends
+  when the helper is gone. A compaction is work
   while it runs and changes nothing once it ends: `PreCompact` counts as working, the `SessionStart` of source
   `compact` in between changes nothing, and `PostCompact` puts the session back to the state `PreCompact` found
   it in — working if the compaction ran inside a turn, idle or finished if it ran at the prompt, and a wait
@@ -141,8 +148,11 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
   lines were lost; a turn an `Interrupt` closed opens again only with a prompt. A `Stop` ends the turn but does not close it: a Stop hook that blocks it keeps
   the turn running, and its later events count. The turn closed is the one named by the last main-agent event
   that carried an id. A prompt always opens a turn, whatever id it carries, a closed one included. For 120 s
-  after an `Interrupt`, a tool or permission event without a turn id changes nothing either. A line without a
-  turn id otherwise follows the rules above.
+  after an `Interrupt`, a tool or permission event without a turn id, the main agent's or a helper's, changes
+  nothing either (a helper's `SubagentStop` still marks it gone). A line without a turn id otherwise follows
+  the rules above. A `SessionEnd` forgets the session and remembers its id for 120 s: until then only a
+  start or a prompt of that id makes a session again, and any other line of it — the late end of a tool the
+  turn had aborted, a `Stop` after the exit — makes none.
 - **Terminal (zsh)**: a `preexec`/`precmd` snippet in `~/.zshrc` reports each command. A command counts once it
   has run longer than "Ignore commands shorter than" (default 5 s, `KOFFEELID_ARM_AFTER` per shell).
   Leading `VAR=value` words and the prefixes `sudo`, `time`, `command`, `builtin`, `exec`, `nice`, `nohup`,

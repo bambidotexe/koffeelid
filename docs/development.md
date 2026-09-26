@@ -269,9 +269,9 @@ fold angles and compare. One 1440 × 900 render takes about a second with `swift
 
 **Testing the activity feature.** Set `KOFFEELID_DISABLE_ACTIVITY=1` in a Debug app's environment: it shares
 UserDefaults and the activity journal with the installed app. Fake one Claude Code turn:
-`echo '{"hook_event_name":"UserPromptSubmit","session_id":"fake"}' | /Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook`
+`echo '{"hook_event_name":"UserPromptSubmit","session_id":"fake"}' | /Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook claude`
 (arms if the activity switch is on; the fake event carries no pid, so only a matching `Stop` or staleness ends
-it), or one Codex turn with `… KoffeeLidHook hook codex` (ended by a `Stop`, an `Interrupt` or staleness), or
+it; `hook` with no agent word writes nothing), or one Codex turn with `… KoffeeLidHook hook codex` (ended by a `Stop`, an `Interrupt` or staleness), or
 one Copilot turn with
 `echo '{"sessionId":"fake"}' | COPILOT_HOME=/tmp/kl-nowhere /Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook copilot userPromptSubmitted`
 then `… hook copilot agentStop` (the event name is Copilot's own, in `args`, not the payload; `COPILOT_HOME`

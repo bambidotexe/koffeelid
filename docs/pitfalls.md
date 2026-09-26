@@ -434,6 +434,28 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 - **Why.** Later `precmd` hooks (prompts) expect the command's status.
 - **What the code does.** `local code=$?` is the first statement and the function returns it.
 
+### A helper's permission prompt is not the end of a hold
+- **Symptom.** A session stays working long after everything is over: `koffeelid status` counts it, the Mac
+  stays armed until the 2 h staleness (OpenCode has no rescue that would end it sooner).
+- **Why.** The main agent's `Stop` came while a helper was live, so the finish was held. The helper then asked
+  a permission; clearing the held finish at that wait, and putting the session back to `working` when the
+  helper acted again, left it working with no finish pending, no hold and no event to come.
+- **What the code does.** A helper's `PermissionRequest` keeps `pendingDone`; the hold's clocks (`tick`) run
+  only while the session is `working`, so the wait pauses the hold rather than cancelling it, and the helper's
+  next line resumes it. Only a main-agent event cancels a hold (`docs/shared/activity-detection.md` § 14).
+- **Do not** clear `pendingDone` on any helper line, and do not let `tick` finish a hold while the session
+  waits: a prompt still open is not a finish.
+
+### A hook entry that names no agent writes nothing
+- **Symptom.** Claude Code sessions never count, though `~/.claude/settings.json` holds 15 KoffeeLid entries.
+- **Why.** The hook always names its agent (`hook claude`); an entry from before that rule runs
+  `KoffeeLidHook hook` alone, which prints its usage and writes no line.
+- **What the code does.** `HookConfig.claude` recognises the bare command as ours (`legacySuffix`) so that
+  Health shows the hooks as there and wrong, Set up replaces every such entry in place and Remove takes it,
+  while `installedCount` never counts it as set up.
+- **Do not** make a bare `hook` exit non-zero or write anything: it still runs inside every turn of an agent
+  whose hooks were not set up again.
+
 ### Installing hooks from a Debug build
 - **Why.** `install-hooks` writes the absolute path of the binary that ran it; a DerivedData path disappears at
   the next rebuild.
@@ -459,15 +481,20 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
 ### The trust key moves with the entry's index
 - **Why.** The key ends in the group's index in the event's array. An entry of ours added before a stranger's
   would shift the stranger's key and untrust their hook.
-- **What the code does.** Ours is appended after every existing group, and removed from the end. A table of
-  ours left under an old key (the file was rearranged by hand) is recognised by its hash and dropped.
+- **What the code does.** Ours is appended after every existing group the first time and replaced in its own
+  place afterwards (`HookConfig.install`): a set-up run again never scrubs ours and re-appends it, which would
+  move a group the user added after ours down one index, untrust it, and then delete its trust table under
+  what had become our key. A table of ours left under an old key (the file was rearranged by hand) is
+  recognised by its hash and dropped.
+- **Do not** remove ours before appending: a re-install has to leave every other group's index alone.
 
 ### `config.toml` is edited as text, not parsed
 - **Why.** A TOML rewrite would lose the user's comments and layout, and Core takes no TOML library.
 - **What the code does.** Only `[hooks.state."<key>"]` tables are read, added and removed, the one shape Codex
   writes itself (checked on this Mac through `config/batchWrite`). A `state` written any other way (an inline
-  table) is left alone and the install refuses, saying to trust the hooks from Codex's `/hooks` screen,
-  because a second definition of the same key would make the file invalid for Codex.
+  table, or a dotted key `"<key>".trusted_hash = …` under `[hooks.state]`) is left alone and the install
+  refuses, saying to trust the hooks from Codex's `/hooks` screen, because a second definition of the same
+  key would make the file invalid for Codex (`CodexHookTrust.definesStateOtherwise`, `quotedFirstComponent`).
 
 ### `SessionEnd` and `Interrupt` timeouts are capped at 3 s
 - **What the code does.** Those two entries are written with `timeout: 3`, the others with 5. A larger value
@@ -484,7 +511,11 @@ This is every app's trap: `docs/shared/pitfalls.md`, **B2**. Here `CODE_SIGN_INJ
   `prompt_id`). The `Interrupt` closes the turn the last main-agent event carrying an id named, and any event
   naming a closed turn but a prompt or a `SessionStart`, a helper's included, only refreshes the session's
   liveness (`ActivitySessionStore.changesNothing`); a prompt opens its turn, even under a closed id. For 120 s
-  after an `Interrupt`, a tool or permission line without a turn id is set aside the same way.
+  after an `Interrupt`, a tool or permission line without a turn id, the main agent's or a helper's, is set
+  aside the same way (a helper's permission line let through would raise a wait its next line answers into
+  `working`). And a `SessionEnd` remembers the session's id for the same 120 s (`endedAt`): the late
+  `PostToolUse` arriving after the TUI quit would otherwise make a fresh session, `working`, with nothing but
+  the daemon or staleness to end it.
 - **Do not** forget to un-close an id when a prompt reuses it: every later event of that turn, its `Stop` and
   `Interrupt` included, would be set aside, and the session would stay working with nothing able to end it.
 - **Do not** make a `Stop` close the turn: a user's Stop hook that blocks the Stop keeps the same turn running

@@ -2,8 +2,11 @@ import XCTest
 import KoffeeLidCore
 
 final class HookConfigTests: XCTestCase {
-    let cmd = "/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook"
+    let cmd = "/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook claude"
     let codexCmd = "/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook codex"
+    /// The form the hook was installed in before it had to name its agent: still ours to recognise and remove,
+    /// never counted as set up.
+    let bareCmd = "/Applications/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook"
     /// Shaped like a real settings.json with a stranger's hook that must survive untouched.
     var fixture: [String: Any] {
         ["model": "claude-fable-5-1",
@@ -33,10 +36,47 @@ final class HookConfigTests: XCTestCase {
         XCTAssertEqual(item?["type"] as? String, "command"); XCTAssertEqual(item?["command"] as? String, cmd); XCTAssertEqual(item?["timeout"] as? Int, 5)
     }
     func testInstallIsIdempotentAndReplacesAnOlderPath() {
-        let old = HookConfig.claude.install(into: fixture, command: "/old/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook")
+        let old = HookConfig.claude.install(into: fixture, command: "/old/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook claude")
         let out = HookConfig.claude.install(into: HookConfig.claude.install(into: old, command: cmd), command: cmd)
         XCTAssertEqual(commands(out, "Stop").filter { $0.contains("KoffeeLidHook") }, [cmd])
         XCTAssertEqual(HookConfig.claude.installedCount(in: out, command: cmd), 15)
+    }
+    func testABareEntryFromBeforeTheAgentWasNamedIsOursButNotSetUp() {
+        // `KoffeeLidHook hook` with no agent writes nothing now: an entry of that form is recognised (so Health
+        // says the hooks are there and wrong, and Set up replaces it) and never counted as set up.
+        let old = HookConfig.claude.install(into: fixture, command: bareCmd)
+        XCTAssertEqual(HookConfig.claude.installedCommand(in: old, event: "Stop"), bareCmd, "found: something of ours is there")
+        XCTAssertEqual(HookConfig.claude.installedCount(in: old, command: cmd), 0, "not one event is set up")
+        XCTAssertTrue(HookConfig.claude.isOurs(bareCmd)); XCTAssertTrue(HookConfig.claude.isOurs(cmd))
+        XCTAssertFalse(HookConfig.claude.isOurs(codexCmd), "Codex's entry is the other spec's")
+        XCTAssertFalse(HookConfig.codex.isOurs(bareCmd)); XCTAssertFalse(HookConfig.codex.isOurs(cmd))
+        let out = HookConfig.claude.install(into: old, command: cmd)
+        XCTAssertEqual(commands(out, "Stop").filter { $0.contains("KoffeeLidHook") }, [cmd], "Set up replaces the bare entry")
+        XCTAssertEqual(commands(HookConfig.claude.uninstall(from: old), "Stop"), ["afplay /System/Library/Sounds/Glass.aiff"], "Remove takes it")
+    }
+    func testAReinstallKeepsOurGroupInItsPlace() {
+        // Ours first, then a group the user added after it: a re-install replaces ours where it sits, so the
+        // later group keeps its index (Codex names a hook's trust after it) and nothing of the user's moves.
+        for (config, command, older) in [(HookConfig.codex, codexCmd, "/old/KoffeeLid.app/Contents/MacOS/KoffeeLidHook hook codex"),
+                                         (HookConfig.claude, cmd, bareCmd)] {
+            var root = config.install(into: [:], command: older)
+            var hooks = root["hooks"] as! [String: Any]
+            var stop = hooks["Stop"] as! [Any]
+            stop.append(["hooks": [["type": "command", "command": "say done"]]])
+            hooks["Stop"] = stop; root["hooks"] = hooks
+            let out = config.install(into: root, command: command)
+            XCTAssertEqual(commands(out, "Stop"), [command, "say done"], "\(config.agent): ours replaced at 0, theirs still at 1")
+            XCTAssertEqual(config.installedGroupIndex(in: out, event: "Stop", command: command), 0)
+            XCTAssertEqual(config.installedCount(in: out, command: command), config.events.count)
+            let again = config.install(into: out, command: command)
+            XCTAssertEqual(commands(again, "Stop"), [command, "say done"], "\(config.agent): and again")
+        }
+        // A group of ours found twice (an older layout) keeps the first and drops the rest.
+        var root = HookConfig.codex.install(into: [:], command: codexCmd)
+        var hooks = root["hooks"] as! [String: Any]
+        hooks["Stop"] = (hooks["Stop"] as! [Any]) + [["hooks": [["type": "command", "command": "say done"]]], HookConfig.codex.entry(for: "Stop", command: codexCmd)]
+        root["hooks"] = hooks
+        XCTAssertEqual(commands(HookConfig.codex.install(into: root, command: codexCmd), "Stop"), [codexCmd, "say done"])
     }
     func testUninstallRemovesExactlyOurs() {
         let out = HookConfig.claude.uninstall(from: HookConfig.claude.install(into: fixture, command: cmd))

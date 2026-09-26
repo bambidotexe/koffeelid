@@ -294,7 +294,8 @@ Three surfaces the activity feature depends on, none documented upstream:
   `~/.claude/sessions/<pid>.json` when the session names no such path.
 
 Hooks are installed in `~/.claude/settings.json` (symlinks resolved), one entry per event:
-`{"matcher": "*", "hooks": [{"type": "command", "command": "<bundle>/Contents/MacOS/KoffeeLidHook hook", "timeout": 5}]}`.
+`{"matcher": "*", "hooks": [{"type": "command", "command": "<bundle>/Contents/MacOS/KoffeeLidHook hook claude", "timeout": 5}]}`.
+The hook names its agent; `KoffeeLidHook hook` with nothing after it writes no line.
 
 ## Codex
 

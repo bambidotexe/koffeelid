@@ -7,9 +7,10 @@ import Foundation
 public enum HookCall: Equatable, Sendable {
     case claude, codex, copilot(event: String), opencode
 
+    /// The hook always names its agent: `hook` alone is no agent's, and the hook writes nothing for it.
     public init?(arguments: [String]) {
         switch arguments {
-        case []: self = .claude
+        case ["claude"]: self = .claude
         case ["codex"]: self = .codex
         case ["opencode"]: self = .opencode
         default:

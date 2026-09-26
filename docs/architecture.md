@@ -368,8 +368,8 @@ pid's path and arguments once and marks its sessions `hostedBySharedCodex` (`Pro
 | `Notification` `idle_prompt` / `agent_needs_input`, state `working`, 50 s of main-agent quiet | treated as a lost `Stop` |
 | any event of a turn an `Interrupt` or a verdict closed (`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`, `Stop`, …; a helper's too), but a prompt, a `SessionStart`, or a main-agent `PreToolUse` of a turn a verdict closed | unchanged (liveness only) |
 | main-agent `PreToolUse` of a turn a verdict closed (not in `interruptedTurnIds`) | the turn opens again (its id leaves `closedTurnIds`), then as `PreToolUse` above |
-| helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`), and the next helper event ends that wait; a helper active after a `Stop`'s `done` reopens it, but one after an `Interrupt`'s `idle` does not |
-| `SessionEnd`, process exit | session removed |
+| helper event (`agent_id` set) | refreshes the helper's last-seen time; `SubagentStop` removes it; a helper permission request blocks the turn (`waiting`, a held finish staying held), and the next helper event ends that wait (the hold running again); a helper active after a `Stop`'s `done` reopens it, but one after an `Interrupt`'s `idle` does not |
+| `SessionEnd`, process exit | session removed; a `SessionEnd` also remembers the id in `endedAt` for 120 s, during which only a `SessionStart` or a prompt of that id creates a session again and every other line of it creates none |
 
 Turns: every main-agent event that carries a turn id, a prompt included, records it as `lastMainTurnId`. An
 `Interrupt`, `finishTurn`'s done outcome and `abandonTurn` close that turn (`closeTurn`: the id joins
@@ -384,8 +384,10 @@ notification end the turn without closing it: a Stop hook that blocks the Stop k
 Before the table applies, `changesNothing` sets aside, after refreshing `lastEventAt` and before
 `lastMainEventAt`: every main-agent event of a closed turn but a `SessionStart`, a prompt, or a `PreToolUse`
 of a turn not in `interruptedTurnIds` (`SessionEnd` removes the session before); every helper event of a closed turn; and, for 120 s after an `Interrupt`
-(`abortQuarantineSeconds`), a main-agent tool or permission event with no turn id. A line without a turn id
-otherwise meets the table as it is.
+(`abortQuarantineSeconds`), a tool or permission event with no turn id, the main agent's or a helper's. A line
+without a turn id otherwise meets the table as it is. The hold's clocks (`tick`: the 90 s grace, the 30 min
+cap) run only while the session is `working`: a helper-raised wait with `pendingDone` set freezes them until
+the helper's next line answers it.
 
 Verdict lines: each rescue that decides a session (the registry, a rollout, the daemon or a Copilot
 `events.jsonl`) applies its outcome live through `ActivityMonitor.endTurn(_:finished:endedAt:now:)`: `finished`
@@ -526,8 +528,9 @@ accumulates the kinds seen (`involved`); when nothing runs, `offAt = idleSince +
 `HookConfig.codex`: the events, the marker that recognises our entries whatever bundle path they were
 installed from, the matcher, the timeouts; `HookConfig.of` answers nil for Copilot and OpenCode) and
 transforms the `hooks` object of `~/.claude/settings.json` or `~/.codex/hooks.json` (entries recognised by
-the suffix `/Contents/MacOS/KoffeeLidHook hook`, or `… hook codex`, other tools' entries untouched, ours
-appended after them so their indices stand). `HookSettingsFile` loads either JSON file strictly and backs it
+`/Contents/MacOS/KoffeeLidHook hook claude`, or `… hook codex`, and the older bare `… KoffeeLidHook hook`
+as ours to replace or remove but never to count, other tools' entries untouched, ours appended after them
+the first time and replaced in its own place afterwards, so their indices stand). `HookSettingsFile` loads either JSON file strictly and backs it
 up to `<file>.backup-koffeelid` before writing. `CodexHookTrust` is what Codex wants on top: per hook the
 key `<hooks.json path>:<event label>:<group index>:<handler index>` and the hash Codex computes from the
 entry's identity (SHA-256, `SHA256.swift`, of its canonical JSON), written as `[hooks.state."<key>"]` tables
