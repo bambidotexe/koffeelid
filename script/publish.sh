@@ -75,21 +75,16 @@ git -C "$ROOT" push -q origin "$TAG"
 gh release create "$TAG" "$DMG" -R "$GITHUB_REPO" --title "$APP_NAME $VERSION" \
   --notes-file "$NOTES" >&2
 
-# With `--install`, what was just published is what this Mac runs, by the same path as any other install.
-# Without it, the app already on the Mac finds the release and installs it itself.
+# With `--install`, what was just published is what this Mac runs, by the same path as any other install:
+# script/install.sh with the image it would otherwise build, so the refusal while quitting would sleep the
+# Mac, the sleep lock held across the relaunch and the mode put back are the same. A refusal leaves the
+# release published and /Applications as it was. Without the flag, the app already on the Mac finds the
+# release and installs it itself.
 if [ "$INSTALL" -eq 1 ]; then
-  MOUNT="$(mktemp -d)"
-  /usr/bin/hdiutil attach "$DMG" -nobrowse -readonly -noautoopen -mountpoint "$MOUNT" >/dev/null
-  DEST="/Applications/$APP_NAME.app"
-  osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
-  sleep 1
-  pkill -f "$DEST/Contents/MacOS/${APP_NAME}Watchdog" 2>/dev/null || true
-  rm -rf "$DEST"
-  /usr/bin/ditto "$MOUNT/$APP_NAME.app" "$DEST"
-  /usr/bin/hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true
-  codesign --verify --deep --strict "$DEST" 2>/dev/null || { echo "the installed bundle does not verify" >&2; rm -rf "$DEST"; exit 1; }
-  open "$DEST"
-  echo "installed $DEST ($VERSION)" >&2
+  "$ROOT/script/install.sh" --dmg="$DMG" || {
+    echo "the release $VERSION is published; /Applications was left as it was (see above). The copy running there will offer it, or run script/install.sh once the lid is open." >&2
+    exit 1
+  }
 else
   echo "/Applications is untouched: the copy running there is what this release is offered to." >&2
 fi

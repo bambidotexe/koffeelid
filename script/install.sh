@@ -1,14 +1,17 @@
 #!/bin/zsh
 # **Install locally.** One of the two ways a build of this app ever reaches a Mac.
 #
-#   script/install.sh
+#   script/install.sh [--dmg=<image>]
 #
 # Builds the same signed, notarized, stapled production bundle a release ships, at the version the rule in
 # script/version.sh gives, puts it in /Applications, and leaves nothing behind: when this script returns there
 # is no .app and no .dmg anywhere under the repository, so nothing but /Applications can be launched by
 # Spotlight, opened by the Finder, or started by launchd.
 #
-# The other way is script/publish.sh, which does all of this and puts the disk image on GitHub as well.
+# The other way is script/publish.sh, which does all of this and puts the disk image on GitHub as well; with
+# `--dmg=<image>` this script installs an image already built (publish.sh's, with `--install`) by the very
+# same path — the refusal while quitting would sleep the Mac, the sleep lock held across the relaunch, the
+# mode put back — and builds nothing.
 #
 # There is no third way. A Debug build is for reading a crash that a Release build will not show, it is never
 # installed, and it is not made without the owner asking for it (see script/build.sh).
@@ -20,6 +23,13 @@ source "$ROOT/script/no-leftovers.sh"
 
 DEST="/Applications/$APP_NAME.app"
 MOUNT=""
+GIVEN_DMG=""
+for arg in "$@"; do
+  case "$arg" in
+    --dmg=*) GIVEN_DMG="${arg#--dmg=}"; [ -f "$GIVEN_DMG" ] || { echo "no disk image at $GIVEN_DMG" >&2; exit 1; } ;;
+    *) echo "unknown argument: $arg (--dmg=<image>)" >&2; exit 1 ;;
+  esac
+done
 
 # The sleep lock (`pmset disablesleep`), run under the app's own sudoers rule; fails, harmlessly, without it.
 # BRIDGE=1 while this script holds it for the relaunch (below).
@@ -70,7 +80,7 @@ if [ -x "$DEST/Contents/MacOS/$APP_NAME" ]; then
   fi
 fi
 
-DMG="$("$ROOT/script/release.sh")"
+if [ -n "$GIVEN_DMG" ]; then DMG="$GIVEN_DMG"; else DMG="$("$ROOT/script/release.sh")"; fi
 
 # Read it again: the build took minutes, and the state may have changed in them.
 if [ -x "$DEST/Contents/MacOS/$APP_NAME" ]; then
