@@ -132,7 +132,7 @@ script/install.sh                                     # skill: macos-install-loc
 script/publish.sh <patch|minor|major> --notes=<file> [--install]  # skill: macos-publish-release. The same build, plus a version bump, tag, push, GitHub release; installs only with --install
 # -------------------------------------------------------------------------------------------------
 
-swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (635); needs the Claude Code sandbox off, like xcodebuild
+swift test                                            # KoffeeLidCore + LidPlaneKit unit tests (642); needs the Claude Code sandbox off, like xcodebuild
 swift test --filter LidProgressDriverTests            # one test class
 swift test --filter LidProgressDriverTests/testArmsAfterActivationDegreesWithOption   # one test
 swift build                                           # libraries only; the app needs Xcode (below)
@@ -186,7 +186,7 @@ Five targets, dependency direction strictly downward. Full version in `docs/arch
 | `LidPlaneKit` (`Sources/LidPlaneKit`) | SwiftPM library | Core | The lid-close effect: `EffectController` turns lid angles into a fold (`FoldTracker`, closing only, threshold-gated) and runs a capture session only while folded: `DesktopCapture` (ScreenCaptureKit) → `PlaneRenderer` (Metal, shader in `PlaneShader.swift`; `PlaneRemap.swift` is the same maths in Swift, the tested reference) inside `EffectOverlayPanel`. |
 | `KoffeeLid` (`App/Sources`) | Xcode app target | Core, LidPlaneKit | `KoffeeLidController` is the **only** object that mutates arming state (`setMode(_:source:)` is the entry point; `perform(_:source:)` runs CLI/URL verbs); every other file is a collaborator that reports events to it via closures. `HookInstaller` is a stateless helper used by the CLI client and the Settings window; `UpdateController` owns the update feature (the checks, the notification, the update window, Install and Relaunch) and never touches arming state: it quits the app through `NSApp.terminate`. UI under `App/Sources/UI`: the Settings window is an AppKit toolbar window (`SettingsWindow`) hosting eight SwiftUI pages built only from the kit in `SettingsKit.swift`, sharing one `SettingsModel`, the Health page second to last with its own `HealthCheck`; the four-page onboarding is programmatic AppKit; `PermissionCatalog` and `HookCatalog` are the single lists of grants and hooks, read by both. |
 | `KoffeeLidWatchdog` (`Watchdog/Sources/main.swift`) | Xcode tool, embedded in the app | Core | LaunchAgent that relaunches the app after an unclean exit (pid file present) and stands down otherwise. |
-| `KoffeeLidHook` (`Hook/Sources/main.swift`) | Xcode tool, embedded in the app | Core | `hook` (Claude Code), `hook codex`, `hook copilot <event>`, `hook opencode` and `job begin\|end` verbs, run once per Claude Code event, per Codex event, per Copilot event, per OpenCode event (forwarded by its plugin) and per zsh command: append a trimmed `ActivityEvent` line to `~/Library/Application Support/KoffeeLid/activity.jsonl`. Never launches the app, always exits 0. |
+| `KoffeeLidHook` (`Hook/Sources/main.swift`) | Xcode tool, embedded in the app | Core | `hook claude`, `hook codex`, `hook copilot <event>`, `hook opencode` and `job begin\|end` verbs, run once per Claude Code event, per Codex event, per Copilot event, per OpenCode event (forwarded by its plugin) and per zsh command: append a trimmed `ActivityEvent` line to `~/Library/Application Support/KoffeeLid/activity.jsonl`. The hook always names its agent: `hook` alone writes nothing. Never launches the app, always exits 0. |
 
 The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and calls
 `IOConnectCallScalarMethod(…, 12 /* kPMSetClamshellSleepState */, …)`. See `docs/architecture.md`
@@ -411,7 +411,7 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   it back when it quits. Every grant row is titled what System Settings titles the switch, quoted from the
   system's tables, and **nothing in the app asks for a permission without a click**. The rules and the traps
   are in the `macos-building-onboarding` skill; read it before touching that window or any permission row.
-- `swift test` is green (635 distinct cases: 613 Core, 22 LidPlaneKit) and the Debug build warning-free at this
+- `swift test` is green (642 distinct cases: 620 Core, 22 LidPlaneKit) and the Release build warning-free at this
   commit. The app target has no automated tests; `docs/manual-test-checklist.md` is its verification.
 - **Codex auto-arm is in the tree and not yet walked with the installed app.** What was checked on this Mac
   from the tree: Codex CLI 0.157.0's `hooks/list` reports for a probe hook the same twelve hashes
@@ -451,6 +451,13 @@ The kernel mechanism: `PowerManager` opens an `IOPMrootDomain` user client and c
   the real helper, and end to end against a published GitHub release (check, fetch with its digest, unpacking,
   signature rule); KoffeeLid installing over itself, the notification, the update window and the window that says how an
   install ended have not been seen (`docs/manual-test-checklist.md` § Updates). Open questions the owner has not settled: `docs/functional.md` § Unconfirmed.
+- **The hook names its agent**: the Claude Code entry is `… KoffeeLidHook hook claude`, and `KoffeeLidHook hook`
+  alone writes nothing. Every settings.json entry written by 1.1.3 or earlier is of that bare form, so after
+  the next install the installed copy reads Claude Code as not set up (Health lists the line as wrong) until
+  Set up, the onboarding or `install-hooks` runs again and replaces the entries in place. Not yet walked on
+  this Mac, like the rest of the tree since 1.1.3: the hold that a helper's permission prompt pauses, the
+  quarantine of a helper's stragglers, the ended session remembered for 120 s, the Codex re-install that
+  keeps its place, and `publish.sh --install` going through `install.sh --dmg`.
 - There is no `/usr/local/bin/koffeelid` wrapper: `/usr/local/bin` is root-owned here, so `script/install.sh`
   prints the `sudo` one-liner instead of writing it. Call the bundle binary meanwhile. The sudoers rule for the
   sleep lock **is** in place.
