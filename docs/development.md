@@ -207,14 +207,14 @@ against the catalog: French present, no long dash, a key's symbol before its nam
 
 **A Health page line.** Start with the skill's *The Health page*: a line is either a check (something that has
 to be in place or running for KoffeeLid to work: green, orange or red, never a preference) or a reading (blue,
-at most five), and a line that does neither job does not go on the page. It is decided in Core: a fact in
+at most eight), and a line that does neither job does not go on the page. It is decided in Core: a fact in
 `HealthFacts` (a plain value, nil while unread); a check is a case in `HealthItemID` and its line in
 `HealthReport.checks(for:)`, with its level from a `HealthRules` rule (red only for what stops KoffeeLid keeping a
 closed Mac awake, or doing it safely; a missing grant through `HealthRules.grant`), its `HealthWord`, its
 `HealthDetail` and its `HealthFix`; a reading is a case in `HealthReadingID` and its line in
 `HealthReport.readings(for:)` with its `HealthValue`. A check that has nothing to say while it is fine (the
 lid-sleep flag, the crashes) is a line only while it is wrong. `HealthTests` holds the worst case to
-`HealthLimits`: ten checks, five readings. The words go in `HealthWords` (`HealthWords.swift`) with their French
+`HealthLimits`: thirteen checks, eight readings. The words go in `HealthWords` (`HealthWords.swift`) with their French
 in the catalog. The fact is read where it lives: a grant or anything else the window polls from
 `SettingsModel`; KoffeeLid's own state as a read-only property of the coordinator, read as the page draws;
 anything else in `HealthCheck.read()`, off the main thread, never on a timer.

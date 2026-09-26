@@ -133,7 +133,8 @@ Download `KoffeeLid-<version>.dmg` from the [latest release](https://github.com/
 open it, drag `KoffeeLid.app` to Applications and launch it. A four-page onboarding asks for what it needs: the
 sleep lock (administrator password, once), Login Items (crash recovery), Screen Recording (the fold),
 Input Monitoring (optional: only the built-in keyboard's 🌐 Fn key then arms the gesture), notifications (optional),
-and offers to set up the Claude Code hooks, the Codex hooks and the zsh snippet. Settings › Health then shows at a glance whether
+and offers to set up the Claude Code hooks, the Codex hooks, Copilot's hooks file, OpenCode's plugin and the
+zsh snippet. Settings › Health then shows at a glance whether
 everything KoffeeLid relies on is in place and working, in green, orange or red, and says where to put right
 whatever is not, with a few readings beside it: what KoffeeLid is doing, the lid's angle, when each hook last
 reported.

@@ -2,7 +2,7 @@
 
 KoffeeLid is a macOS menu-bar app (bundle id `dev.rubens.koffeelid`, no Dock icon) that keeps a MacBook
 running with the lid closed. It can be armed by hand, for one close with a lid gesture, or by itself while
-Claude Code, Codex or a terminal command is working. While armed it darkens the built-in panel when the lid shuts,
+Claude Code, Codex, Copilot, OpenCode or a terminal command is working. While armed it darkens the built-in panel when the lid shuts,
 plays a sound, shows a closing-only "the desktop stays upright behind the glass" effect, and locks the screen
 when the lid reopens. A `koffeelid` command line, `koffeelid://` URLs and App Intents drive the same modes.
 English and French; it looks for a newer release on GitHub by itself and installs one on request; no licensing.
@@ -21,8 +21,8 @@ Three manual modes (`ArmMode`):
 | **Armed** | the Mac keeps running, panel dark | nothing extra |
 | **Armed + screen on** (`caffeinate` in code and CLI) | same as Armed | the display never idle-sleeps, no screen saver, no auto-lock |
 
-Independent of the manual mode there is an **auto level** (`ActivityArmPolicy.isOn`): on while Claude Code or a
-terminal command works, and through a hold-off afterwards. **The Mac is armed while either the manual mode or
+Independent of the manual mode there is an **auto level** (`ActivityArmPolicy.isOn`): on while Claude Code,
+Codex, Copilot, OpenCode or a terminal command works, and through a hold-off afterwards. **The Mac is armed while either the manual mode or
 the auto level holds it.** Neither changes the other.
 
 | Way to arm | What it does |
@@ -33,7 +33,7 @@ the auto level holds it.** Neither changes the other.
 | ⌃⌥⌘K | toggles Armed + screen on (from Armed: switches to it) |
 | `koffeelid arm \| off \| caffeinate \| toggle-armed \| toggle-caffeinate`, `koffeelid://<verb>`, App Intents | same transitions; `disarm` and `toggle` are accepted as aliases of `off` and `toggle-armed` |
 | Fn (Globe) + close the lid | arms **one close** (below); Option can replace Fn |
-| Claude Code hooks / zsh snippet | raise the auto level (below) |
+| Claude Code, Codex, Copilot or OpenCode hooks / zsh snippet | raise the auto level (below) |
 | An update's Install and Relaunch | the new version goes back to the manual mode that was on at the click (§ Updates) |
 
 Every manual source stays in its mode until changed. Switching Armed ↔ Armed + screen on happens in place;
@@ -206,7 +206,7 @@ Auto-Arm). Setting up any of the five hooks from that page or from the onboardin
 - **The level rises** the moment something counts and the feature is on: an idle Mac arms (Armed, source
   `activity`); an already armed Mac is unchanged.
 - **The level falls** after the longest hold-off among the kinds that ran during the stretch: 30 min after
-  Claude Code, 30 min after Codex, 1 min after a command (Settings › Auto-Arm). Work that resumes inside the
+  Claude Code, Codex, Copilot or OpenCode, 1 min after a command (Settings › Auto-Arm). Work that resumes inside the
   wait cancels it. Keyboard, trackpad or mouse input at the Mac after the work ended drops the level at once:
   the wait exists for a remote user. When the level falls the Mac disarms only if the manual mode is Off.
 - **"Disarm once finished"** (menu item, present when a hook is set up): the wait becomes one minute and the
@@ -348,7 +348,7 @@ lid closes, only on the built-in display, and captures nothing while the lid res
   card has no title and holds a picture and a sentence, and its second holds a picture, two sentences and a
   button. A control that
   depends on a switch that is off is disabled and its label dims with it: the gesture's key and travels under the
-  gesture switch, the battery level under its switch, the three auto-arm waits under the auto-arm switch, the
+  gesture switch, the battery level under its switch, the five auto-arm waits under the auto-arm switch, the
   effect's start and look under the effect switch, the clip and the volume while none of the three sound switches is on. The gesture
   and effect switches are disabled on a Mac without a lid-angle sensor; right-click arming and the angle in the
   menu bar are disabled while the menu-bar cup is hidden. A number is a slider with its value beside it.
@@ -617,7 +617,7 @@ rule if work is running.
 - It never signals its own processes by name; it only uses pids from its own pid file. The only processes it
   signals by name are `usernoted` and `NotificationCenter`, restarted by the Settings reset to drop the
   notification grant.
-- The hook binary never launches the app, never blocks a Claude Code turn and always exits 0 from the `hook`
+- The hook binary never launches the app, never blocks an agent's turn and always exits 0 from the `hook`
   verb (only a malformed `job` command line, which the snippet never produces, exits 2).
 - It does not record prompts, tool input or output: the activity journal holds event names and identifiers only.
 - It does not fetch or install an update by itself: an automatic check only announces a release.

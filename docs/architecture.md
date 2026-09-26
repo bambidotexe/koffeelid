@@ -558,7 +558,8 @@ defaults, registered in `Preferences.init`. `effectParameters` is a JSON `Effect
 that does not decode falls back to `EffectParameters.default`, and every read and write is `clamped()`.
 
 Outside the app's own folder: `/etc/sudoers.d/koffeelid`, `~/.claude/settings.json` (+ `.backup-koffeelid`),
-`~/.codex/hooks.json` and `~/.codex/config.toml` (each + `.backup-koffeelid`), `~/.zshrc`,
+`~/.codex/hooks.json` and `~/.codex/config.toml` (each + `.backup-koffeelid`),
+`~/.copilot/hooks/koffeelid.json`, `~/.config/opencode/plugins/koffeelid.js`, `~/.zshrc`,
 `/usr/local/bin/koffeelid` (a zsh `exec` wrapper written by `script/install.sh`; a symlink would break
 `Bundle.main`).
 
