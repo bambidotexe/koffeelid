@@ -441,7 +441,10 @@ final class ActivityMonitor {
     }
 
     /// The rollout's verdict on a quiet Codex session: the path its hooks named, else the one the daemon
-    /// named, each only where Codex keeps rollouts and named after the session; else the newest found.
+    /// named, each only where Codex keeps rollouts and named after the session; else the newest found. A busy
+    /// verdict's liveness is dated to the rollout's own last write (its mtime, already read for the verdict's
+    /// staleness check), never to `now`: a session must go stale 2 h after Codex stopped writing to it, not
+    /// 2 h after the last recheck.
     private func checkRollout(sid: String, recorded: String?, daemonPath: String? = nil, now: Date) {
         guard let session = sessions.sessions[sid] else { return }
         rolloutCheckedAt[sid] = now
@@ -455,11 +458,11 @@ final class ActivityMonitor {
         case .turnOver(let reason, let endedAt):
             onLog?("activity: quiet Codex turn \(sid.prefix(8)) — rollout says \(reason), turn over")
             endTurn(sid, endedAt: endedAt, now: now)
-        case .busy:
+        case .busy(let writtenAt):
             if now.timeIntervalSince(session.lastMainEventAt) >= ActivityConstants.hooksSilentWarnSeconds, warnedHooksSilent.insert(sid).inserted {
                 onLog?("activity: hooks look dead for \(sid.prefix(8)) — rollout says running, no hook for 5 min")
             }
-            sessions.noteBusy(sessionId: sid, now: now)
+            sessions.noteBusy(sessionId: sid, now: min(writtenAt ?? now, now))
         case .nothing:
             if verdict == .unreadable, warnedNoRollout.insert(sid).inserted {
                 onLog?("activity: no rollout for Codex session \(sid.prefix(8)); the daemon or staleness ends it")
@@ -488,8 +491,8 @@ final class ActivityMonitor {
             case .turnOver(let reason, let endedAt):
                 onLog?("activity: quiet Copilot turn \(sid.prefix(8)) — transcript says \(reason), turn over")
                 endTurn(sid, endedAt: endedAt, now: now)
-            case .busy:
-                sessions.noteBusy(sessionId: sid, now: now)
+            case .busy(let writtenAt):
+                sessions.noteBusy(sessionId: sid, now: min(writtenAt ?? now, now))
             case .nothing:
                 if verdict == .unreadable, warnedNoTranscript.insert(sid).inserted {
                     onLog?("activity: no transcript for Copilot session \(sid.prefix(8)); staleness ends it")

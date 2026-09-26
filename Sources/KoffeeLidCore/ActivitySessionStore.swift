@@ -347,10 +347,13 @@ public struct ActivitySessionStore {
         min(max(endedAt, lastMainEventAt), now)
     }
     /// The registry says busy, or the rollout's or the `events.jsonl`'s turn has no end: the agent is running
-    /// even though no hook arrived. Liveness only — `lastMainEventAt` keeps measuring true hook silence.
+    /// even though no hook arrived. `now` is the source's own last write, never later than the moment it was
+    /// checked (the registry and the daemon have no file to date, so their callers pass the check's own time).
+    /// Liveness only, and it never moves backwards: a check that reads an older stamp than a previous one
+    /// changes nothing. `lastMainEventAt` keeps measuring true hook silence.
     public mutating func noteBusy(sessionId: String, now: Date) {
         guard var s = sessions[sessionId], s.state == .working else { return }
-        s.lastEventAt = now; sessions[sessionId] = s
+        s.lastEventAt = max(s.lastEventAt, now); sessions[sessionId] = s
     }
     public func openWaitCandidates() -> [(sessionId: String, pid: Int32, stateSince: Date)] {
         sessions.values.compactMap { s in

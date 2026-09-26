@@ -421,10 +421,12 @@ under `~/.codex/sessions/<y>/<m>/<d>/` and names the session's own rollout (`Cod
 `CodexRollout.read` hands the last 64 KB of that regular file, and its modification date, to `CodexRolloutTail.verdict`, which reads only
 the `event_msg` turn markers' type, stamp and turn id, and `CodexRolloutTail.decision` weighs it against the
 session: `task_complete` or `turn_aborted` stamped after the last main event, or naming `lastMainTurnId` →
-`turnOver`; `task_started` with no end, the file written less than 2 h before (`staleSeconds`) → `noteBusy`
-(the same 5 min warning), written earlier → nothing, so staleness ends the session; an earlier turn's end, or
-unreadable → nothing, unreadable logged once per session. A rollout read with no event since is read again 15 s
-later at the earliest (`rolloutCheckedAt`), however often `sync()` runs. Copilot checks
+`turnOver`; `task_started` with no end, the file written less than 2 h before (`staleSeconds`) → `noteBusy`,
+dated to the rollout's own last write (its modification date, clamped to never be later than this check's own
+time) rather than to `now`, so a session goes stale 2 h after Codex stopped writing to it, not 2 h after the
+last recheck (the same 5 min warning), written earlier → nothing, so staleness ends the session; an earlier
+turn's end, or unreadable → nothing, unreadable logged once per session. A rollout read with no event since is
+read again 15 s later at the earliest (`rolloutCheckedAt`), however often `sync()` runs. Copilot checks
 (`ActivityMonitor.checkCopilot`), for Copilot sessions (`copilotCandidates`, the same gate and cadence, no pid
 needed, and no gate at launch), read the session's `events.jsonl`: its `transcriptPath` when it is exactly
 `<session-state>/<session id>/events.jsonl` (`CopilotTranscriptTail.isTranscript`, the root being
@@ -438,8 +440,10 @@ subagent's names the subagent and is skipped), or a step of a turn (`user.messag
 `assistant.message`, `tool.execution_start`, `tool.execution_complete`, `permission.requested`,
 `permission.completed`: running). `CopilotTranscriptTail.decision` weighs it against the session: an end
 stamped after the last main event → `turnOver` (reason `finished`, `aborted`, `failed` or `ended`; Copilot names
-no turn, so the stamp alone decides); running, the file written less than 2 h before → `noteBusy`, written
-earlier → nothing; an earlier end, or unreadable → nothing, unreadable logged once per session. Beside that quiet-turn
+no turn, so the stamp alone decides); running, the file written less than 2 h before → `noteBusy`, dated to the
+file's own last write (its modification date, clamped to never be later than this check's own time) rather
+than to `now`, so a session goes stale 2 h after Copilot stopped writing to it, not 2 h after the last
+recheck, written earlier → nothing; an earlier end, or unreadable → nothing, unreadable logged once per session. Beside that quiet-turn
 check, a waiting Copilot session (`copilotWaitCandidates`, no quiet gate, the same recheck cadence) is read the
 same way: `CopilotTranscriptTail.waitAnswered` reads the latest permission line — a `permission.completed`
 stamped after the wait began (`stateSince`) → `dialogAnswered` as of the check, journaled like Claude Code's
